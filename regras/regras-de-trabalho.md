@@ -148,6 +148,18 @@
 - **Exemplo:** "sempre que refinarmos apps, documentamos lá".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
 
+### R23 — Interação limpa: hover estável, balão por cima, sem sobra de espaço
+- **Regra:** em todo app:
+  - **Seleção de texto:** desligada em toda a UI (menos nos campos de digitar e no texto de conversa).
+  - **Balões, nomes e avisos:** numa camada própria, sempre por cima de tudo, nunca cobertos por outro ícone nem cortados.
+  - **Hover:** com histerese de entrada e saída. Não pisca quando a forma muda embaixo do mouse, não liga e desliga o "ignorar mouse" no meio do gesto, e nada foge do ponteiro.
+  - **Troca de degrau:** só por ação clara (a alça), nunca ao encostar o mouse e nunca no mesmo alvo de outro gesto (girar, deslizar).
+  - **Degraus grandes e cantos:** o corpo fica proporcional ao conteúdo, sem área vazia exagerada, com uma área de pega clara pra mover, separada dos gestos.
+  - Antes de publicar, testar hover e clique reais no simulador.
+- **Por quê:** no app instalado, o balão da Órbita ficou por baixo dos ícones, o relógio aparecia selecionado, a Onda no canto tinha um quarto de disco enorme e vazio (mal dava pra mover) e trocava de tamanho ao encostar na capa.
+- **Exemplo:** "o comportamento de hover [ta] bem bugado, isso é geral ... o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+
 ## Segurança e permissões
 
 ### R17 — Não desligar proteções por ele
