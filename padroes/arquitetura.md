@@ -6,7 +6,7 @@
 Cada app é um artefato HTML publicado no claude.ai, com a capability `desktop`, e instalado pelo app Claude como um app de desktop.
 - **Janela:** sem moldura, transparente, sempre no topo (`window.setOptions`). Posição e tamanho por `setBounds`/`getBounds`. Fora da parte visível, o clique passa pra área de trabalho (`setIgnoreMouseEvents(true, {forward:true})`).
 - **Monitores:** `screen.getAllDisplays()`.
-- **A janela tem só o tamanho do app.** O host prende a janela dentro da tela, então uma área transparente sobrando impediria de encostar nas bordas e nos cantos.
+- **A janela tem só o tamanho do app.** O host prende a janela dentro da **área útil de um monitor só** (o que mais cruza a janela), então uma área transparente sobrando impediria de encostar nas bordas e nos cantos. A regra exata, o que cada chamada faz por baixo e os custos estão em [referencias/ambiente](../referencias/ambiente/README.md).
 - **Teclado:** a janela só recebe o teclado depois do próprio atalho global ou de um menu.
 - **Rede:** a página não faz `fetch` pra rede. Bibliotecas vêm por CDN, e chamadas externas (como a API do Spotify) passam pelos helpers.
 

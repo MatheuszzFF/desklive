@@ -4,6 +4,20 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Ambiente: o host por baixo dos apps (pesquisa)
+- **Novo:** [referencias/ambiente/](referencias/ambiente/README.md), lido do app Claude instalado (Electron 45.3.3, Chromium 156) e das fontes do Electron, do Chromium e da Microsoft:
+  - [host](referencias/ambiente/host.md): como a janela é montada; uma ida e volta por chamada, sem fila; o que cada API faz por baixo; o nível `floating` atrás da barra; throttling desligado; o observador de DOM do preload.
+  - [hover e clique passa](referencias/ambiente/hover-e-clique-passa.md): o gancho do `forward`, o `mouseleave` sintético, a corrida do clique, a captura no Chrome 136+, a receita.
+  - [mover e redimensionar](referencias/ambiente/mover-e-redimensionar.md): a trava real é a área útil de um monitor só, com pulo na emenda; mover × redimensionar; estratégias comparadas; DPI.
+  - [tempo e medição](referencias/ambiente/tempo-e-medicao.md): vsync do monitor principal, tabela de atrasos, a sonda de diagnóstico.
+  - [receitas recomendadas](referencias/ambiente/receitas-recomendadas.md), em ordem, com ganho e risco.
+- **Atualizado:**
+  - [CLAUDE.md](CLAUDE.md): linha no mapa;
+  - [referências](referencias/README.md), [arquitetura](padroes/arquitetura.md) e [hover e balões](padroes/hover-e-baloes.md): ponteiros;
+  - [tamanho e borda](referencias/motor/tamanho-e-borda.md): a "recusa" era `EBUSY`/`EINVAL`;
+  - [motor de movimento](referencias/motor/motor-de-movimento.md): a trava na emenda foi lida no código;
+  - [glossário](visao/glossario.md): área útil, halo de aproximação, palco, portal da emenda, sonda; a "trava da tela" foi corrigida.
+
 ### Modelos: o código dos três apps, limpo
 - **Novo:** [modelos/](modelos/README.md), a única pasta com código: Órbita v28, Onda v19 e Eco v24 como `*-src.html` + helpers + `build.ps1` portátil (caminhos relativos, saída em `modelos/saida/`, ignorada), e em [compartilhado/](modelos/compartilhado/README.md) o motor v2.2, os helpers usados por mais de um app e as funções da montagem (os ícones são extraídos na máquina de quem monta). Sem dados pessoais: Client ID do Spotify como `SEU_CLIENT_ID` vindo de `onda/config.json` (ignorado), lista de apps só com apps do Windows, exemplos genéricos.
 - **Atualizado:** [CLAUDE.md](CLAUDE.md) (código só em `modelos/`, linha nos níveis e no mapa, como atualizar um modelo, o que procurar antes de commitar), [README](README.md), [guia](guia/README.md) (o que não tem aqui) e [glossário](visao/glossario.md) (marcador, modelo).

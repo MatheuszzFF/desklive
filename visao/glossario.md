@@ -6,6 +6,7 @@
 |---|---|---|
 | **acordar por proximidade** | no degrau mínimo, os ícones reagem à distância do mouse numa curva de sino (crescem, ganham cor ou nascem de um ponto) antes de ele chegar | [degrau mínimo da Órbita](../apps/orbita/degrau-minimo.md) |
 | **alça** | o controle discreto que, puxado, troca o degrau de tamanho | apps/*/README.md, "Degraus e alça" |
+| **área útil** | a `workArea` de um monitor (a tela menos a barra do Windows fixa); é nela que o host prende a janela, um monitor de cada vez | [mover e redimensionar](../referencias/ambiente/mover-e-redimensionar.md) |
 | **balão** | o nome, número ou aviso que aparece com o mouse em cima (tooltip); um só por app, numa camada por cima de tudo | [hover e balões](../padroes/hover-e-baloes.md) |
 | **barramento** | a pasta `~/.orbita`, por onde os apps trocam estado e comandos em arquivos | [interação entre apps](../padroes/interacao-entre-apps.md), [arquitetura](../padroes/arquitetura.md) |
 | **"clique passa"** | fora da parte visível, o clique vai pra área de trabalho (`setIgnoreMouseEvents` com `forward`); liga com atraso e nunca com o botão pressionado | [hover e balões](../padroes/hover-e-baloes.md), [arquitetura](../padroes/arquitetura.md) |
@@ -21,6 +22,7 @@
 | **gancho** | o objeto de teste `window.__<app>` no simulador: lê o estado e simula o mouse sem tocar no PC | [arquitetura](../padroes/arquitetura.md), [guia, passo 6](../guia/06-testar-sem-mexer-no-pc.md) |
 | **gesto** | a máquina de estados do mouse no motor: parado → pressionado → arrastando → soltando → assentando | [motor de movimento](../referencias/motor/motor-de-movimento.md) |
 | **guia** | o passo a passo pra fazer o seu próprio app no estilo do projeto | [guia/](../guia/README.md) |
+| **halo de aproximação** | faixa estreita em volta da forma onde o "clique passa" já desliga, pra a janela aceitar o clique antes do mouse chegar | [hover e clique passa](../referencias/ambiente/hover-e-clique-passa.md) |
 | **helper** | processo PowerShell longo que faz o que a página não pode (foco, mídia, Spotify, medidor) | [arquitetura](../padroes/arquitetura.md) |
 | **histerese** | entrar ou trocar com um limite e sair ou voltar com outro mais folgado, pra não piscar na fronteira (hover, lado, degrau) | [hover e balões](../padroes/hover-e-baloes.md), [sensor de borda](../padroes/motion/sensor-de-borda-e-encaixe.md) |
 | **ilha** | a forma fundida à borda (a da Órbita é um `<svg>`; a do topo do Eco é o padrão mínimo de qualidade) | [apps/eco](../apps/eco/README.md), [apps/orbita](../apps/orbita/README.md) |
@@ -33,8 +35,10 @@
 | **mola** | oscilador massa-mola (k, ζ) que move tudo; no CSS vira curva `linear()` | [motion](../padroes/motion/README.md), [molas](../referencias/motion/molas.md) |
 | **motor** | `motor.js`, o mesmo nos três apps: física da janela, embalo, gesto, commit | [referencias/motor](../referencias/motor/README.md) |
 | **ombros côncavos** | as curvas invertidas que ligam a forma à borda nas pontas | [fusão com a borda](../padroes/motion/fusao-com-a-borda.md) |
+| **palco** | janela aberta do tamanho da área útil durante o gesto, com o app andando só por CSS dentro dela (proposta, ainda não usada) | [mover e redimensionar](../referencias/ambiente/mover-e-redimensionar.md), [receitas](../referencias/ambiente/receitas-recomendadas.md) |
 | **pega (área de pega)** | o lugar visível de onde se move o app, com textura e cursor de mão, separado dos gestos (girar, deslizar) | [hover e balões](../padroes/hover-e-baloes.md) |
 | **pescoço líquido** | a faixa que estica e afina entre a borda e o app ao descolar (Onda); no Eco vira uma gota | [fusão com a borda](../padroes/motion/fusao-com-a-borda.md) |
+| **portal da emenda** | como atravessar de monitor sem pulo: o conteúdo passa por trás da emenda, porque a janela nunca fica entre dois monitores (proposta) | [mover e redimensionar](../referencias/ambiente/mover-e-redimensionar.md) |
 | **prévia** | o estado com o mouse em cima, entre o repouso e o aberto | [apps/eco](../apps/eco/README.md) |
 | **prévia do encaixe** | durante o arrasto, o app acende onde pararia se soltasse agora (contorno na Órbita, forma-fantasma no Eco) | [sensor de borda](../padroes/motion/sensor-de-borda-e-encaixe.md) |
 | **refino** | qualquer mudança em forma, interação, motion, visual ou motor de um app; sempre documentado (R22) | [templates/registro-de-refino.md](../templates/registro-de-refino.md) |
@@ -42,6 +46,7 @@
 | **sensor de borda** | o app sente o lado antes de encostar e já se reorganiza no arrasto | [sensor de borda](../padroes/motion/sensor-de-borda-e-encaixe.md) |
 | **simulador** | `<app>-sim.html` em localhost, imitando o host, com ganchos `window.__orb/__onda/__eco` | [arquitetura](../padroes/arquitetura.md), [guia, passo 6](../guia/06-testar-sem-mexer-no-pc.md) |
 | **solta** | o app longe de qualquer borda (pílula) | apps/*/README.md |
+| **sonda** | página de diagnóstico, local e não publicada, que instalada como app mede no host os atrasos de `setBounds`, a trava, o rAF, o hover e a corrida do clique | [tempo e medição](../referencias/ambiente/tempo-e-medicao.md#sonda-de-diagnóstico) |
 | **stagger** | entradas em sequência, uma peça depois da outra | [entradas em sequência](../padroes/motion/entradas-em-sequencia.md) |
 | **teste de estresse** | teste do motor no simulador (dois monitores, `setBounds` com atraso) que repete um bug conhecido e confere que ele não volta | [bugs evitados](../referencias/motor/bugs-evitados.md), [guia, passo 6](../guia/06-testar-sem-mexer-no-pc.md) |
-| **trava da tela** | o host não deixa a janela sair da área das telas; o motor imita isso só enquanto arrasta | [janela sem tremer](../padroes/motion/janela-sem-tremer.md) |
+| **trava da tela** | o host não deixa a janela sair da **área útil do monitor que mais a cruza** (nunca fica entre dois); o motor imita isso só enquanto arrasta (hoje pela união das telas, ver [receita M1](../referencias/ambiente/receitas-recomendadas.md#movimento)) | [janela sem tremer](../padroes/motion/janela-sem-tremer.md), [mover e redimensionar](../referencias/ambiente/mover-e-redimensionar.md) |

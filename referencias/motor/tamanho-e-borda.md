@@ -8,7 +8,7 @@ Medido no simulador (1920 × 1080 × 2, `setBounds` com 60 ms de atraso, motor v
 - A Órbita larga colada na esquerda, com zoom, tem a janela de 734 px de altura, e o item embaixo do mouse fica a ~900 px da ponta da barra.
 - Arrastando pra direita, ela troca de forma (coluna → barra). A mola põe o item segurado de volta embaixo do mouse, e o **alvo cai centenas de px fora da tela, à esquerda**. A trava da tela segura a janela na parede: com 600 px de mouse, o conteúdo andava **36 px (6%)**, e a janela ficava parada em **74%** dos quadros.
 - **Quanto maior o app, maior essa zona morta.** Por isso só os degraus grandes "travavam".
-- Suspeita a mais, só no app instalado: uma janela maior que a tela pode ter o `setBounds` **recusado inteiro** pelo host, e aí ela para nos dois eixos. O motor v2.1 engolia o erro calado.
+- Suspeita a mais, só no app instalado: uma janela maior que a tela pode ter o `setBounds` **recusado inteiro** pelo host, e aí ela para nos dois eixos. O motor v2.1 engolia o erro calado. **Respondida depois (lendo o código do host):** o host nunca recusa por tamanho, ele encolhe até a área útil de um monitor; as recusas são `EBUSY` ou `EINVAL` ([mover e redimensionar](../ambiente/mover-e-redimensionar.md#a-trava-real-do-host)).
 
 ## O que mudou
 

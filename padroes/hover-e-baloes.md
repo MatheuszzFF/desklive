@@ -1,6 +1,6 @@
 # Hover, balões e clique
 
-> **O que é:** como todo app reage ao mouse por cima (hover), mostra balões e recebe cliques, sem piscar nem perder o clique (L1, vale pros três apps). **Quando ler:** antes de criar ou mexer em balão, hover, botão dentro de área de arrasto ou "clique passa". Os bugs que levaram a estas regras estão em [bugs evitados](../referencias/motor/bugs-evitados.md).
+> **O que é:** como todo app reage ao mouse por cima (hover), mostra balões e recebe cliques, sem piscar nem perder o clique (L1, vale pros três apps). **Quando ler:** antes de criar ou mexer em balão, hover, botão dentro de área de arrasto ou "clique passa". Os bugs que levaram a estas regras estão em [bugs evitados](../referencias/motor/bugs-evitados.md). A mecânica por baixo, no Windows, está em [hover e clique passa](../referencias/ambiente/hover-e-clique-passa.md): gancho do `forward`, corrida do clique, halo de aproximação.
 
 ## Balão único, por cima de tudo
 - **Um balão só por app**, numa camada própria no topo do documento, fora da barra e da forma. Nunca um balão dentro de cada ícone: quando cada ícone é uma camada (leque, lupa, transformações), o ícone seguinte é pintado por cima do balão do anterior.

@@ -41,6 +41,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 | **Arrasto, encaixe, embalo** | [sensor de borda](padroes/motion/sensor-de-borda-e-encaixe.md) → [sentir o arrasto](padroes/motion/sentir-o-arrasto.md) → [motor](referencias/motor/README.md) |
 | **Mudar uma mola ou curva** | [molas](referencias/motion/molas.md) / [curvas e durações](referencias/motion/curvas-e-duracoes.md) |
 | **Janela pisca, corta ou não encosta** | [janela sem tremer](padroes/motion/janela-sem-tremer.md) → [brilho dentro da janela](padroes/motion/brilho-dentro-da-janela.md) → [arquitetura](padroes/arquitetura.md) |
+| **Entender o ambiente / hover, tamanho, movimento no nível do host** | [referencias/ambiente/](referencias/ambiente/README.md) → [receitas recomendadas](referencias/ambiente/receitas-recomendadas.md) → o arquivo do assunto (host, hover e clique passa, mover e redimensionar, tempo e medição) |
 | **Apps falando entre si** | [interação entre apps](padroes/interacao-entre-apps.md) → [arquitetura](padroes/arquitetura.md) (barramento) |
 | **Visual de um app** | [design](padroes/design.md) → `apps/<app>/visual.md` |
 | **Achar um termo ou assunto** | [glossário](visao/glossario.md) (cada termo aponta o arquivo), ou busque no repo |
