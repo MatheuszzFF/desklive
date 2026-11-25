@@ -143,7 +143,7 @@
 - **Desde:** 2026-11-24 · **Reforçada:** 1× · **Força:** alta
 
 ### R22 — Todo refino de app é documentado no desklive
-- **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Depois faça commit e push. Só a receita, nunca o código. Antes do push, confira que não há segredos nem dados pessoais (o repo é público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
+- **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Faça só o commit local; o push vai em lote, de tempos em tempos, quando a coisa amadurecer (o dreamer sobe todo dia à noite). Não suba a cada mudança pequena ("só vamos subir regras de tempos em tempos quando for melhorando"). Só a receita, nunca o código. Antes do push, confira que não há segredos nem dados pessoais (o repo é público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
 - **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([[desklive-repo-documentacao]]).
 - **Exemplo:** "sempre que refinarmos apps, documentamos lá".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
