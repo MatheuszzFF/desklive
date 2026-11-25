@@ -2,21 +2,26 @@
 
 Um desktop vivo pro Windows 11, feito de artefatos do Claude instalados como apps de desktop. Os apps são transparentes, flutuam sobre a área de trabalho, se transformam conforme o lugar da tela e conversam entre si.
 
+Este repositório é o livro de receitas: as regras e **como** cada app é feito (forma e interação por lado, motion com os números reais, visual). O código dos apps não fica aqui.
+
 ## Apps
 
 | App | O que é | Doc |
 |---|---|---|
-| **Órbita** | Barra de tarefas: apps, anéis de CPU, RAM e placa de vídeo, relógio | [apps/orbita.md](apps/orbita.md) |
-| **Onda** | Player do Spotify, com capa, onda que reage ao som e controle pela Web API | [apps/onda.md](apps/onda.md) |
-| **Eco** | Assistente (Claude Haiku 5.5) com uma forma líquida em WebGL | [apps/eco.md](apps/eco.md) |
+| **Órbita** | Barra de tarefas: apps, anéis de CPU, RAM e placa de vídeo, relógio | [apps/orbita/](apps/orbita/README.md) |
+| **Onda** | Player do Spotify, com capa, onda que reage ao som e controle pela Web API | [apps/onda/](apps/onda/README.md) |
+| **Eco** | Assistente (Claude Haiku 5.5) com uma forma líquida em WebGL | [apps/eco/](apps/eco/README.md) |
 
-## Regras e padrões (ler antes de mexer em qualquer coisa)
+## Como a doc é organizada
 
-- [regras/regras-de-trabalho.md](regras/regras-de-trabalho.md): como trabalhar neste projeto. A **regra nº 1** fica no topo do arquivo.
-- [padroes/layout-posicao-e-tamanho.md](padroes/layout-posicao-e-tamanho.md): todo app se transforma conforme o lado, o canto e o tamanho, com forma e interação únicas.
-- [padroes/interacao-entre-apps.md](padroes/interacao-entre-apps.md): os apps conversam pelo barramento `~/.orbita`.
-- [padroes/design.md](padroes/design.md): transparente, minimalista, motion vivo, nada genérico.
-- [padroes/motion.md](padroes/motion.md): como o motion é feito (molas e constantes, ombros côncavos, descolar líquido, sensor de borda, troca de forma, janela sem tremer). Cada app tem uma seção "Como é feito" no próprio doc.
-- [arquitetura.md](arquitetura.md): como os apps funcionam por dentro.
+Em níveis, do geral pro específico:
+
+- **L0, visão e regras:** [visao/](visao/README.md) (por que existe, princípios, [glossário](visao/glossario.md)) e [regras/](regras/README.md) (as regras de trabalho; a **regra nº 1** fica no topo).
+- **L1, padrões de todos os apps:** [padroes/](padroes/README.md): [layout por posição e tamanho](padroes/layout-posicao-e-tamanho.md), [interação entre apps](padroes/interacao-entre-apps.md), [design](padroes/design.md), [motion](padroes/motion/README.md) (molas, ombros côncavos, descolar líquido, sensor de borda, troca de forma, janela sem tremer) e [arquitetura](padroes/arquitetura.md).
+- **L2, cada app:** [apps/](apps/README.md), uma pasta por app, com o histórico de refinos.
+- **L3, referências profundas:** [referencias/](referencias/README.md) (constantes de mola, curvas, o motor da janela) e os arquivos de detalhe de cada app (como o shader do Eco).
+- **Modelos:** [templates/](templates/README.md) (app novo, registro de refino, checklist). Mudanças no repo: [CHANGELOG.md](CHANGELOG.md).
+
+Agentes começam pelo [CLAUDE.md](CLAUDE.md), que tem o mapa de o que ler pra cada tarefa.
 
 As regras são mantidas pelo **dreamer**, uma tarefa diária que lê as conversas e transforma o feedback em regras. A fonte de verdade fica na memória do Claude; este repositório recebe uma cópia.

@@ -1,5 +1,7 @@
 # Arquitetura
 
+> **O que é:** como os apps funcionam por dentro: janela do host, helpers em PowerShell, barramento `~/.orbita` e testes. **Quando ler:** antes de mexer em janela, helper, rede, barramento ou simulador. É L1 (vale pra todos os apps).
+
 ## Base: artefato como app de desktop
 Cada app é um artefato HTML publicado no claude.ai, com a capability `desktop`, e instalado pelo app Claude como um app de desktop.
 - **Janela:** sem moldura, transparente, sempre no topo (`window.setOptions`). Posição e tamanho por `setBounds`/`getBounds`. Fora da parte visível, o clique passa pra área de trabalho (`setIgnoreMouseEvents(true, {forward:true})`).
