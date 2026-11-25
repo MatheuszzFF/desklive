@@ -160,6 +160,12 @@
 - **Exemplo:** "o comportamento de hover [ta] bem bugado, isso é geral ... o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
 
+### R24 — Um app piloto primeiro, depois replicar
+- **Regra:** mudanças grandes de base (motor, hover, tamanhos, movimento, ambiente) são feitas primeiro num app só, até ficar redondo e ele aprovar no app instalado. Só depois a receita vai pros outros apps, adaptada a cada um. Não abrir os três apps em paralelo pra mesma mudança de base.
+- **Por quê:** rodadas em paralelo nos três espalharam bugs parecidos e ele precisou testar tudo três vezes.
+- **Exemplo:** "o ideal é construir num app só extramamente bem feito antes e dps mandar pros outros quando 1 tiver redondo".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+
 ## Segurança e permissões
 
 ### R17 — Não desligar proteções por ele
