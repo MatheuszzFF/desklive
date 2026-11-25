@@ -23,6 +23,7 @@ A marca muda de escala com o estado: 0,55 a 0,6 em repouso, 0,62 a 0,7 na prévi
 ## Teto de tamanho (sem sobra de área vazia)
 - **Nenhum degrau tem caixa fixa maior que o conteúdo.** A conversa e o histórico são medidos **na largura de destino** daquele lado e degrau (a janela fechada tem 112 px e quebraria o texto), e a lista só é redesenhada quando muda.
 - **Teto:** a janela inteira, com a margem da sombra, fica em no máximo **70 % da altura útil**; as larguras do grande ficam em no máximo **60 % da largura útil**. A 1920 × 1080, o maior caso é a folha lateral, com **742 px de altura (69 %)**.
+- **Durante uma troca de forma** (repouso → prévia → aberto → grande → fechado), a janela é a união do antes com o depois e precisa caber em ~90 % da altura útil ([motor v2.2](../../referencias/motor/tamanho-e-borda.md)). **Medido a 1920 × 1080:** a maior união em 7 lugares foi 742 px (69 %), na lateral.
 - Passou do teto, **a conversa rola dentro** da forma. O limite da rolagem é o teto menos o campo e as margens (na folha: teto − 2 × 36 − 96 px) e inclui o espaçamento interno da rolagem (`box-sizing: border-box`), senão as mensagens passam por baixo do campo.
 
 ## Degraus e alça

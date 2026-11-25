@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Motor v2.2: amassado no meio do arrasto, união das trocas (v24)
+- **Pedido:** remontar com o motor v2.2 (escorrega na parede, prende eixo por eixo, freia e dispara o amassado ao bater, também no meio do arrasto); confirmar o teto e a união durante a troca de forma.
+- **Onde:** o "sentir" da marca no arrasto; todas as trocas de forma.
+- **Antes → depois:** o amassado **substituía** o esticar enquanto a batida durava, e quando ela acabava a marca pulava pro esticar. Agora as duas deformações **somam numa matriz** e a direção do esticar é suavizada em ângulo dobrado (14/s). O amassado chega a 9 % numa batida a ~3000 px/s. Montado com o motor v2.2.
+- **Por quê:** com o v2.2, a batida chega no meio do arrasto, e a troca seca entre esticar e amassar ficaria visível.
+- **Docs atualizados:** [interação](interacao.md) (o "sentir" e a matriz), [formas e degraus](formas-e-degraus.md) (união medida nas trocas).
+- **Testado:** no simulador a 1920 × 1080: a maior janela durante as trocas, em 7 lugares, foi 742 px (69 % da altura útil, 29 % da largura), abaixo dos 90 %; o arrasto contra a parede amassou 9 %, com o maior salto por quadro sendo a própria batida; os 21 testes de estresse do motor passam (2 pulados com um monitor só), inclusive `janelaGigante` e `ladosNoTamanhoGrande`. **Não testado:** app instalado, mouse físico e 60 fps reais.
+- **Regras:** R7, R9, R19, R22, R23.
+
 ## 2026-11-25 — Teto de tamanho, encaixe sem piscar, hover e toque refinados; doc em índice (v23)
 - **Pedido:** "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; "movimentos muito bem feitos, sem bugar, principalmente quando cola na borda e quando descola"; "refinar as interações e os efeitos de hover"; documentação organizada pra outras pessoas reproduzirem.
 - **Onde:** os degraus abertos de todos os lados, o limiar de encaixe, o hover e o toque.

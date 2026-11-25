@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Eco v24: motor v2.2, amassado no meio do arrasto, união das trocas
+- **Atualizado:** [interação do Eco](apps/eco/interacao.md) (esticar e amassado somados numa matriz, direção suavizada), [formas e degraus do Eco](apps/eco/formas-e-degraus.md) (união antes + depois medida: 69 %) e [refinos do Eco](apps/eco/refinos.md).
+
 ### Órbita v28: motor v2.2 e teto da união na troca de forma
 - **Atualizado:** [hover e toque da Órbita](apps/orbita/hover-e-toque.md) (a união antes + depois cabe em 90% da área útil) e [refinos](apps/orbita/refinos.md).
 
