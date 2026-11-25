@@ -26,12 +26,14 @@ A linguagem de movimento comum está em [padroes/motion](../../padroes/motion/RE
 ### Forma e tamanho por lado e estado (`dockDims`)
 | Lado | Repouso (tamanho mínimo) | Prévia (mouse em cima) | Aberto (médio / grande) |
 |---|---|---|---|
-| **Topo: ilha** | cápsula 92 × 38, raio 19 | 360 × 50, raio 25 | 480 × (altura da conversa) / 760 × 548, raio 28 / 32 |
-| **Laterais: espinha** | recorte em pé 32 × 124, raio 16 | 54 × 340, raio 27 | folha alta de 392 / 520 de largura × (altura da tela − 96, entre 360 e 860), raio 30 |
-| **Embaixo: barra de comando** | traço 128 × 34, raio 17 | campo largo 540 × 52 | barra 640 / 880 × 58, com a conversa subindo **em cartões soltos** acima dela |
-| **Cantos: quarto de órbita** | quarto de círculo 54 × 54 | 84 × 84 + o arco de sugestões | cartão no canto 400 × (conversa) / 640 × 520 |
+| **Topo: ilha** | cápsula 92 × 38, raio 19 | 360 × 50, raio 25 | 480 × (conversa) / 760 × (maior entre conversa e histórico, 340–548), raio 28 / 32 |
+| **Laterais: espinha** | recorte em pé 32 × 124, raio 16 | 54 × 340 (a parte visível: 230 px no mínimo, desenrolando atrás do mouse), raio 27 | folha de 392 / 520 de largura × (conversa; no grande, também as abas), piso 300 / 360, teto altura da tela − 96, raio 30 |
+| **Embaixo: barra de comando** | traço 128 × 34, raio 17 | campo largo 540 × 52 | barra 640 / 880 × 58, com a conversa subindo **em cartões soltos** acima dela; no grande, o cartão do histórico tem a altura da lista (até 380) |
+| **Cantos: quarto de órbita** | quarto de círculo 54 × 54 | 84 × 84 + o arco de sugestões | cartão no canto 400 × (conversa) / 640 × (maior entre conversa e histórico, 320–520) |
 
-A marca muda de escala com o estado: 0,55 a 0,6 em repouso, 0,62 a 0,7 na prévia, 0,72 a 0,8 aberto e 0,86 na pílula solta aberta. A prévia entra 60 ms depois do mouse chegar e sai 340 ms depois dele sair.
+Nenhum degrau tem caixa fixa maior que o conteúdo ([hover e balões](../../padroes/hover-e-baloes.md)): a conversa e o histórico são medidos na largura de destino, e a lista só é redesenhada quando muda. A pílula solta grande tem a altura do maior entre conversa e histórico (até 600).
+
+A marca muda de escala com o estado: 0,55 a 0,6 em repouso, 0,62 a 0,7 na prévia, 0,72 a 0,8 aberto e 0,86 na pílula solta aberta. A prévia entra 60 ms depois do mouse **chegar** (o relógio não reinicia com o movimento) e sai 340 ms depois dele sair. Dentro/fora é decidido pela geometria da forma, com 4 px de folga pra entrar e 18 px pra sair. Só o campo e o texto das mensagens são selecionáveis; a marca tem cursor de pegar.
 
 ### Interação própria de cada lado
 - **Ilha (topo), ímã:** `--mx = clamp((x_mouse − centro) / (largura/2 + 60), −1, 1)`. A forma e os ombros andam `--mx × 7 px` e a marca `--mx × 11 px`, em .5 s `--sp2`, como se o mouse puxasse.

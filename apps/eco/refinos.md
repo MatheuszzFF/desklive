@@ -6,6 +6,19 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Interação limpa: seleção, camadas, sem sobra de espaço, hover estável (v22)
+- **Pedido:** "o comportamento de hover [ta] bem bugado, isso é geral ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos" (R23).
+- **Onde:** todos os lados, cantos e degraus; a prévia; a pílula solta.
+- **Antes → depois:**
+  - **Seleção:** antes só desligava redimensionando; agora `user-select: none` em toda a interface, menos no campo e no texto das mensagens (as etiquetas de ação ficam fora). A marca tem cursor de pegar.
+  - **Camadas:** as sugestões do arco do canto vão pra camada 6, acima da marca, e ficam inteiras na janela (conferido). Na espinha, o trecho mínimo da prévia passou de 150 para **230 px**, porque o convite em pé saía cortado.
+  - **Sem sobra:** o grande passou de caixa fixa pra altura do conteúdo, o maior entre conversa e histórico. Folha lateral: antes tela − 96 px, agora conteúdo, com piso de 300 (médio) ou 360 (grande). Ilha grande: 548 → conteúdo (340–548). Cartão do canto grande: 520 → conteúdo (320–520). Cartão de histórico da barra: 380 → altura da lista. Painel solto grande: 600 → conteúdo. A conversa e o histórico são medidos na largura de destino. A lista do histórico não é redesenhada se não mudou (a entrada em sequência não repete).
+  - **Hover:** dentro/fora pela geometria da forma (folga de 4 px pra entrar e 18 px pra sair; no canto, também o leque do arco); a prévia entra 60 ms depois de o mouse chegar, sem reiniciar com o movimento, e sai 340 ms depois de ele sair; a geometria acompanha a janela no mesmo quadro.
+- **Por quê:** prévia que nunca abria com o mouse andando, "clique passa" piscando quando a forma mudava embaixo do mouse, convite cortado na espinha e degrau grande com área vazia.
+- **Docs atualizados:** [hover e balões](../../padroes/hover-e-baloes.md), [bugs evitados](../../referencias/motor/bugs-evitados.md), [README](README.md).
+- **Testado:** no simulador, com eventos de ponteiro em coordenadas de tela, nos 5 lados (topo, esquerda, direita, embaixo e canto): a prévia abre em ~40 ms com o mouse andando, nunca fecha sozinha e o "clique passa" não troca nenhuma vez. Os tamanhos do médio e do grande foram medidos em todos os lados. Prints da prévia do topo, da lateral, do canto e da barra aberta. Os 15 testes de estresse do motor passam (2 pulados com um monitor só). **Não testado:** mouse físico no app instalado.
+- **Regras:** R23, R20, R9, R19, R22.
+
 ## 2026-11-25 — Captura do ponteiro só ao virar arrasto (v21)
 - **Pedido:** conferir no Eco o bug achado na Órbita v24 (o gesto do motor v2.1 capturava o ponteiro já ao pressionar, e os botões dentro da área de arrasto não recebiam o clique).
 - **Onde:** o gesto da marca (solta) e da forma presa em repouso ou na prévia (ilha, espinha, barra, quarto).

@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Eco v22: seleção só no conteúdo, camadas, sem sobra de espaço e hover estável
+- **Atualizado:** [Eco](apps/eco/README.md) (tamanhos do grande pelo conteúdo, prévia da espinha de 230 px, hover pela geometria), [refinos do Eco](apps/eco/refinos.md), [hover e balões](padroes/hover-e-baloes.md) (dentro/fora pela geometria, relógio da prévia que conta da chegada, exceção de seleção pro conteúdo, sem sobra de área vazia medindo na largura de destino) e [bugs evitados](referencias/motor/bugs-evitados.md) (prévia que não abria com o mouse andando, "clique passa" piscando, grande com área vazia).
+
 ### Onda v17: quarto de disco proporcional, pega clara e hover estável
 - **Atualizado:** [Onda](apps/onda/README.md) (raios do disco, aro de pega, rótulo, hover e clique), [refinos da Onda](apps/onda/refinos.md), [hover e balões](padroes/hover-e-baloes.md) (gesto e pega separados; janela cortada na tela também no meio da troca) e [bugs evitados](referencias/motor/bugs-evitados.md).
 
