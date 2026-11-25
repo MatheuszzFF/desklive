@@ -6,6 +6,20 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Hover e toque, teto de área, colar sem piscar (v27)
+- **Pedido:** "Refinar as interações e os efeitos de hover"; "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; movimentos "sem bugar. Principalmente quando cola na borda do monitor e quando descola dela".
+- **Onde:** todas as formas e degraus; o degrau grande e o zoom; o colar e descolar.
+- **Antes → depois:**
+  - **Hover:** mola com 12% de passada → **4%** (`cubic-bezier(.22, .9, .32, 1.04)`); ícone .28 → **.26 s**.
+  - **Pressionar:** só escurecia → **afunda** (app 0,92, anel 0,94, setinha 0,88) em .08 s e volta em .42 s; os anéis crescem 8% no hover.
+  - **Teto de área:** sem teto → janela de **no máximo 70% da altura e 60% da largura útil**; a escala efetiva cai sozinha, e o zoom escolhido fica salvo.
+  - **Coluna larga:** os medidores passam de três linhas com rótulo e gráfico pra **uma linha** com o número em cima (~90 px a menos).
+  - **Colar e descolar:** mesmo limiar pra entrar e sair → **histerese de 28 px** (doca ↔ pílula), e o soltar usa o mesmo limiar da prévia.
+- **Por quê:** a coluna larga cobria 76% da altura (99% com zoom 1,3) e a barra larga 81% da largura com zoom 1,3, sem espaço pra arrastar; perto do limiar a forma podia trocar várias vezes.
+- **Docs atualizados:** [hover e toque](hover-e-toque.md) (novo), [README](README.md) (encaixe, degraus, zoom, arquivos).
+- **Testado:** no simulador (1920 × 1080, sem o mouse do PC): as 24 combinações de lugar, degrau e zoom ficam dentro do teto (maior: 68% × 60%); arrasto ao longo da coluna chega a ~57 px das pontas e, na barra de baixo, anda 500 px pra cada lado; tremendo entre 50 e 110 px da borda, a forma troca exatamente 2 vezes. Prints da coluna larga e do hover na coluna. **Não testado:** o app instalado (com o motor novo, que vem na próxima montagem), dois monitores e o afundar ao pressionar visto em print.
+- **Regras:** R9, R19, R20, R22, R23.
+
 ## 2026-11-25 — Balão por cima, hover estável, leque justo (v26)
 - **Pedido:** "o badge [fica] embaixo dos outros icones ... o comportamento de hover [ta] bem bugado ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele".
 - **Onde:** todos os lados, cantos e degraus; o leque do canto; o assentar.

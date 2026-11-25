@@ -4,6 +4,13 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Órbita v27: hover e toque, teto de área, colar sem piscar
+- **Novo:** [apps/orbita/hover-e-toque.md](apps/orbita/hover-e-toque.md) (molas e escalas do hover e do pressionar, balão, histerese de colar e descolar, teto de 70% × 60% da área útil).
+- **Atualizado:** [README da Órbita](apps/orbita/README.md) (encaixe, degraus, zoom, arquivos) e [refinos](apps/orbita/refinos.md).
+
+### Guia pra fazer o seu próprio app
+- **Novo:** [guia/](guia/README.md) (passo a passo pra outras pessoas: janela mínima, motor, forma por lado, hover, visual e motion, testar sem mexer no PC, documentar), 14 termos no [glossário](visao/glossario.md), linha "Guia" nos níveis e no mapa do [CLAUDE.md](CLAUDE.md) e uma seção no [README](README.md).
+
 ### Onda v18: teto de tamanho, hover refinado e assentar estável
 - **Novo:** [apps/onda/formas-e-degraus.md](apps/onda/formas-e-degraus.md) e [apps/onda/interacao.md](apps/onda/interacao.md) (o README da Onda virou índice + resumo, com ordem de leitura pra quem quer reproduzir).
 - **Atualizado:** [refinos da Onda](apps/onda/refinos.md) (coluna e faixa grandes dentro do teto, efeitos de hover e toque, corte da janela contra o destino) e [bugs evitados](referencias/motor/bugs-evitados.md).

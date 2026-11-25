@@ -45,13 +45,13 @@ Cada arco ocupa os 90° do quarto, com os apps em `90° × (j + 0,5) / n`. Fecha
 
 ### Sentir lado e encaixar
 - O layout segue **o mouse** durante o arrasto. A troca de lado tem histerese: canto a < 160 px (fica até 230), lateral a < 230 px (fica até 300) e mais perto que o vertical + 60, topo a < 250 px (fica até 330). Senão, vira barra deitada embaixo.
-- Ao soltar, encosta se estiver a < 60 px da posição encostada (130 px nas laterais). Também centraliza sozinha quando o meio dela fica a < 30 px do meio da borda.
+- Ao soltar, encosta se estiver a < 60 px da posição encostada (130 px nas laterais); já encostada, só vira solta 28 px depois disso (histerese, [hover e toque](hover-e-toque.md#colar-e-descolar-sem-trocar-duas-vezes)). Também centraliza sozinha quando o meio dela fica a < 30 px do meio da borda.
 - Ao assentar numa borda, usa a mola firme com micro-amassado contra ela. O "sentir" da Órbita: inclina até ±3° (× 0,35), estica até 5 % por eixo e levanta 2 % ao pegar ([sentir o arrasto](../../padroes/motion/sentir-o-arrasto.md)).
 
 ### Degraus de tamanho
-- **fina** (o tamanho mínimo; **uma forma viva por lado**: doca dormindo embaixo, coluna de pontos de cor nas laterais, ilha dinâmica em cima, só o núcleo respirando nos cantos, pílula que pula em onda solta → [degrau mínimo](degrau-minimo.md)), **normal** e **larga** (anéis com número, rótulo e **mini gráfico**; a música tocando; a data completa; na coluna, a lista com o **nome** dos apps em botões de 184 px).
+- **fina** (o tamanho mínimo; **uma forma viva por lado**: doca dormindo embaixo, coluna de pontos de cor nas laterais, ilha dinâmica em cima, só o núcleo respirando nos cantos, pílula que pula em onda solta → [degrau mínimo](degrau-minimo.md)), **normal** e **larga** (anéis com número, rótulo e **mini gráfico**; a música tocando; a data completa; na coluna, a lista com o **nome** dos apps em botões de 184 px e os medidores em linha, com o número em cima).
 - **Alça:** um traço de 3 × 18 px na ponta da barra (embaixo na coluna, na diagonal do núcleo no canto, apontando pra dentro). Puxando, a barra **estica elástica** na direção da alça: `1 + sinal × (1 − e^(−1,4·p)) × 4,5 %`. A cada **52 px** troca de degrau, com o mesmo morph da troca de lado e o lado da borda parado. Nas pontas (já no maior ou no menor), cede só 35 %. Clique duplo volta pra normal. Três pontinhos mostram o degrau atual.
-- **Zoom** (separado dos degraus): 0,85 / 1 / 1,15 / 1,3, entre 0,7 e 1,5. `Ctrl` + rodinha muda 5 % por clique.
+- **Zoom** (separado dos degraus): 0,85 / 1 / 1,15 / 1,3, entre 0,7 e 1,5. `Ctrl` + rodinha muda 5 % por clique. Com **teto de área**: a janela nunca passa de 70% da altura nem de 60% da largura útil; a escala efetiva cai sozinha se precisar ([hover e toque](hover-e-toque.md#teto-de-área-degrau-grande-e-zoom)).
 - **Recolher** (setinha): esconde apps, separador e status, com o FLIP ancorado no próprio botão.
 
 ## Testado
@@ -66,4 +66,5 @@ O teste é no simulador de mesa (`sim.html?app=orbita`, localhost, gancho da Ór
 |---|---|
 | [visual.md](visual.md) | anéis e medidores (raios, cores, mini gráfico) e o visual (tokens, fontes, halos, ícones) |
 | [degrau-minimo.md](degrau-minimo.md) | a forma e a interação da fina em cada lado e canto, e a fórmula da proximidade |
+| [hover-e-toque.md](hover-e-toque.md) | hover e pressionar (molas, escalas), balão, clique, histerese de colar e descolar, teto de área do degrau grande |
 | [refinos.md](refinos.md) | registro de cada refino, com data e números |
