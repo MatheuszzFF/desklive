@@ -4,7 +4,7 @@
 
 ## rAF e vsync
 
-- **O rAF segue o vsync do monitor principal (Chromium).** O Chromium no Windows espera o *vblank* do monitor principal (DXGI); o relógio do DWM por monitor está atrás de uma flag desligada. Aqui os dois monitores são de 60 Hz, então o rAF dá ~16,7 ms em qualquer um. Se um dia o segundo monitor for de 144 Hz, a janela nele continua a 60.
+- **O rAF segue o vsync do monitor principal (Chromium).** O Chromium no Windows espera o *vblank* do monitor principal (DXGI); o relógio do DWM por monitor está atrás de uma flag desligada. Aqui o principal é de 60 Hz, então o rAF deve dar ~16,7 ms em qualquer um dos dois **(medir)**. Se um dia o segundo monitor for de 144 Hz, a janela nele continua a 60.
 - **Os três apps rodam sem throttling** ([host](host.md#throttling-host)). O "rAF a ~1 por segundo" vinha do painel do navegador escondido no simulador, não do app.
 - **A página é um iframe em outro processo**, mas segue o mesmo relógio de quadros.
 - **O `dt` limitado a 1/30 s continua certo:** é o que segura um quadro perdido.

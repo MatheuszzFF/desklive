@@ -58,7 +58,7 @@ O corte em linha reta aqui é a moldura do monitor, então não fere a R4.
 
 ## Monitores e DPI
 
-- **Este PC:** dois monitores 1920 × 1080 a 100 % (96 DPI) e 60 Hz, lado a lado (principal em 0,0; o outro em 1920,0). A barra do Windows é oculta automaticamente.
+- **Este PC:** dois monitores 1920 × 1080 a 100 % (96 DPI), lado a lado (principal em 0,0, a 60 Hz; o outro em 1920,0). A barra do Windows é oculta automaticamente.
 - **Tudo é em DIP.** A 100 %, DIP é igual a pixel.
 - **Em 125 % ou 150 %** as posições caem em frações de pixel. O Electron tem bugs antigos de 1–3 px nesses casos (#9477, #10659). Mande sempre os quatro campos (o motor já manda) e aceite ±1 px no `resize`.
 - **DPI misto** (não é o caso aqui): ao cruzar pra um monitor de outra escala, o Windows manda `WM_DPICHANGED` e a janela é redimensionada no meio do arrasto.
