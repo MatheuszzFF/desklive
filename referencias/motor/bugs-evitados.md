@@ -35,3 +35,12 @@
 | Prévia fechando e "clique passa" piscando quando a forma muda embaixo do mouse | Eco | o dentro/fora vinha do elemento embaixo do ponteiro; com a forma crescendo e a janela mudando de lugar, o mouse parado caía num vão ou "fora" por um quadro | dentro/fora pela geometria da forma com folga (4 px pra entrar, 18 px pra sair), deslocada junto com a janela no mesmo quadro; no teste, 0 trocas do "clique passa" e 0 fechamentos em 5 lados |
 | Degrau grande com área vazia (folha lateral quase da altura da tela, cartão e ilha com altura fixa) | Eco | a altura do grande era fixa, e a conversa e o histórico eram medidos na largura da janela fechada (112 px) ou da espinha (46 px) | a altura acompanha o conteúdo, medido na largura de destino; no teste, a pílula solta média com 2 mensagens: 548 → 253 px de altura |
 | Posição do motor ≠ real se a trava do Windows for diferente da do motor (ex.: na emenda) | — (prevenção) | o motor só imita a trava; não sabe se o host prende por monitor | ao assentar, o motor lê a posição real (`getBounds`) e corrige a lógica |
+
+## Rodada v2.2: tamanho grande e borda
+
+| Bug | Onde aparecia | Causa | Como é evitado |
+|---|---|---|---|
+| App grande "não arrasta pros lados" | Órbita larga em coluna (e qualquer app grande) | a troca de forma joga o alvo centenas de px fora da tela, e a trava segura a janela na parede até o mouse vencer essa distância (acompanhava 6% do mouse) | o ponto seguro escorrega quando o mouse anda pra longe da parede (70% a 100% do mouse) — [tamanho e borda](tamanho-e-borda.md) |
+| Janela maior que a tela parada nos dois eixos (suspeita no app) | degraus grandes, zoom, união durante a troca de forma | o host recusa o `setBounds` inteiro e o motor engolia o erro | o envio nunca passa do tamanho da tela (por eixo); recusa registrada e os 10 envios seguintes encaixados na área útil; teto de 70% da altura útil nos apps |
+| Bate seco na borda arrastando rápido | os três (colar rápido) | a janela atrasava, acelerava até ~6000 px/s pra alcançar o mouse e parava em 1 quadro na parede | freio de aproximação `√(2·90000·d)` + amassado na batida acima de 500 px/s (batidas secas 36 → 1) |
+| Colar-descolar no limiar indeciso | — (conferido) | — | soltar de 4 em 4… 156 px da borda: o lado troca uma vez só, toda soltura assenta, nos três apps |

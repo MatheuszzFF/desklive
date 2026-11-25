@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Motor v2.2: app grande, parede e borda (só o motor; os apps montam com ele)
+- **Novo:** [referencias/motor/tamanho-e-borda.md](referencias/motor/tamanho-e-borda.md): por que o app grande não arrastava pros lados (zona morta na parede, 6% do mouse), escorregar na parede (70–100%), nunca maior que a tela eixo por eixo, recusa do Windows registrada, freio de aproximação `√(2·90000·d)`, amassado na batida, teto de 70% × 60% pros apps, auditoria de colar e descolar nos três.
+- **Atualizado:** [bugs evitados](referencias/motor/bugs-evitados.md) (rodada v2.2), [motor](referencias/motor/README.md), índice de [motion](padroes/motion/README.md).
+
 ### Eco v23: teto de tamanho, encaixe sem piscar, hover e toque; doc em índice
 - **Novo:** [apps/eco/formas-e-degraus.md](apps/eco/formas-e-degraus.md) (estrutura, tabela forma × estado × degrau, teto de 70 % × 60 % com a conversa rolando dentro, alça) e [apps/eco/interacao.md](apps/eco/interacao.md) (prévia e repouso por lado, hover e toque, arrastar e fundir com histerese de 16 px).
 - **Atualizado:** [README do Eco](apps/eco/README.md) (virou índice, como o da Onda; seção Testado) e [refinos do Eco](apps/eco/refinos.md).
