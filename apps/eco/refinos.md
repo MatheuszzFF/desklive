@@ -6,6 +6,19 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Teto de tamanho, encaixe sem piscar, hover e toque refinados; doc em índice (v23)
+- **Pedido:** "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; "movimentos muito bem feitos, sem bugar, principalmente quando cola na borda e quando descola"; "refinar as interações e os efeitos de hover"; documentação organizada pra outras pessoas reproduzirem.
+- **Onde:** os degraus abertos de todos os lados, o limiar de encaixe, o hover e o toque.
+- **Antes → depois:**
+  - **Teto:** a folha lateral ia até a altura da tela − 96 (a 1080: 984 px); agora a janela inteira fica em **70 % da altura útil** (742 px, 69 %). As larguras do grande ficam em até **60 % da largura útil**. A pílula solta grande vai até 70 % (antes 600 px fixos). A conversa rola dentro: o limite de rolagem é o teto menos o campo e as margens, com o espaçamento interno incluído (antes, com conversa longa, as mensagens passavam 24 a 30 px por baixo do campo).
+  - **Encaixe:** histerese de **16 px** no limiar (borda 44, canto 76); soltar usa a mesma decisão da prévia (antes eram duas contas, e a prévia podia piscar perto do limiar).
+  - **Hover e toque:** a forma acende uma borda quente de 1 px na prévia; pressionar clareia 14 % e a marca vai pra 0,92; a marca solta cresce 6 % com o mouse em cima; as sugestões, os chips e as abas afundam 3 a 5 % ao pressionar.
+  - **Doc:** o README virou índice, com [formas e degraus](formas-e-degraus.md) e [interação](interacao.md) separados, como na Onda; o número da espinha desatualizado (150 → 230 px) foi corrigido.
+- **Por quê:** área alta demais dificultava arrastar; conversa longa invadia o campo; prévia piscando perto do limiar; doc grande demais pra outra pessoa seguir.
+- **Docs atualizados:** [README](README.md), [formas e degraus](formas-e-degraus.md), [interação](interacao.md).
+- **Testado:** a 1920 × 1080 no simulador, com eventos de ponteiro: 16 casos de arrasto a partir dos degraus abertos (todos andam, soltam e reabrem), tamanhos dentro do teto, conversa longa sem invadir o campo em 8 casos, limiar sem piscar; prints da folha lateral grande e da ilha com hover. Testes de estresse do motor: todos passam menos `janelaGigante`, que é do motor (força 1300 px pelo próprio motor). **Não testado:** app instalado e mouse físico.
+- **Regras:** R23, R20, R9, R19, R22.
+
 ## 2026-11-25 — Interação limpa: seleção, camadas, sem sobra de espaço, hover estável (v22)
 - **Pedido:** "o comportamento de hover [ta] bem bugado, isso é geral ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos" (R23).
 - **Onde:** todos os lados, cantos e degraus; a prévia; a pílula solta.

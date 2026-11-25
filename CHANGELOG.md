@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Eco v23: teto de tamanho, encaixe sem piscar, hover e toque; doc em índice
+- **Novo:** [apps/eco/formas-e-degraus.md](apps/eco/formas-e-degraus.md) (estrutura, tabela forma × estado × degrau, teto de 70 % × 60 % com a conversa rolando dentro, alça) e [apps/eco/interacao.md](apps/eco/interacao.md) (prévia e repouso por lado, hover e toque, arrastar e fundir com histerese de 16 px).
+- **Atualizado:** [README do Eco](apps/eco/README.md) (virou índice, como o da Onda; seção Testado) e [refinos do Eco](apps/eco/refinos.md).
+
 ### Órbita v27: hover e toque, teto de área, colar sem piscar
 - **Novo:** [apps/orbita/hover-e-toque.md](apps/orbita/hover-e-toque.md) (molas e escalas do hover e do pressionar, balão, histerese de colar e descolar, teto de 70% × 60% da área útil).
 - **Atualizado:** [README da Órbita](apps/orbita/README.md) (encaixe, degraus, zoom, arquivos) e [refinos](apps/orbita/refinos.md).
