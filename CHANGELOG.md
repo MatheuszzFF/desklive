@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Órbita v28: motor v2.2 e teto da união na troca de forma
+- **Atualizado:** [hover e toque da Órbita](apps/orbita/hover-e-toque.md) (a união antes + depois cabe em 90% da área útil) e [refinos](apps/orbita/refinos.md).
+
 ### Motor v2.2: app grande, parede e borda (só o motor; os apps montam com ele)
 - **Novo:** [referencias/motor/tamanho-e-borda.md](referencias/motor/tamanho-e-borda.md): por que o app grande não arrastava pros lados (zona morta na parede, 6% do mouse), escorregar na parede (70–100%), nunca maior que a tela eixo por eixo, recusa do Windows registrada, freio de aproximação `√(2·90000·d)`, amassado na batida, teto de 70% × 60% pros apps, auditoria de colar e descolar nos três.
 - **Atualizado:** [bugs evitados](referencias/motor/bugs-evitados.md) (rodada v2.2), [motor](referencias/motor/README.md), índice de [motion](padroes/motion/README.md).

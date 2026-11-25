@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Remontada com o motor v2.2; teto da união na troca (v28)
+- **Pedido:** remontar com o motor v2.2 (escorrega na parede, prende cada eixo separado, freia antes da borda, amassa ao bater) e garantir o teto de tamanho também durante a troca de forma.
+- **Onde:** a troca de forma (principalmente coluna larga ↔ barra) e o arrasto no degrau grande.
+- **Antes → depois:** a janela na troca de forma era a união antes + depois sem limite → a união cabe em **90% da área útil** (altura e largura); a sobra é cortada de baixo ou da direita primeiro, nunca abaixo da margem do layout novo. Motor v2.1 → v2.2 (a Órbita usa a mesma interface: `feel` com `bump`, `bumpN` e `over`; gesto com `capture:false`). O `over` ainda não é usado.
+- **Por quê:** a troca coluna → barra no degrau grande jogava o alvo pra fora da tela e a janela ficava presa na parede; a união grande podia pedir mais que a tela.
+- **Docs atualizados:** [hover e toque](hover-e-toque.md) (teto da união).
+- **Testado:** no simulador de dois monitores, com a aba visível (o morph não congela) e sem o mouse do PC. Coluna larga com zoom 1,3: janela de 734 px (68%). Arrastando um ícone do alto da coluna 700 px pra direita, a troca coluna → barra anda em sequência, com a união em 754 px (70%), e assenta como pílula larga de 1130 × 118 (59% × 11%), com no máximo 1 envio por quadro. **Não testado:** o app instalado, o amassado ao bater na parede no meio do arrasto (visto só pelo motor) e o `over`.
+- **Regras:** R9, R19, R22.
+
 ## 2026-11-25 — Hover e toque, teto de área, colar sem piscar (v27)
 - **Pedido:** "Refinar as interações e os efeitos de hover"; "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; movimentos "sem bugar. Principalmente quando cola na borda do monitor e quando descola dela".
 - **Onde:** todas as formas e degraus; o degrau grande e o zoom; o colar e descolar.

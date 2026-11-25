@@ -19,5 +19,6 @@
 ## Teto de área (degrau grande e zoom)
 - A janela nunca passa de **70% da altura útil** nem de **60% da largura útil**. Se a forma e o degrau, no zoom escolhido, passariam disso, a escala efetiva cai sozinha só o bastante (mínimo 0,5). O zoom escolhido fica salvo e volta quando cabe.
 - O teto é conferido a cada troca de lado, de degrau e de conteúdo, antes de medir o layout novo.
+- **Durante a troca de forma**, a janela é a união do layout antigo com o novo. Essa união cabe em **90% da área útil** (altura e largura): a sobra é cortada, primeiro do lado de baixo ou da direita e nunca abaixo da margem do layout novo. Um ícone ainda voando pode sair cortado por um instante, mas a janela nunca pede mais que a tela ([motor: tamanho e borda](../../referencias/motor/tamanho-e-borda.md)).
 - **Coluna larga reorganizada pra caber:** os medidores ficam **em linha** (12 px, número sempre à mostra em cima) em vez de três linhas com rótulo e gráfico. São ~90 px a menos.
 - **Medido no simulador (1920 × 1080):** antes, coluna larga 76% da altura (99% com zoom 1,3) e barra larga embaixo 81% da largura com zoom 1,3. Depois, as 24 combinações (4 lugares × 3 degraus × 2 zooms) ficam dentro do teto (maior: 68% de altura, 60% de largura). Na coluna, arrastar ao longo da borda chega a ~57 px das pontas, onde o canto assume.
