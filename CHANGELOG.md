@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Órbita v26: balão por cima, hover estável, leque justo
+- **Novo:** [padroes/hover-e-baloes.md](padroes/hover-e-baloes.md) (regra geral: balão único por cima de tudo, histerese de hover, "clique passa" com atraso, nada selecionável, botão dentro de arrasto, janela que cabe na tela).
+- **Atualizado:** [refinos da Órbita](apps/orbita/refinos.md), [README da Órbita](apps/orbita/README.md) (medidas do leque), [bugs evitados](referencias/motor/bugs-evitados.md) (balão por baixo, barra longe da borda, "clique passa" piscando), índice de [padroes](padroes/README.md).
+
 ### Eco v21: captura do ponteiro só ao virar arrasto
 - **Atualizado:** [refinos do Eco](apps/eco/refinos.md) (a mesma regra da Órbita e da Onda, preventiva: no Eco a marca e a forma não têm botões dentro, e todos os cliques foram conferidos).
 

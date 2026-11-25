@@ -6,6 +6,20 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Balão por cima, hover estável, leque justo (v26)
+- **Pedido:** "o badge [fica] embaixo dos outros icones ... o comportamento de hover [ta] bem bugado ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele".
+- **Onde:** todos os lados, cantos e degraus; o leque do canto; o assentar.
+- **Antes → depois:**
+  - **Balão:** um balão por ícone → **um balão só**, numa camada por cima de tudo, posicionado pela imagem do ícone, pro lado de dentro, sem sair da janela (entra em 140 ms, desliza entre ícones em .22 s, sai em 160 ms).
+  - **Seleção:** só as imagens eram não selecionáveis → nada é selecionável.
+  - **Leque:** caixa 224/236/282 → **196/208/250**, arcos 96/102/128 → **84/90/112** e 152/162/198 → **136/142/172**; o canto de dentro da ilha agora arredonda até a largura toda quando os dois lados estão colados (quarto de disco abraçando o leque), em vez de no máximo a metade. Zona do leque: 196 → (arco de fora + 36) × escala.
+  - **Hover:** o "clique passa" liga só depois de 140 ms fora do que se vê.
+  - **Assentar:** antes de assentar, a margem que sobraria fora da tela é cortada. A barra parava 78 px longe da borda depois de uma troca; agora fica a 12 px em todos os lugares.
+- **Por quê:** o balão do Chrome ficava por baixo do Steam; o relógio aparecia selecionado; o quarto escuro era bem maior que os ícones; a barra ficava longe da borda com uma sobra de janela em volta.
+- **Docs atualizados:** [hover e balões](../../padroes/hover-e-baloes.md) (novo, regra geral), [bugs evitados](../../referencias/motor/bugs-evitados.md), [README](README.md) (medidas do leque).
+- **Testado:** no simulador de mesa, com hover e cliques reais dentro do navegador embutido (não o mouse do PC): balão por cima no leque (o "Google Chrome" sobre o Steam), na doca (com a lupa), na coluna e na barra de cima; clique num ícone chega no app; nada selecionado. As 7 posições (canto de baixo à direita, embaixo, esquerda, em cima, direita, canto de cima à esquerda, embaixo de novo) assentam a 12 px da borda, com a janela do tamanho do conteúdo. **Não testado:** o app instalado e dois monitores.
+- **Regras:** R9, R19, R20, R22.
+
 ## 2026-11-25 — Barra recolhida não abria (v25)
 - **Pedido:** "man n to conseguindo abrir a orbita n ta aparecendo" (só aparecia uma corcova escura embaixo, com um "‹" dentro).
 - **Onde:** o estado recolhido (setinha), em qualquer lado deitado ou de coluna; também protege o clique nos apps.

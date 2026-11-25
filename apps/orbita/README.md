@@ -30,16 +30,16 @@ A linguagem de movimento comum (molas, ombros, motor, janela sem tremer) está e
 | **Embaixo (doca)** | Ícones de 38 px em botões de 52 px, gap de 8 px, pontinho de "aberto" de 4 px embaixo | **Lupa estilo doca:** pra cada ícone, `d = (x_mouse − centro) / (78 × escala)` e `k = e^(−d²)`; a escala vira `1 + 0,5·k` e o ícone sobe `15·k` px. Enquanto o mouse anda, a transição é linear de .09 s; ao sair, volta em .34 s `--spring`. |
 | **Em cima (barra de menu)** | Ícones de 19 px, apps à esquerda, relógio no meio, CPU/RAM/placa como **pílulas** de texto com uma linha de 2 px embaixo que enche com o valor | A pílula sob o mouse se abre e mostra o **mini gráfico** (largura 0 → 46 px em .4 s `--spring`). As pílulas nascem de `scale(.55)` em .55 s `--springy`. |
 | **Laterais (coluna)** | Relógio empilhado (horas sobre minutos, minutos apagados), **medidores verticais** de 8 × 44 px que enchem de baixo pra cima com degradê da cor do estado | Com o mouse nos medidores, eles alargam pra 12 px, **enchem de novo** do zero (.7 s `--springy`) e mostram o número em cima. |
-| **Cantos (leque radial)** | Um núcleo no canto com relógio e **três anéis concêntricos** (r 46 / 39,5 / 33 num `viewBox` 100, traço 3,4); os apps fechados viram pontinhos de 6 px na cor do app em volta do núcleo | Com o mouse a menos de `raio do núcleo + 70 × escala` px, os pontinhos **se afastam 14 px e acendem** (escala 1,45), antecipando o leque. Em cima do núcleo, o leque **abre em 70 ms**: 3 apps num arco de dentro e o resto num de fora. Ele fecha 380 ms depois que o mouse sai de uma zona de 196 × escala px. |
+| **Cantos (leque radial)** | Um núcleo no canto com relógio e **três anéis concêntricos** (r 46 / 39,5 / 33 num `viewBox` 100, traço 3,4); os apps fechados viram pontinhos de 6 px na cor do app em volta do núcleo | Com o mouse a menos de `raio do núcleo + 70 × escala` px, os pontinhos **se afastam 14 px e acendem** (escala 1,45), antecipando o leque. Em cima do núcleo, o leque **abre em 70 ms**: 3 apps num arco de dentro e o resto num de fora. Ele fecha 380 ms depois que o mouse sai de uma zona de (arco de fora + 36) × escala px. |
 | **Solta (pílula)** | Barra deitada compacta | O contorno da ilha acende de leve com o mouse em cima (`rgba(255,255,255,.17)`). |
 
 **Medidas do leque por degrau** (`CORNER`):
 
 | Degrau | Caixa | Centro do núcleo | Raio do núcleo | Arco de dentro | Arco de fora |
 |---|---|---|---|---|---|
-| fina | 224 | 32 | 22 | 96 | 152 |
-| normal | 236 | 38 | 34 | 102 | 162 |
-| larga | 282 | 50 | 46 | 128 | 198 |
+| fina | 196 | 32 | 22 | 84 | 136 |
+| normal | 208 | 38 | 34 | 90 | 142 |
+| larga | 250 | 50 | 46 | 112 | 172 |
 
 Cada arco ocupa os 90° do quarto, com os apps em `90° × (j + 0,5) / n`. Fechados, os pontinhos ficam em `raio do núcleo + 14`, distribuídos de 8° a 82°.
 
