@@ -37,7 +37,7 @@ Faça na ordem, porque cada passo usa o anterior. O passo 3 é o coração do es
 
 ## O que não tem aqui
 
-- **Código-fonte:** o repo guarda a receita, não o código. Os trechos do guia são pseudocódigo ilustrativo, nunca código dos apps.
+- **Código-fonte:** o guia é receita, não código. Os trechos daqui são pseudocódigo ilustrativo. O código dos três apps fica só em [modelos/](../modelos/README.md), limpo, se você quiser partir de um app que já funciona.
 - **Números:** ficam nos docs de origem ([padrões](../padroes/README.md), [referências](../referencias/README.md) e a pasta de cada app). O guia diz qual abrir.
 - **Segredos:** chaves, tokens, client IDs e dados pessoais nunca entram na doc (o repo é público).
 

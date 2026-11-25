@@ -1,0 +1,1665 @@
+<title>Onda</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script type="application/json" id="claude-artifacts-manifest">{"permissions":["overlay","full-access","menu-bar"]}</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: nada de caixa. Capa, texto e uma onda que é a própria barra de tempo flutuam sobre a área de trabalho.
+   Dois estados, compacto e expandido, que se transformam um no outro. */
+:root{
+  --ink:#090b10;
+  --fg:#f4f5f8;
+  --muted:rgba(244,245,248,.66);
+  --faint:rgba(244,245,248,.42);
+  --c1:#a9b8ff;
+  --c2:#9fffc4;
+  --display:"Space Grotesk","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --body:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --morph:.55s;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--fg);font-family:var(--body);margin:0;box-sizing:border-box;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+
+.stage{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding-block:40px;box-sizing:border-box}
+.stage header{text-align:center;display:flex;flex-direction:column;gap:8px;max-width:52ch}
+h1{font-family:var(--display);font-weight:600;font-size:34px;letter-spacing:-.02em;margin:0}
+.lede{color:var(--muted);margin:0;line-height:1.55}
+.panel{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;max-width:56ch}
+.panel p{margin:0;color:var(--muted);line-height:1.55}
+.btn{font:600 14px/1 var(--body);color:#0b0d12;background:#a9b8ff;border:0;border-radius:10px;padding:12px 18px;cursor:pointer}
+.btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.preview{width:840px;max-width:100%;height:480px;border-radius:20px;background:radial-gradient(120% 130% at 85% 100%,#3b3f8f,#151a33 45%,#07080d 80%);position:relative;overflow:hidden}
+
+/* ---------- o player ----------
+   A janela é um envelope transparente de tamanho fixo onde cabem todos os arranjos; o mouse atravessa tudo
+   que não é visível. O ponto fixo é a capa compacta (.frame): cada arranjo se monta em volta dela e abre pro
+   lado de dentro da tela. Posição, tamanho e opacidade de cada peça andam em molas no JS, então trocar de
+   arranjo (lado, canto, tira, expandir) nunca dá pulo e a janela só precisa transladar. */
+:root{--spring:cubic-bezier(.2,.9,.25,1.12)}
+.frame{position:absolute;left:60px;top:150px;width:64px;height:64px;transform-origin:32px 32px;transform:rotate(var(--tilt,0deg))}
+@property --lf{syntax:'<number>';inherits:true;initial-value:1}
+.lift{position:absolute;inset:0;transform-origin:32px 32px;transition:--lf .5s var(--spring),opacity .7s var(--ease);
+  transform:rotate(var(--sa,0deg)) scale(var(--sx,1),var(--sy,1)) rotate(calc(var(--sa,0deg) * -1)) scale(var(--lf))}
+html.lifted .lift{--lf:1.03}
+/* pegou: uma sombra macia "levanta" o player do fundo (cabe na margem da janela, nunca corta) */
+html.grab .lift{filter:drop-shadow(0 calc(var(--grab,0) * 5px) calc(var(--grab,0) * 10px) rgba(0,0,0,calc(var(--grab,0) * .38)))}
+/* corpo fundido à borda (desenhado no canvas atrás do player); a área dele também pega o mouse pra arrastar */
+.skin{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;display:none}
+html.app-mode .skin{display:block}
+.bodyhit{position:absolute;left:0;top:0;display:none;cursor:grab}
+html.app-mode,html.app-mode *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.player .meta{z-index:4}   /* nomes e avisos sempre por cima da capa */
+.meta.onvinyl{background:rgba(10,11,15,.62);backdrop-filter:blur(10px);border-radius:12px;padding:5px 9px;box-sizing:border-box;box-shadow:0 0 0 1px rgba(255,255,255,.06)}
+.meta.onvinyl .title span{font-size:14px;line-height:18px}.meta.onvinyl .title{height:18px}.meta.onvinyl .artist{font-size:11.5px;margin-top:1px}.meta.onvinyl .album,.meta.onvinyl .openbtn{display:none!important}
+html.booting .lift{opacity:0;--lf:.92;transition:none}
+.player{position:absolute;inset:0;user-select:none}
+.player *{transition-timing-function:var(--ease)}
+.pc{position:absolute;left:0;top:0;will-change:transform,opacity}
+.pc.gone,.pc.gone *{pointer-events:none!important}
+
+/* sombra colorida que nasce da própria capa (o JS posiciona) */
+.halo{
+  position:absolute;left:0;top:0;width:50px;height:50px;border-radius:30%;pointer-events:none;will-change:transform;
+  background:radial-gradient(circle at 30% 35%,var(--c1),transparent 68%),radial-gradient(circle at 72% 70%,var(--c2),transparent 68%);
+  filter:blur(14px) saturate(1.4);opacity:.55;transition:opacity .5s;
+}
+.player.big .halo{filter:blur(18px) saturate(1.4);opacity:.6}
+.cover{
+  width:64px;height:64px;border-radius:16px;border:0;padding:0;overflow:hidden;cursor:pointer;z-index:3;
+  background:rgba(22,24,36,.6);box-shadow:0 14px 28px -10px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.07);
+}
+.cover:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.06);transition:opacity .6s,transform .9s;-webkit-user-drag:none}
+.cover img.show{opacity:1;transform:none}
+.cover .ph{position:absolute;inset:0;display:grid;place-items:center}
+.cover .ph[hidden]{display:none}
+.cover .ph svg{width:46%;height:46%;opacity:.55}
+
+/* texto: nome, artista, álbum (o álbum só no expandido). Do lado direito da tela, alinha à direita */
+.meta{width:236px;height:40px;min-width:0;z-index:2;display:flex;flex-direction:column;text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 16px rgba(0,0,0,.4)}
+.meta > *{flex:none}
+.meta.up{justify-content:flex-end}
+.meta.r{text-align:right}
+.meta.r .title{justify-content:flex-end}
+.title{display:flex;align-items:center;min-width:0;height:20px;transition:height .45s}
+.title span{font:600 15px/20px var(--display);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:font-size .45s,line-height .45s}
+.artist{font-size:12.5px;line-height:18px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:font-size .45s,margin .45s}
+.album{font-size:11.5px;color:var(--faint);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-height:0;opacity:0;transition:max-height .45s,opacity .3s}
+.meta.swap > *{animation:swapIn .55s var(--ease) both}
+.meta.swap .artist{animation-delay:.05s}
+.meta.swap .album{animation-delay:.1s}
+@keyframes swapIn{from{opacity:0;transform:translateY(7px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+/* play/pausa sobre a capa no compacto: aparece com o mouse ou quando está pausado */
+.mini{
+  position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:0;padding:0;
+  background:rgba(10,12,18,.5);backdrop-filter:blur(8px);color:#fff;display:grid;place-items:center;cursor:pointer;
+  opacity:0;transform:scale(.8);transition:opacity .2s,transform .25s var(--ease),background .15s;z-index:2;
+}
+.mini .pp{width:14px;height:14px}
+.mini svg{fill:currentColor}
+.mini:hover{background:rgba(10,12,18,.72)}
+.cover:hover .mini,.player.paused:not(.idle) .mini,.mini:focus-visible{opacity:1;transform:none}
+.cover::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.18);opacity:0;transition:opacity .2s;pointer-events:none;z-index:1}
+.cover:hover::after{opacity:1}
+.player.big .cover::after{display:none}
+.player.big .mini{opacity:0!important;pointer-events:none}
+
+/* a onda é a barra de tempo; o canvas tem 12px de folga pro brilho não ser cortado */
+.wave,.vwave{cursor:pointer}
+.wave canvas,.vwave canvas{position:absolute;left:-12px;top:-12px;width:calc(100% + 24px);height:calc(100% + 24px);display:block;pointer-events:none}
+.wave .t{position:absolute;bottom:-17px;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .3s;text-shadow:0 1px 2px rgba(0,0,0,.7);white-space:nowrap}
+.wave.up .t{bottom:auto;top:-17px}
+.wave .t.pos{left:0}.wave .t.dur{right:0}
+.wave.off,.vwave.off{cursor:default}
+.player.big .wave .t{opacity:1}
+
+/* tira vertical (recolhida numa lateral): nome girado, lendo de baixo pra cima na esquerda e de cima pra baixo na direita */
+.vt{z-index:2;display:flex;justify-content:center;cursor:grab}
+.vt span{display:block;height:100%;writing-mode:vertical-rl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font:600 12.5px/20px var(--display);letter-spacing:.01em;text-shadow:0 1px 2px rgba(0,0,0,.75),0 0 14px rgba(0,0,0,.45)}
+.vt span i{font:400 12px/20px var(--body);font-style:normal;color:var(--muted)}
+.vt.flip span{transform:rotate(180deg)}
+.vt.end span{text-align:end}
+
+/* peças das formas de borda */
+.bars canvas,.arc canvas{position:absolute;left:-12px;top:-12px;width:calc(100% + 24px);height:calc(100% + 24px);display:block;pointer-events:none}
+.bars{cursor:pointer;z-index:1}
+.arc{pointer-events:none;z-index:1}
+.mctrls{display:flex;align-items:center;justify-content:center;gap:6px;z-index:2}
+.mctrls.col{flex-direction:column}
+.mctrls .c.main{width:38px;height:38px}
+.mctrls .c.main svg{width:16px;height:16px}
+.mctrls.arc .c{position:absolute;left:0;top:0;will-change:transform}
+.mctrls.arc{display:block;pointer-events:none}
+.mctrls.arc .c{pointer-events:auto}
+.prog{border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;pointer-events:none;z-index:1}
+.prog i{position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(180deg,var(--c1),var(--c2));transform-origin:0 0;box-shadow:0 0 10px var(--c1)}
+.prog.up i{transform-origin:0 100%}
+.prog.rt i{transform-origin:100% 0}
+/* capa como vinil no quarto de disco: redonda, gira enquanto toca, com o furinho no meio */
+.cover.vinyl img{animation:spin 9s linear infinite;animation-play-state:paused}
+.player.playing .cover.vinyl img{animation-play-state:running}
+.cover.vinyl::before{content:"";position:absolute;left:50%;top:50%;width:14%;height:14%;margin:-7% 0 0 -7%;border-radius:50%;background:#0d0e12;box-shadow:0 0 0 2px rgba(255,255,255,.12),inset 0 0 0 1px rgba(0,0,0,.6);z-index:2;opacity:0;transition:opacity .4s}
+.cover.vinyl::before{opacity:1}
+/* sulcos do vinil e um reflexo fixo (não giram: a luz fica parada enquanto o disco roda) */
+.cover.vinyl::after{opacity:1;background:repeating-radial-gradient(circle at 50% 50%,transparent 0 2.5px,rgba(0,0,0,.17) 2.5px 3.5px),conic-gradient(from 210deg,transparent 0 40deg,rgba(255,255,255,.16) 60deg,transparent 80deg 220deg,rgba(255,255,255,.1) 240deg,transparent 260deg)}
+.cover.vinyl .mini{width:26px;height:26px;margin:-13px 0 0 -13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cover.vinyl img{rotate:var(--spin,0deg)}
+.cover:not(.vinyl){scale:1;transition:scale .4s var(--spring)}
+.cover:not(.vinyl):hover{scale:1.035}
+.cover:active{scale:.965!important;transition-duration:.12s}
+.bars{transition:filter .25s}
+.bars:hover{filter:brightness(1.18) saturate(1.1)}
+.cover.vinyl{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M19 12a7 7 0 1 1-2.05-4.95' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M19 12a7 7 0 1 1-2.05-4.95' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M18 3v5h-5' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M18 3v5h-5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 12 12,alias;scale:1;transition:scale .4s var(--spring)}
+.cover.vinyl:hover{scale:1.05}
+.bars{cursor:ew-resize}
+html[data-side^="side"] .bars{cursor:ns-resize}
+/* degrau grande: título maior e a lista do lado de dentro */
+.player.t-grand .title{height:31px}
+.player.t-grand .title span{font-size:25px;line-height:31px;letter-spacing:-.02em}
+.player.t-grand .artist{font-size:15px;margin-top:5px}
+.list{z-index:2;display:flex;flex-direction:column;gap:6px;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 14px rgba(0,0,0,.4)}
+.ltabs{display:flex;gap:4px;flex:none}
+.list.r .ltabs{justify-content:flex-end}
+.ltab{border:0;background:transparent;padding:4px 9px;border-radius:999px;font:600 11px/14px var(--body);letter-spacing:.04em;text-transform:uppercase;color:var(--faint);cursor:pointer;transition:background .2s,color .2s}
+.ltab:hover{color:var(--muted)}
+.ltab.on{color:var(--fg);background:rgba(255,255,255,.1)}
+.lrows{display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  -webkit-mask:linear-gradient(180deg,#000 78%,transparent);mask:linear-gradient(180deg,#000 78%,transparent)}
+.lrow{display:flex;flex-direction:column;align-items:flex-start;flex:none;width:100%;border:0;background:transparent;border-radius:9px;padding:4px 9px;cursor:pointer;text-align:left;
+  transition:background .18s;animation:rowIn .5s var(--ease) both;animation-delay:calc(var(--i) * 35ms)}
+.list.r .lrow{align-items:flex-end;text-align:right}
+.lrow:hover{background:rgba(255,255,255,.08)}
+.lrow .lt{font:500 12.5px/17px var(--body);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .la{font-size:11px;line-height:14px;color:var(--faint);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lempty{font-size:12px;color:var(--faint);padding:6px 9px}
+.list.r .lempty{text-align:right}
+@keyframes rowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* alça de tamanho: dois arcos finos no canto de crescimento; só aparece com o mouse */
+.grip{position:absolute;left:0;top:0;width:22px;height:22px;z-index:4;cursor:nwse-resize;opacity:0;will-change:transform,opacity;touch-action:none}
+.grip.r:not(.b),.grip.b:not(.r){cursor:nesw-resize}
+.grip.gone{pointer-events:none}
+.grip svg{width:100%;height:100%;fill:none;stroke:var(--fg);stroke-width:1.6;stroke-linecap:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));opacity:.7;transition:opacity .2s,stroke .2s}
+.grip path + path{opacity:.55}
+.grip:hover svg,html.resizing .grip svg{opacity:1;stroke:var(--c2)}
+.grip.r svg{transform:scaleX(-1)}
+.grip.b svg{transform:scaleY(-1)}
+.grip.r.b svg{transform:scale(-1,-1)}
+html.resizing,html.resizing *{cursor:grabbing!important}
+.ctrls{display:flex;align-items:center;gap:6px;width:204px;z-index:2}
+.c{position:relative;width:34px;height:34px;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--fg);transition:background .15s,transform .3s var(--spring)}
+.c:hover{background:rgba(255,255,255,.12);transform:scale(1.07)}
+.c:active{transform:scale(.9);transition-duration:.08s}
+.c:focus-visible{outline:2px solid var(--fg);outline-offset:1px}
+.c svg{width:17px;height:17px;fill:currentColor;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
+.c.s{color:var(--muted)}
+.c.s svg{width:15px;height:15px}
+.c.on{color:var(--c2)}
+.c.on::after{content:"";position:absolute;bottom:3px;width:3px;height:3px;border-radius:50%;background:currentColor}
+.c.main{width:44px;height:44px;background:var(--fg);color:#0b0d12;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.c.main:hover{background:#fff}
+.c.main svg{width:18px;height:18px;filter:none}
+.c[disabled]{opacity:.3;cursor:default}
+.badge{position:absolute;top:5px;right:6px;font:700 7px/1 var(--body)}
+.pp{position:relative;width:18px;height:18px}
+.pp svg{position:absolute;inset:0;width:100%!important;height:100%!important;transition:opacity .2s,transform .3s var(--ease)}
+.pp .i-pause{opacity:0;transform:scale(.6) rotate(-90deg)}
+.playing .pp .i-play{opacity:0;transform:scale(.6) rotate(90deg)}
+.playing .pp .i-pause{opacity:1;transform:none}
+
+/* expandido: só o texto muda de tamanho por CSS; posições vêm das molas */
+.player.big .title{height:26px}
+.player.big .title span{font-size:20px;line-height:26px}
+.player.big .artist{font-size:14px;margin-top:4px}
+.player.big .album{max-height:20px;opacity:1}
+
+.idle .wave,.idle .vwave{cursor:default}
+.openbtn{display:none;align-self:flex-start;margin-top:3px;border:0;border-radius:999px;background:rgba(255,255,255,.14);padding:3px 10px;font:500 11.5px/14px var(--body);cursor:pointer;backdrop-filter:blur(6px)}
+.openbtn:hover{background:rgba(255,255,255,.22)}
+.idle .openbtn:not(.connect){display:inline-block}
+.meta.r .openbtn{align-self:flex-end}
+.player.idle:not(.big) .artist{display:none}
+.player.big.noapi .album{display:none}
+.player.big.noapi .connect{display:inline-block}
+.idle .ctrls .c{opacity:.4;pointer-events:none}
+.idle .halo{opacity:0!important}
+
+.toast{display:none}
+.artist.note{color:var(--c2);animation:swapIn .4s var(--ease) both}
+
+/* modo app: janela transparente; color-scheme light de propósito (evita o fundo opaco do Chromium) */
+html.app-mode{color-scheme:light}
+html.app-mode,html.app-mode body{background:transparent!important;padding:0;overflow:hidden}
+html.app-mode .stage{padding:0;display:block;min-height:0}
+html.app-mode .stage > :not(.preview){display:none}
+html.app-mode .frame{left:var(--ax);top:var(--ay)}
+html.app-mode .preview{position:fixed;left:0;top:0;width:var(--ww);height:var(--wh);max-width:none;border-radius:0;background:none;overflow:visible}
+.moving,.moving *{cursor:grabbing!important}
+
+@media (prefers-reduced-motion:reduce){
+  .lift{transition-duration:0s!important}
+  .player *{transition-duration:0s!important;animation:none!important}
+}
+</style>
+
+<main class="stage">
+  <header>
+    <h1>Onda</h1>
+    <p class="lede">Seu Spotify flutuando na tela: capa, música e uma onda que se mexe com o som e marca o tempo. A Órbita e o Claude dela conseguem ver e controlar tudo por aqui.</p>
+  </header>
+
+  <div class="preview">
+    <canvas class="skin" id="skin"></canvas>
+    <div class="bodyhit hit" id="bodyhit"></div>
+    <div class="frame"><div class="lift">
+      <div class="player idle paused" id="player">
+        <div class="halo" id="halo"></div>
+        <div class="cover pc hit" id="cover" role="button" tabindex="0" aria-label="Expandir ou recolher">
+          <span class="ph"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 26c5 0 5-8 10-8s5 14 10 14 5-20 10-20 5 14 10 14" fill="none" stroke="#f4f5f8" stroke-width="3.4" stroke-linecap="round"/></svg></span>
+          <button class="mini" id="mini" aria-label="Tocar ou pausar"><span class="pp"><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg></span></button>
+        </div>
+        <div class="meta pc hit" id="meta">
+          <div class="title"><span id="title">Nada tocando</span></div>
+          <div class="artist" id="artist">Spotify fechado</div>
+          <div class="album" id="album"></div>
+          <button class="openbtn" id="openSpotify">Abrir Spotify</button>
+          <button class="openbtn connect" id="connect">Conectar Spotify</button>
+        </div>
+        <div class="ctrls pc hit" id="ctrls">
+          <button class="c s" id="shuffle" aria-label="Aleatório"><svg viewBox="0 0 24 24"><path d="M16 4h4v4l-1.5-1.5-4 4-1.4-1.4 4-4zM4 6.6 5.4 5.2l13.1 13.1L20 16.8V21h-4.2l1.5-1.5L4 6.6zm6.4 7.9 1.4 1.4-6.4 6.4L4 20.9z"/></svg></button>
+          <button class="c" id="prev" aria-label="Anterior"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM9.5 12 19 5v14z"/></svg></button>
+          <button class="c main" id="play" aria-label="Tocar ou pausar"><span class="pp"><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg></span></button>
+          <button class="c" id="next" aria-label="Próxima"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM5 5l9.5 7L5 19z"/></svg></button>
+          <button class="c s" id="repeat" aria-label="Repetir"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg><span class="badge" id="rep1" hidden>1</span></button>
+        </div>
+        <div class="wave pc hit" id="wave" role="slider" aria-label="Posição da música" tabindex="0">
+          <canvas id="cv"></canvas>
+          <span class="t pos" id="tPos">0:00</span><span class="t dur" id="tDur">0:00</span>
+        </div>
+        <div class="vt pc hit" id="vt"><span id="vtText">Nada tocando</span></div>
+        <div class="vwave pc hit" id="vwave" role="slider" aria-label="Posição da música"><canvas id="cv2"></canvas></div>
+        <div class="list pc hit" id="list">
+          <div class="ltabs"><button class="ltab" id="tabNext">A seguir</button><button class="ltab" id="tabRecent">Tocadas</button></div>
+          <div class="lrows" id="listRows"></div>
+        </div>
+        <div class="grip hit" id="grip" role="slider" aria-label="Tamanho da Onda" title="Puxe pra mudar o tamanho"><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M6 17.5A11.5 11.5 0 0 0 17.5 6"/><path d="M11 17.5A6.5 6.5 0 0 0 17.5 11"/></svg></div>
+        <div class="bars pc hit" id="bars"><canvas id="cvb"></canvas></div>
+        <div class="arc pc" id="arc"><canvas id="cva"></canvas></div>
+        <div class="mctrls pc hit row" id="mctrls">
+          <button class="c" data-a="prev" aria-label="Anterior"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM9.5 12 19 5v14z"/></svg></button>
+          <button class="c main" data-a="play" aria-label="Tocar ou pausar"><span class="pp"><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg></span></button>
+          <button class="c" data-a="next" aria-label="Próxima"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM5 5l9.5 7L5 19z"/></svg></button>
+        </div>
+        <div class="prog pc" id="prog"><i id="progFill"></i></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+    </div></div>
+  </div>
+
+  <section class="panel">
+    <p id="status">Verificando onde a Onda está aberta…</p>
+    <div class="row" id="actions"></div>
+  </section>
+</main>
+
+<script type="module">
+// tudo é medido a partir do canto da capa compacta (a "âncora"); o mover anda com a âncora e a janela se ajusta ao que se vê em volta dela.
+// LR = caixa da janela em relação à âncora: o conteúdo + margem do brilho; do lado de uma borda em que ela encostou, margem G (a janela fica rente à tela)
+const CW = 64, AX = 0, AY = 0, MARGIN = 48;
+let LR = { l:-MARGIN, t:-MARGIN, r:CW + 316 + MARGIN, b:CW + MARGIN };
+const BUS = '~/.orbita', ST = BUS + '/musica.json', CMD = BUS + '/musica-cmd', RES = BUS + '/musica-res', HIST = BUS + '/musica-historico.json';
+const HELPER_PS = /*HELPER*/'';
+const AUTH_PS = /*AUTH*/'';
+// Client ID do SEU app no Spotify for Developers (login PKCE, sem segredo). O build troca o marcador pelo valor de
+// modelos/onda/config.json; sem config, fica SEU_CLIENT_ID e o botão "Conectar" avisa (veja modelos/onda/README.md)
+const CLIENT_ID = /*CLIENT_ID*/'SEU_CLIENT_ID';
+const SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative user-library-read user-read-recently-played';
+const METER_PS = /*METER*/'';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const $ = id => document.getElementById(id);
+const player = $('player'), toastEl = $('toast'), waveEl = $('wave'), cv = $('cv');
+let desktop = null, canRun = false;
+let st = null, artKey = '', stAt = 0, history = [];
+let prefs = {}; try { prefs = JSON.parse(localStorage.getItem('onda') || '{}'); } catch {}
+// degraus de tamanho: 'min' (capa + onda), 'compact' (linha), 'exp' (expandida, com controles), 'grand' (capa enorme, fila, onda rica)
+const TIERS = ['min', 'compact', 'exp', 'grand'];
+let pinned = prefs.pinned !== false;
+let tier = TIERS.includes(prefs.tier) ? prefs.tier : prefs.big ? 'exp' : 'compact', big = tier === 'exp' || tier === 'grand';
+function savePrefs(extra){ prefs = { ...prefs, pinned, tier, big, ...extra }; try { localStorage.setItem('onda', JSON.stringify(prefs)); } catch {} }
+const root = document.documentElement;
+function tierClasses(){ for (const t of TIERS) player.classList.toggle('t-' + t, tier === t); player.classList.toggle('big', big); }
+tierClasses();
+
+// aviso curto no lugar do artista (não cobre nada e cabe na janela compacta)
+let toastTimer, noteUntil = 0;
+function toast(msg){
+  const a = $('artist'); noteUntil = Date.now() + 2600;
+  a.textContent = msg; a.classList.remove('note'); void a.offsetWidth; a.classList.add('note');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { noteUntil = 0; a.classList.remove('note'); render(); }, 2600);
+}
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s/60) + ':' + String(s % 60).padStart(2, '0'); };
+
+/* ---------- ajudantes: controle de mídia do Windows + medidor de som ---------- */
+function encodePs(s){ let b = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); b += String.fromCharCode(c & 255, c >> 8); } return btoa(b); }
+const psArgs = code => ['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand', encodePs(code)];
+let helper = null, reqId = 0, outBuf = '';
+const pending = new Map();
+function startHelper(){
+  helper = desktop.childProcess.spawn('powershell.exe', psArgs(HELPER_PS));
+  outBuf = '';
+  helper.stdout.on('data', chunk => {
+    outBuf += chunk; let i;
+    while ((i = outBuf.indexOf('\n')) >= 0){
+      const line = outBuf.slice(0, i).replace(/^﻿/, '').trim(); outBuf = outBuf.slice(i + 1);
+      const sp = line.indexOf(' '); const id = sp < 0 ? line : line.slice(0, sp);
+      const res = pending.get(id); if (res){ pending.delete(id); res(sp < 0 ? '' : line.slice(sp + 1)); }
+    }
+  });
+  const dead = () => { helper = null; for (const r of pending.values()) r(null); pending.clear(); };
+  helper.on('exit', dead); helper.on('error', dead);
+}
+function ask(cmd, timeout = 6000){
+  if (!canRun) return Promise.resolve(null);
+  if (!helper) startHelper();
+  const id = 'r' + (++reqId);
+  return new Promise(resolve => {
+    pending.set(id, resolve);
+    helper.stdin.write(id + ' ' + cmd + '\n').catch(() => { pending.delete(id); resolve(null); });
+    setTimeout(() => { if (pending.has(id)){ pending.delete(id); resolve(null); } }, timeout);
+  });
+}
+let peak = 0, meterOn = false, meterBuf = '';
+function startMeter(){
+  try {
+    const m = desktop.childProcess.spawn('powershell.exe', psArgs(METER_PS));
+    meterOn = true;
+    m.stdout.on('data', chunk => {
+      meterBuf += chunk; let i, last = null;
+      while ((i = meterBuf.indexOf('\n')) >= 0){ last = meterBuf.slice(0, i); meterBuf = meterBuf.slice(i + 1); }
+      if (last){ const v = parseFloat(last.replace(/^﻿/, '').split(' ')[1]); if (!isNaN(v)) peak = v; }
+    });
+    const again = () => { meterOn = false; setTimeout(startMeter, 3000); };
+    m.on('exit', again); m.on('error', again);
+  } catch { meterOn = false; }
+}
+
+/* ---------- estado ---------- */
+async function refresh(){
+  const raw = await ask('state');
+  if (raw == null) return;
+  let s; try { s = JSON.parse(raw); } catch { return; }
+  const prevKey = st?.artKey;
+  st = s; stAt = performance.now();
+  if (s.ok && s.artKey && s.artKey !== artKey){
+    artKey = s.artKey;
+    const b64 = await ask('art', 8000);
+    setArt(b64 ? 'data:image/png;base64,' + b64 : '');
+    if (s.title){ addHistory(s); swapText(); }
+  }
+  render();
+  if (prevKey !== s.artKey || performance.now() - lastPub > 2500) publish();
+}
+function addHistory(s){
+  if (history[0] && history[0].title === s.title && history[0].artist === s.artist) return;
+  history.unshift({ title:s.title, artist:s.artist, album:s.album, at:new Date().toISOString() });
+  history = history.slice(0, 40);
+  desktop?.fs?.writeFile(HIST, JSON.stringify(history)).catch(() => {});
+}
+function livePos(){
+  if (!st?.ok) return 0;
+  const p = st.pos + (st.playing ? (performance.now() - stAt) / 1000 : 0);
+  return st.dur > 0 ? Math.min(p, st.dur) : p;
+}
+function render(){
+  const ok = !!(st?.ok && st.title);
+  player.classList.toggle('idle', !ok);
+  document.documentElement.classList.toggle('idle', !ok);
+  player.classList.toggle('playing', ok && st.playing);
+  player.classList.toggle('paused', !(ok && st.playing));
+  $('title').textContent = ok ? st.title : 'Nada tocando';
+  if (Date.now() > noteUntil) $('artist').textContent = ok ? st.artist : (canRun ? 'Spotify fechado' : 'Instale e ative a Onda');
+  $('album').textContent = ok ? (st.album || '') : '';
+  // nome girado da tira vertical: "Música · Artista"
+  const vtA = document.createElement('i'); vtA.textContent = ok && st.artist ? '  ·  ' + st.artist : '';
+  $('vtText').replaceChildren(document.createTextNode(ok ? st.title : 'Nada tocando'), vtA);
+  vwaveEl.classList.toggle('off', !(ok && st.canSeek));
+  $('play').setAttribute('aria-label', ok && st.playing ? 'Pausar' : 'Tocar');
+  $('shuffle').classList.toggle('on', !!st?.shuffle);
+  $('shuffle').disabled = ok && st.canShuffle === false;
+  const rep = st?.repeat || 'None';
+  $('repeat').classList.toggle('on', rep !== 'None'); $('rep1').hidden = rep !== 'Track';
+  waveEl.classList.toggle('off', !(ok && st.canSeek));
+  if (!ok && artKey){ artKey = ''; setArt(''); }
+}
+function swapText(){ const m = $('meta'); m.classList.remove('swap'); void m.offsetWidth; m.classList.add('swap'); }
+
+// capa: troca com fade entre duas imagens; cores da onda tiradas da capa
+function setArt(src){
+  const cover = $('cover');
+  cover.querySelectorAll('img').forEach(i => { i.classList.remove('show'); setTimeout(() => i.remove(), 700); });
+  cover.querySelector('.ph').hidden = !!src;
+  if (!src) return;
+  const img = new Image(); img.alt = ''; img.draggable = false;
+  img.onload = () => { cover.appendChild(img); void img.offsetWidth; setTimeout(() => img.classList.add('show'), 20); colorsFrom(img); };
+  img.src = src;
+}
+function colorsFrom(img){
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, 32, 32);
+  const d = g.getImageData(0, 0, 32, 32).data, px = [];
+  for (let i = 0; i < d.length; i += 4){
+    const r = d[i], gg = d[i+1], b = d[i+2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+    const sat = mx ? (mx - mn) / mx : 0; px.push({ r, g:gg, b, s:sat * (.35 + mx / 255), h:hue(r, gg, b) });
+  }
+  px.sort((a, b) => b.s - a.s);
+  const a = px[0];
+  const bcol = px.find(p => Math.min(Math.abs(p.h - a.h), 360 - Math.abs(p.h - a.h)) > 40 && p.s > .18) || px[Math.floor(px.length * .15)];
+  // cores vivas da capa (sat. alta mesmo em capa escura); capa cinza cai num lilás neutro
+  const lift = p => p.s < .12 ? '#c9d2ff' : (() => { const mx = Math.max(p.r, p.g, p.b) || 1, k = 235 / mx; return `rgb(${[p.r, p.g, p.b].map(v => Math.round(Math.min(255, v * k) * .8 + 255 * .2)).join(',')})`; })();
+  document.documentElement.style.setProperty('--c1', lift(a));
+  document.documentElement.style.setProperty('--c2', lift(bcol));
+  colors = [lift(a), lift(bcol)];
+}
+function hue(r, g, b){ const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 0; let h = mx === r ? (g - b) / d % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; }
+let colors = ['#a9b8ff', '#9fffc4'];
+
+/* ---------- arranjos: o desenho se reorganiza conforme o lado da tela ----------
+   Z diz onde a Onda está: kind 'free' (solta), 'edge' (topo ou base), 'side' (esquerda ou direita), 'corner';
+   hx 'L'|'R' = de que lado fica a capa (o resto abre pro outro, rumo ao centro); vy 'T'|'B' = cresce pra baixo ou pra cima.
+   Os arranjos são medidos com a capa compacta em (0,0) e espelhados pros outros lados. */
+let Z = { kind:'free', hx:'L', vy:'B', near:{} }, hov = false;
+const PIECES = ['cover','meta','ctrls','wave','vt','vwave','list','bars','arc','mctrls','prog'];
+const EL = Object.fromEntries(PIECES.map(k => [k, $(k)]));
+const halo = $('halo'), vwaveEl = $('vwave'), grip = $('grip');
+const R = (x, y, w, h, o = 1, r) => ({ x, y, w, h, o, r });
+const isBig = t => t === 'exp' || t === 'grand';
+/* formas × tamanho. Cada lado tem uma forma própria, não o mesmo player empurrado:
+   - solta ("free"): o player flutuante — linha (compacta), expandida, grande, mínima;
+   - laterais ("col"): coluna vertical colada na borda — capa em cima, nome correndo em pé ao longo da borda,
+     a onda virando barras horizontais que descem, controles empilhados, progresso como uma linha na junção com a borda;
+   - topo ("top"): faixa larga — capa pequena, nome, a onda esticada como um horizonte, controles à direita; abrindo, desce;
+   - base ("bot"): prateleira — equalizador subindo da borda, capa elevada em cima dele; cresce pra cima;
+   - cantos ("disc"): quarto de disco — capa girando como vinil, a onda em arco em volta e os controles ao longo do arco.
+   As medidas são do canto de cima à esquerda (borda em cima / à esquerda) e espelhadas pros outros lados. */
+// v = raio do vinil (centro no canto da tela), ring = anel da onda, ctl = anel dos controles, R = raio do corpo (o aro de pega fica nos últimos 12 px)
+const DISC = { min:{ R:110, ring:92, ctl:0, v:76 }, compact:{ R:180, ring:120, ctl:150, v:104 }, exp:{ R:248, ring:172, ctl:210, v:150 }, grand:{ R:302, ring:220, ctl:262, v:196 } };
+function arrangement(z = Z, t = tier, hv = hov){
+  const n = z.near || {};
+  if (z.kind === 'corner') return 'disc-' + t;
+  const h = t === 'min' && hv ? '-h' : '';          // no mínimo, o mouse em cima revela mais (cada borda do seu jeito)
+  if (z.kind === 'side') return 'col-' + t + h;
+  if (z.kind === 'edge') return (n.b ? 'bot-' : 'top-') + t + h;
+  return t === 'grand' ? 'grand' : t === 'exp' ? 'big' : t === 'min' ? 'mini' : 'row';
+}
+function baseLayout(a){
+  // tudo começa escondido perto da capa; cada forma acende só o que usa
+  const L = {
+    cover:R(0, 0, 64, 64, 1, 16), meta:R(80, 3, 236, 40, 0), ctrls:R(166, 92, 204, 44, 0), wave:R(80, 22, 70, 20, 0),
+    vt:R(6, 70, 20, 44, 0), vwave:R(34, 70, 24, 44, 0), list:R(300, 20, 220, 180, 0),
+    bars:R(0, 70, 64, 40, 0), arc:R(-G, -G, 60, 60, 0), mctrls:R(70, 10, 44, 44, 0), prog:R(-11, 0, 3, 64, 0),
+  };
+  const set = o => Object.assign(L, o);
+  const disc = d => R(-G, -G, d.R, d.R);
+  const vinyl = d => ({ ...R(-G - d.v, -G - d.v, 2 * d.v, 2 * d.v, 1, d.v), bleed:true });
+  switch (a){
+    // ---- solta
+    case 'grand': set({ cover:R(0, 0, 200, 200, 1, 26), meta:R(220, 26, 230, 84), ctrls:R(220, 128, 204, 44), list:R(470, 0, 220, 200), wave:R(0, 218, 690, 52) }); break;
+    case 'big': set({ cover:R(0, 0, 146, 146, 1, 22), meta:R(166, 0, 250, 80), ctrls:R(166, 98, 204, 44), list:R(330, 0, 220, 146, 0), wave:R(0, 164, 416, 40) }); break;
+    case 'mini': set({ wave:R(78, 22, 112, 20) }); break;
+    case 'row': set({ meta:R(80, 3, 236, 40), wave:R(80, 44, 236, 20) }); break;
+    // ---- coluna nas laterais
+    // coluna mínima: só uma tira de barras respirando colada na borda; a capa mora escondida atrás da borda
+    case 'col-min': set({ cover:{ ...R(-CW - G - 10, 0, 64, 64, 0, 16), bleed:true }, bars:R(0, 0, 26, 176), prog:R(-11, 0, 3, 176) }); break;
+    // ... e com o mouse ela desliza pra fora da borda, e a tira desce pra debaixo dela
+    case 'col-min-h': set({ cover:R(0, 0, 64, 64, 1, 16), bars:R(19, 76, 26, 150), prog:R(-11, 0, 3, 226) }); break;
+    case 'col-compact': set({ vt:R(0, 78, 20, 176), bars:R(28, 78, 36, 176), mctrls:R(13, 266, 38, 126), prog:R(-11, 0, 3, 392) }); break;
+    case 'col-exp': set({ cover:R(0, 0, 150, 150, 1, 22), meta:R(0, 162, 150, 48), bars:R(0, 222, 102, 140), mctrls:R(112, 222, 38, 140), prog:R(-11, 0, 3, 362) }); break;
+    case 'col-grand': set({ cover:R(0, 0, 150, 150, 1, 24), meta:R(0, 162, 210, 52), bars:R(0, 222, 210, 56), ctrls:R(3, 288, 204, 44), list:R(0, 342, 210, 156), prog:R(-11, 0, 3, 498) }); break;
+    // ---- faixa no topo
+    // topo mínimo: uma pílula pendurada, capa-bolinha + o horizonte; com o mouse, o nome desce de dentro dela
+    case 'top-min': set({ cover:R(0, 0, 30, 30, 1, 15), wave:R(40, 5, 170, 20), prog:R(0, -11, 210, 3) }); break;
+    case 'top-min-h': set({ cover:R(0, 0, 30, 30, 1, 15), wave:R(40, 5, 170, 20), meta:R(40, 32, 200, 40), prog:R(0, -11, 240, 3) }); break;
+    case 'top-compact': set({ cover:R(0, 0, 48, 48, 1, 13), meta:R(60, 4, 220, 40), wave:R(292, 12, 320, 24), mctrls:R(626, 2, 132, 44), prog:R(0, -11, 758, 3) }); break;
+    case 'top-exp': set({ cover:R(0, 0, 120, 120, 1, 20), meta:R(136, 4, 330, 76), wave:R(136, 88, 500, 32), ctrls:R(652, 38, 204, 44), prog:R(0, -11, 856, 3) }); break;
+    case 'top-grand': set({ cover:R(0, 0, 130, 130, 1, 22), meta:R(146, 6, 300, 80), wave:R(146, 94, 440, 36), ctrls:R(604, 44, 204, 44), list:R(824, 0, 220, 140), prog:R(0, -11, 1044, 3) }); break;
+    // ---- prateleira na base (medida com a borda em cima e virada)
+    // base mínima: um fio de equalizador rente à borda e a capa-bolha boiando em cima dele, no ritmo; com o mouse, o nome aparece do lado
+    case 'bot-min': set({ bars:R(0, 0, 240, 18), cover:R(12, 28, 40, 40, 1, 20), prog:R(0, -11, 240, 3) }); break;
+    case 'bot-min-h': set({ bars:R(0, 0, 260, 18), cover:R(12, 28, 40, 40, 1, 20), meta:R(64, 28, 196, 40), prog:R(0, -11, 260, 3) }); break;
+    case 'bot-compact': set({ bars:R(0, 0, 380, 40), cover:R(10, 14, 64, 64, 1, 16), meta:R(90, 44, 280, 40), prog:R(0, -11, 380, 3) }); break;
+    case 'bot-exp': set({ bars:R(0, 0, 560, 62), cover:R(12, 24, 140, 140, 1, 22), meta:R(172, 72, 370, 64), ctrls:R(172, 142, 204, 44), prog:R(0, -11, 560, 3) }); break;
+    case 'bot-grand': set({ bars:R(0, 0, 780, 80), cover:R(14, 28, 180, 180, 1, 24), meta:R(214, 92, 320, 72), ctrls:R(214, 172, 204, 44), list:R(552, 92, 228, 132), prog:R(0, -11, 780, 3) }); break;
+    // ---- quarto de disco nos cantos
+    // canto mínimo: um quarto de vinil — o disco inteiro tem o centro no canto da tela, então só um quarto aparece, girando com a música
+    case 'disc-min': set({ cover:vinyl(DISC.min), arc:disc(DISC.min) }); break;
+    case 'disc-compact': set({ cover:vinyl(DISC.compact), arc:disc(DISC.compact), mctrls:R(0, 0, DISC.compact.R - G, DISC.compact.R - G) }); break;
+    // expandido e grande: o nome fica num rótulo sobre o vinil (dentro do quarto visível), por cima de tudo
+    case 'disc-exp': set({ cover:vinyl(DISC.exp), meta:R(4, 8, 104, 40), arc:disc(DISC.exp), mctrls:R(0, 0, DISC.exp.R - G, DISC.exp.R - G) }); break;
+    case 'disc-grand': set({ cover:vinyl(DISC.grand), meta:R(4, 10, 140, 50), arc:disc(DISC.grand), mctrls:R(0, 0, DISC.grand.R - G, DISC.grand.R - G) }); break;
+  }
+  return L;
+}
+function layoutFor(z = Z, t = tier, hv = hov){
+  const base = baseLayout(arrangement(z, t, hv)), out = {};
+  for (const k in base){
+    const r = { ...base[k] };
+    if (z.hx === 'R') r.x = CW - (r.x + r.w);
+    if (z.vy === 'B') r.y = CW - (r.y + r.h);
+    out[k] = r;
+  }
+  return out;
+}
+// peça que mora em parte atrás da borda (a capa escondida, o vinil do canto): conta só até a beira da tela
+function clipBleed(l, t, r, b, z = Z){
+  if (z.hx === 'L') l = Math.max(l, -G); else r = Math.min(r, CW + G);
+  if (z.vy === 'T') t = Math.max(t, -G); else b = Math.min(b, CW + G);
+  return [l, t, Math.max(l, r), Math.max(t, b)];
+}
+// caixa do que fica visível (em relação à capa compacta); no expandido conta os tempos embaixo/em cima da onda
+function extent(lay, t = tier, z = Z){
+  let l = 1e9, tp = 1e9, r = -1e9, bt = -1e9;
+  for (const k in lay){
+    if (k === 'arc' || k === 'prog') continue;
+    const q = lay[k]; if (q.o < .5) continue;
+    let y0 = q.y, y1 = q.y + q.h;
+    if (k === 'wave' && isBig(t)){ if (z.vy === 'B') y0 -= 18; else y1 += 18; }
+    let x0 = q.x, x1 = q.x + q.w; if (q.bleed) [x0, y0, x1, y1] = clipBleed(x0, y0, x1, y1, z);
+    l = Math.min(l, x0); tp = Math.min(tp, y0); r = Math.max(r, x1); bt = Math.max(bt, y1);
+  }
+  return { l, t:tp, r, b:bt };
+}
+
+// molas: cada peça tem x, y, largura, altura, opacidade (e o raio da capa) andando atrás do alvo
+const SPR = { k:300, c:2 * Math.sqrt(300) * .78 }, OPA = { k:520, c:2 * Math.sqrt(520) * .95 };
+const sp = {}, BLEED = {};   // BLEED: peças que moram em parte atrás da borda
+const STAGGER = ['cover', 'arc', 'meta', 'bars', 'mctrls', 'ctrls', 'wave', 'list', 'vt', 'vwave', 'prog'];
+let openAt = -1e9;
+const SPRUNG = [...PIECES, 'grip'];
+let rz = null;   // redimensionando pela alça: { px, py } = mouse em coordenadas da capa
+let flipUntil = 0, pendingAlign = null, snapAll = true, timeScale = 1;
+function retarget(){
+  const lay = layoutFor(), now = performance.now();
+  // trocando de lado: o texto apaga enquanto atravessa a capa, troca o alinhamento e reaparece já do outro lado
+  if (now < flipUntil){ lay.meta.o = 0; lay.wave.o = Math.min(lay.wave.o, .15); }
+  if (pendingAlign) lay.meta.o = 0;
+  // abrindo um degrau: capa primeiro, depois texto, controles, onda e lista, uma de cada vez
+  const since = now - openAt;
+  if (since < 600) STAGGER.forEach((k, i) => { if (lay[k] && since < i * 55 && sp[k]?.o && sp[k].o.v < .5) lay[k].o = 0; });
+  for (const k of PIECES){
+    const q = lay[k], s = sp[k] ||= {};
+    BLEED[k] = !!q.bleed;
+    for (const p of ['x','y','w','h','o','r']){
+      const t = q[p]; if (t == null) continue;
+      const v = s[p] ||= { v:t, vel:0, t };
+      v.t = t; if (snapAll || reduce){ v.v = t; v.vel = 0; }
+    }
+  }
+  const e = extent(lay), gs = grip.classList, L = Z.hx === 'L', T = Z.vy === 'T';
+  let gx = (L ? e.r : e.l) - 11 + (L ? 7 : -7), gy = (T ? e.b : e.t) - 11 + (T ? 7 : -7);
+  if (rz){ gx += (rz.px - gx) * .55; gy += (rz.py - gy) * .55; }   // puxando: vai atrás do mouse, mas com elástico
+  const go = rz || (hov && !mv?.on && !mover?.dragging) ? 1 : 0;
+  const g = sp.grip ||= {};
+  for (const [p, t] of [['x', gx], ['y', gy], ['o', go]]){ const v = g[p] ||= { v:t, vel:0, t }; v.t = t; if (snapAll || reduce){ v.v = t; v.vel = 0; } }
+  snapAll = false;
+}
+function stepSprings(dt){
+  let busy = false; const n = 3, h = dt / n;
+  for (const k of SPRUNG) for (const p in sp[k]){
+    const s = sp[k][p];
+    if (s.v === s.t && s.vel === 0) continue;
+    const c = p === 'o' ? OPA : SPR;
+    for (let i = 0; i < n; i++){ const a = c.k * (s.t - s.v) - c.c * s.vel; s.vel += a * h; s.v += s.vel * h; }
+    const eps = p === 'o' ? .002 : .05;
+    if (Math.abs(s.t - s.v) < eps && Math.abs(s.vel) < eps * 10){ s.v = s.t; s.vel = 0; } else busy = true;
+  }
+  return busy;
+}
+function applyPieces(){
+  for (const k of PIECES){
+    const s = sp[k], e = EL[k], x = s.x.v, y = s.y.v, o = Math.max(0, Math.min(1, s.o.v));
+    e.style.transform = k === 'cover' ? `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0) scale(var(--pulse,1))` : `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,0)`;
+    if (k !== 'ctrls'){ e.style.width = Math.max(0, s.w.v).toFixed(2) + 'px'; e.style.height = Math.max(0, s.h.v).toFixed(2) + 'px'; }
+    if (k === 'cover') e.style.borderRadius = s.r.v.toFixed(2) + 'px';
+    e.style.opacity = o.toFixed(3);
+    e.style.visibility = o < .01 ? 'hidden' : '';
+    e.classList.toggle('gone', o < .35);
+  }
+  const arr = arrangement(); EL.cover.classList.toggle('vinyl', arr.startsWith('disc')); EL.meta.classList.toggle('onvinyl', arr.startsWith('disc')); placeMctrls(arr);
+  // o brilho nasce da capa: um pouco menor e caído pra baixo
+  const c = sp.cover, w = Math.max(0, c.w.v), hh = Math.max(0, c.h.v), hs = w * .8;
+  halo.style.transform = `translate3d(${(c.x.v + (w - hs) / 2).toFixed(2)}px,${(c.y.v + (hh - hs) / 2 + hh * .15).toFixed(2)}px,0)`;
+  halo.style.width = halo.style.height = hs.toFixed(2) + 'px';
+  const g = sp.grip, go = Math.max(0, Math.min(1, g.o.v));
+  grip.style.transform = `translate3d(${g.x.v.toFixed(2)}px,${g.y.v.toFixed(2)}px,0) scale(${(.7 + .3 * go).toFixed(3)})`;
+  grip.style.opacity = go.toFixed(3); grip.classList.toggle('gone', go < .35);
+}
+function setZone(z, instant){
+  const flip = z.hx !== Z.hx, same = !flip && z.kind === Z.kind && z.vy === Z.vy;
+  Z = z;
+  if (same && !instant) return;
+  if (flip && !instant){ flipUntil = performance.now() + 160; pendingAlign = z.hx; }
+  else { pendingAlign = null; EL.meta.classList.toggle('r', z.hx === 'R'); }
+  EL.vt.classList.toggle('flip', z.hx === 'L');
+  EL.vt.classList.toggle('end', (z.hx === 'L') === (z.vy === 'T'));   // o nome começa perto da capa
+  EL.wave.classList.toggle('up', z.vy === 'B');
+  EL.meta.classList.toggle('up', z.vy === 'B');
+  grip.classList.toggle('r', z.hx === 'R'); grip.classList.toggle('b', z.vy === 'B');
+  EL.list.classList.toggle('r', z.hx === 'R');
+  root.dataset.side = z.kind + '-' + z.hx + z.vy;
+}
+
+/* ---------- a onda ---------- */
+let level = 0, gainMax = .08, phase = 0, amp = 0, seekPreview = null, lastT = performance.now(), drawnOnce = false;
+const ctx = cv.getContext('2d'), cv2 = $('cv2'), ctx2 = cv2.getContext('2d');
+const LAYERS = [ { f:2.2, s:1.0, a:1.0, wd:2.0 }, { f:3.4, s:-1.35, a:.62, wd:1.4 }, { f:1.5, s:.7, a:.42, wd:1.1 } ];
+// desenha num canvas com 12px de folga; dir 'h' (esquerda → direita), 'down' (cima → baixo) ou 'up' (baixo → cima)
+// rich (degrau grande): mais camadas e uma fita espelhada preenchida, que respira com o som
+const LAYERS_RICH = [...LAYERS, { f:4.6, s:1.8, a:.36, wd:.9 }, { f:.9, s:-.55, a:.5, wd:.9 }];
+function drawWave(c, g, w, h, dir, dot, rich){
+  const LS = rich ? LAYERS_RICH : LAYERS;
+  const dpr = devicePixelRatio || 1, P = 12;
+  const CWd = Math.round((Math.max(0, w) + 2*P) * dpr), CHd = Math.round((Math.max(0, h) + 2*P) * dpr);
+  if (c.width !== CWd || c.height !== CHd){ c.width = CWd; c.height = CHd; }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, CWd, CHd);
+  const vert = dir !== 'h', L = vert ? h : w, T = vert ? w : h;
+  if (L < 6 || T < 3) return;
+  // u corre ao longo da música, v atravessa a onda
+  if (!vert) g.setTransform(dpr, 0, 0, dpr, P*dpr, P*dpr);
+  else if (dir === 'down') g.setTransform(0, dpr, -dpr, 0, (P + T)*dpr, P*dpr);
+  else g.setTransform(0, -dpr, -dpr, 0, (P + T)*dpr, (P + L)*dpr);
+  const dur = st?.ok ? st.dur : 0, pos = seekPreview ?? livePos();
+  const px = dur > 0 ? Math.min(1, pos / dur) * L : 0, mid = T / 2, A = (T / 2 - 2) * amp;
+  const fk = Math.max(.55, Math.min(1.25, L / 236));
+  const yAt = (Ly, x) => { const u = x / L; const env = Math.pow(Math.sin(Math.PI * u), 1.6); return mid + A * Ly.a * env * Math.sin(u * Math.PI * 2 * Ly.f * fk + phase * Ly.s + Ly.f); };
+  const path = Ly => { g.beginPath(); for (let x = 0; x <= L; x += 2){ const y = yAt(Ly, x); x ? g.lineTo(x, y) : g.moveTo(x, y); } };
+  const ribbon = () => { g.beginPath(); for (let x = 0; x <= L; x += 3) g.lineTo(x, yAt(LS[0], x)); for (let x = L; x >= 0; x -= 3) g.lineTo(x, 2 * mid - yAt(LS[1], x)); g.closePath(); };
+  // parte ainda não tocada: branco apagado
+  g.save(); g.beginPath(); g.rect(px, -P, L - px + P, T + 2*P); g.clip();
+  if (rich){ ribbon(); g.fillStyle = 'rgba(244,245,248,.05)'; g.fill(); }
+  LS.forEach((Ly, i) => { path(Ly); g.strokeStyle = `rgba(244,245,248,${i ? .14 : .32})`; g.lineWidth = Ly.wd; g.stroke(); });
+  g.restore();
+  // parte tocada: cores da capa, com brilho
+  g.save(); g.beginPath(); g.rect(-P, -P, px + P, T + 2*P); g.clip();
+  const gr = g.createLinearGradient(0, 0, L, 0); gr.addColorStop(0, colors[0]); gr.addColorStop(1, colors[1]);
+  if (rich){ ribbon(); g.fillStyle = gr; g.globalAlpha = .16; g.fill(); g.globalAlpha = 1; }
+  g.shadowColor = colors[0]; g.shadowBlur = 8;
+  LS.forEach((Ly, i) => { path(Ly); g.strokeStyle = gr; g.globalAlpha = i ? .55 : 1; g.lineWidth = Ly.wd + (i ? 0 : .4); g.stroke(); });
+  g.restore();
+  // ponto que marca onde a música está
+  if (dur > 0){
+    const y = yAt(LAYERS[0], px);
+    g.beginPath(); g.arc(px, y, dot, 0, Math.PI * 2); g.fillStyle = '#fff'; g.shadowColor = colors[1]; g.shadowBlur = 12; g.fill(); g.shadowBlur = 0;
+  }
+}
+/* ---------- janela do tamanho do conteúdo ----------
+   A cada quadro: a caixa do que se vê (onde as peças estão agora e onde vão parar) + a margem do brilho.
+   Crescer é na hora; encolher espera tudo assentar (assim a janela não fica mudando no meio de uma animação).
+   Do lado de uma borda em que a Onda encostou, a margem é G e muda na hora: a janela fica rente à tela e
+   o conteúdo consegue encostar (o Windows não deixa a janela sair da tela). */
+let shrinkAt = 0;
+function wantLR(){
+  let l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+  const add = (x0, y0, x1, y1) => { if (x0 < l) l = x0; if (y0 < t) t = y0; if (x1 > r) r = x1; if (y1 > b) b = y1; };
+  for (const k of PIECES){
+    if (k === 'arc' || k === 'prog') continue;
+    const s = sp[k]; if (!s || (s.o.v < .02 && s.o.t < .02)) continue;
+    let y0 = Math.min(s.y.v, s.y.t), y1 = Math.max(s.y.v + s.h.v, s.y.t + s.h.t);
+    if (k === 'wave' && big){ if (Z.vy === 'B') y0 -= 18; else y1 += 18; }
+    let x0 = Math.min(s.x.v, s.x.t), x1 = Math.max(s.x.v + s.w.v, s.x.t + s.w.t); if (BLEED[k]) [x0, y0, x1, y1] = clipBleed(x0, y0, x1, y1);
+    add(x0, y0, x1, y1);
+  }
+  const g = sp.grip; if (g && (g.o.v > .02 || g.o.t > .02)) add(Math.min(g.x.v, g.x.t), Math.min(g.y.v, g.y.t), Math.max(g.x.v, g.x.t) + 22, Math.max(g.y.v, g.y.t) + 22);
+  if (l > r) return LR;
+  // perto de uma borda (até NECK px), a janela vai até a beira da tela: o corpo precisa alcançá-la pra se fundir / descolar como líquido
+  const n = Z.near || {}, cb = contentBox(), m = e => { if (!n[e]) return MARGIN; const gp = screenGap(e, cb); return gp <= G + NECK ? Math.max(G, gp) : MARGIN; };
+  const out = { l:Math.floor(l - m('l')), t:Math.floor(t - m('t')), r:Math.ceil(r + m('r')), b:Math.ceil(b + m('b')) };
+  // nunca pedir janela além da tela: o Windows prenderia, a janela andaria sozinha e o motor não assentaria
+  // (acontecia com o vinil saindo do canto: a mola dele ainda estava atrás da borda)
+  const p = mover?.target, wa = Z.wa;   // contra o DESTINO: estável durante o assentar (contra a posição atual, a caixa mudava a cada quadro e o motor não assentava)
+  if (p && wa){
+    const c = { l:Math.max(out.l, Math.floor(wa.x - p.x)), t:Math.max(out.t, Math.floor(wa.y - p.y)), r:Math.min(out.r, Math.ceil(wa.x + wa.width - p.x)), b:Math.min(out.b, Math.ceil(wa.y + wa.height - p.y)) };
+    if (c.r - c.l > 40 && c.b - c.t > 40) return c;
+  }
+  return out;
+}
+// LR = a caixa lógica (já vale pro motor); LRc = a que está no CSS agora (entra quando a janela chega no tamanho novo)
+let LRc = { ...LR };
+function setLRcss(n){
+  LRc = n;
+  const rs = root.style;
+  rs.setProperty('--ax', -n.l + 'px'); rs.setProperty('--ay', -n.t + 'px');
+  rs.setProperty('--ww', n.r - n.l + 'px'); rs.setProperty('--wh', n.b - n.t + 'px');
+}
+function applyLR(next){
+  if (next.l === LR.l && next.t === LR.t && next.r === LR.r && next.b === LR.b) return;
+  LR = next;
+  if (!mover?.ready){ setLRcss(next); return; }
+  // a janela anda (LR.l/LR.t) e muda de tamanho num setBounds só; o CSS acompanha quando ela chegar
+  const n = { ...next };
+  mover.commit({ apply:() => setLRcss(n) });
+}
+root.style.cssText += `;--ax:${-LR.l}px;--ay:${-LR.t}px;--ww:${LR.r - LR.l}px;--wh:${LR.b - LR.t}px`;
+function fitLR(busy){
+  const w = wantLR(), n = Z.near || {}, now = performance.now();
+  const idle = !busy && !mover?.moving && !rz && !mv?.on;
+  const next = { ...LR };
+  let shrink = false;
+  for (const [e, lo] of [['l', true], ['t', true], ['r', false], ['b', false]]){
+    const grow = lo ? w[e] < LR[e] : w[e] > LR[e];
+    if (grow || n[e]) next[e] = w[e];          // cresce na hora; rente à borda, sempre exato
+    else if (w[e] !== LR[e]) shrink = true;
+  }
+  if (shrink){
+    if (!idle) shrinkAt = 0;
+    else if (!shrinkAt) shrinkAt = now + 250;
+    else if (now > shrinkAt){ Object.assign(next, w); shrinkAt = 0; }
+  }
+  applyLR(next);
+}
+
+/* ---------- corpo fundido à borda ----------
+   Encostada numa borda, a Onda ganha um corpo escuro que se funde à tela por ombros côncavos (curvas invertidas
+   que ligam o corpo à borda), como a ilha do Eco. Nos cantos ele se funde às duas bordas. Cada lado tem uma mola
+   "fuse" (0 = solto, 1 = fundido) que segue a proximidade da borda: chegando perto os ombros se formam como
+   líquido; puxando pra longe eles se recolhem e o corpo se descola e some, sobrando o player flutuante. */
+const skin = $('skin'), sctx = skin.getContext('2d'), bodyHit = $('bodyhit');
+const FU = { l:{ v:0, vel:0 }, t:{ v:0, vel:0 }, r:{ v:0, vel:0 }, b:{ v:0, vel:0 } };
+const FK = { k:150, c:2 * Math.sqrt(150) * .74 };        // um tiquinho de balanço, sem quicar
+let skinOn = false;
+function contentBox(){
+  let l = 1e9, t = 1e9, r = -1e9, b = -1e9;
+  for (const k of PIECES){
+    if (k === 'arc' || k === 'prog') continue;
+    const s = sp[k]; if (!s || s.o.v < .3) continue;
+    let y0 = s.y.v, y1 = s.y.v + s.h.v;
+    if (k === 'wave' && big){ if (Z.vy === 'B') y0 -= 18; else y1 += 18; }
+    let x0 = s.x.v, x1 = s.x.v + s.w.v; if (BLEED[k]) [x0, y0, x1, y1] = clipBleed(x0, y0, x1, y1);
+    l = Math.min(l, x0); t = Math.min(t, y0); r = Math.max(r, x1); b = Math.max(b, y1);
+  }
+  return l > r ? null : { l, t, r, b };
+}
+// pescoço: desenhado como se a borda fosse a de cima (v = 0) e virado pro lado certo.
+// Os ombros (S) e a largura do pescoço (nw) crescem com f; onde ele encontra o corpo, uma curva côncava suaviza a junção.
+function neckPath(g, e, f, L, T, Rr, B, W, H, Rc, SM){
+  let u0, u1, v0, v1, m;
+  if (e === 't'){ u0 = L; u1 = Rr; v0 = T; v1 = B; m = (u, v) => [u, v]; }
+  else if (e === 'b'){ u0 = L; u1 = Rr; v0 = H - B; v1 = H - T; m = (u, v) => [u, H - v]; }
+  else if (e === 'l'){ u0 = T; u1 = B; v0 = L; v1 = Rr; m = (u, v) => [v, u]; }
+  else { u0 = T; u1 = B; v0 = W - Rr; v1 = W - L; m = (u, v) => [W - v, u]; }
+  const M = (u, v) => { const p = m(u, v); g.moveTo(p[0], p[1]); }, Ln = (u, v) => { const p = m(u, v); g.lineTo(p[0], p[1]); };
+  const Q = (cu, cv, u, v) => { const c = m(cu, cv), p = m(u, v); g.quadraticCurveTo(c[0], c[1], p[0], p[1]); };
+  const A = (au, av, bu, bv, r) => { const a = m(au, av), b = m(bu, bv); g.arcTo(a[0], a[1], b[0], b[1], r); };
+  const cx = (u0 + u1) / 2, half = (u1 - u0) / 2, k = Math.min(14, Math.max(0, v0 - 1));
+  const nw = Math.max(5, Math.min(half - Rc - k, half * (.18 + .82 * f))), S = SM * f, Sv = Math.min(S, Math.max(0, v0 - k));
+  M(cx - nw - S, 0); Q(cx - nw, 0, cx - nw, Sv);
+  Ln(cx - nw, v0 - k); Q(cx - nw, v0, cx - nw - k, v0);
+  Ln(u0 + Rc, v0); A(u0, v0, u0, v0 + Rc, Rc);
+  Ln(u0, v1 - Rc); A(u0, v1, u0 + Rc, v1, Rc);
+  Ln(u1 - Rc, v1); A(u1, v1, u1, v1 - Rc, Rc);
+  Ln(u1, v0 + Rc); A(u1, v0, u1 - Rc, v0, Rc);
+  Ln(cx + nw + k, v0); Q(cx + nw, v0, cx + nw, v0 - k);
+  Ln(cx + nw, Sv); Q(cx + nw, 0, cx + nw + S, 0);
+  g.closePath();
+}
+// distância (na tela) do que se vê até a borda e
+function screenGap(e, box){
+  const p = mover?.pos, wa = Z.wa; if (!p || !wa || !box) return 1e9;
+  return e === 'l' ? p.x + box.l - wa.x : e === 't' ? p.y + box.t - wa.y : e === 'r' ? wa.x + wa.width - (p.x + box.r) : wa.y + wa.height - (p.y + box.b);
+}
+const NECK = 60;   // até quantos px longe da borda o corpo ainda se liga a ela
+function drawSkin(dt){
+  const p = mover?.pos, near = Z.near || {}, wa = Z.wa, box = contentBox();
+  let moving = false;
+  for (const e of ['l','t','r','b']){
+    let tgt = 0;
+    if (near[e] && p && wa && box) tgt = Math.max(0, Math.min(1, 1 - (screenGap(e, box) - G) / NECK));
+    const f = FU[e];
+    if (reduce){ f.v = tgt; f.vel = 0; }
+    else for (let i = 0; i < 3; i++){ const a = FK.k * (tgt - f.v) - FK.c * f.vel; f.vel += a * dt / 3; f.v += f.vel * dt / 3; }
+    if (Math.abs(tgt - f.v) > .002 || Math.abs(f.vel) > .01) moving = true; else { f.v = tgt; f.vel = 0; }
+  }
+  const cl = v => Math.max(0, Math.min(1, v));
+  const fl = cl(FU.l.v), ft = cl(FU.t.v), fr = cl(FU.r.v), fb = cl(FU.b.v), fm = Math.min(1, Math.max(fl, ft, fr, fb) * 1.8);   // fica sólido até perto de soltar
+  const dpr = devicePixelRatio || 1, W = LRc.r - LRc.l, H = LRc.b - LRc.t;
+  if (skin.width !== Math.round(W * dpr) || skin.height !== Math.round(H * dpr)){ skin.width = Math.round(W * dpr); skin.height = Math.round(H * dpr); skinOn = true; }
+  if (fm < .01 || !box){
+    if (skinOn){ sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, skin.width, skin.height); bodyHit.style.display = 'none'; skinOn = false; }
+    return;
+  }
+  skinOn = true;
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0); sctx.clearRect(0, 0, W, H);
+  // corpo: o conteúdo com folga P
+  const P = 14, Rc = 20, SM = 24, ox = -LRc.l, oy = -LRc.t;
+  let L = box.l - P + ox, T = box.t - P + oy, Rr = box.r + P + ox, B = box.b + P + oy;
+  const on = { l:fl > .02, t:ft > .02, r:fr > .02, b:fb > .02 };
+  const g = sctx; g.beginPath();
+  const sides = ['l','t','r','b'].filter(e => on[e]);
+  if (sides.length === 2 && arrangement().startsWith('disc') && sp.arc.o.v > .05){
+    // canto: um quarto de disco com centro no canto da tela; nas duas pontas, ombros côncavos fundem o arco às bordas
+    const Rd = Math.max(20, sp.arc.w.v), x0 = on.l ? 0 : W, y0 = on.t ? 0 : H, ux = on.l ? 1 : -1, uy = on.t ? 1 : -1;
+    const S = SM * Math.min(fl || 1, ft || 1, fr || 1, fb || 1), a1 = Math.min(.35, S / Rd), P2 = (a, r) => [x0 + ux * r * Math.cos(a), y0 + uy * r * Math.sin(a)];
+    g.moveTo(x0, y0); g.lineTo(x0 + ux * (Rd + S), y0);
+    let q = P2(a1, Rd); g.quadraticCurveTo(x0 + ux * Rd, y0, q[0], q[1]);
+    for (let i = 1; i <= 48; i++){ const a = a1 + (Math.PI / 2 - 2 * a1) * i / 48; const p = P2(a, Rd); g.lineTo(p[0], p[1]); }
+    g.quadraticCurveTo(x0, y0 + uy * Rd, x0, y0 + uy * (Rd + S));
+    g.closePath();
+  } else if (sides.length === 1 && FU[sides[0]].v < .97){
+    // descolando (ou chegando) numa borda só: um pescoço líquido liga o corpo à borda e afina até soltar
+    neckPath(g, sides[0], cl(FU[sides[0]].v), L, T, Rr, B, W, H, Rc, SM);
+  } else {
+    // fundido: do lado da borda o corpo vai até a beira da janela (rente à tela), com ombros côncavos
+    L += (0 - L) * fl; T += (0 - T) * ft; Rr += (W - Rr) * fr; B += (H - B) * fb;
+    const Sl = SM * fl, St = SM * ft, Sr = SM * fr, Sb = SM * fb;
+    let sx, sy;
+    if (on.t && on.l){ sx = L; sy = T; g.moveTo(sx, sy); }
+    else if (on.t){ sx = L; sy = T + St; g.moveTo(sx, sy); g.quadraticCurveTo(L, T, L - St, T); }
+    else if (on.l){ sx = L; sy = T - Sl; g.moveTo(sx, sy); g.quadraticCurveTo(L, T, L + Sl, T); }
+    else { sx = L; sy = T + Rc; g.moveTo(sx, sy); g.arcTo(L, T, L + Rc, T, Rc); }
+    if (on.t && on.r) g.lineTo(Rr, T);
+    else if (on.t){ g.lineTo(Rr + St, T); g.quadraticCurveTo(Rr, T, Rr, T + St); }
+    else if (on.r){ g.lineTo(Rr - Sr, T); g.quadraticCurveTo(Rr, T, Rr, T - Sr); }
+    else { g.lineTo(Rr - Rc, T); g.arcTo(Rr, T, Rr, T + Rc, Rc); }
+    if (on.r && on.b) g.lineTo(Rr, B);
+    else if (on.r){ g.lineTo(Rr, B + Sr); g.quadraticCurveTo(Rr, B, Rr - Sr, B); }
+    else if (on.b){ g.lineTo(Rr, B - Sb); g.quadraticCurveTo(Rr, B, Rr + Sb, B); }
+    else { g.lineTo(Rr, B - Rc); g.arcTo(Rr, B, Rr - Rc, B, Rc); }
+    if (on.b && on.l) g.lineTo(L, B);
+    else if (on.b){ g.lineTo(L - Sb, B); g.quadraticCurveTo(L, B, L, B - Sb); }
+    else if (on.l){ g.lineTo(L + Sl, B); g.quadraticCurveTo(L, B, L, B + Sl); }
+    else { g.lineTo(L + Rc, B); g.arcTo(L, B, L, B - Rc, Rc); }
+    g.lineTo(sx, sy); g.closePath();
+  }
+  g.save();
+  g.shadowColor = `rgba(0,0,0,${(.5 * fm).toFixed(3)})`; g.shadowBlur = 28; g.shadowOffsetY = on.b ? -6 : 8;
+  const bg = g.createLinearGradient(0, T, 0, B);
+  bg.addColorStop(0, `rgba(16,17,21,${(.96 * fm).toFixed(3)})`); bg.addColorStop(1, `rgba(11,12,15,${(.96 * fm).toFixed(3)})`);
+  g.fillStyle = bg; g.fill();
+  g.restore();
+  g.lineWidth = 1; g.strokeStyle = `rgba(255,255,255,${((.075 + .07 * skinHov) * fm).toFixed(3)})`; g.stroke();
+  if (sides.length === 2 && arrangement().startsWith('disc') && sp.arc.o.v > .05){
+    const Rd = Math.max(20, sp.arc.w.v), x0 = on.l ? 0 : W, y0 = on.t ? 0 : H, ux = on.l ? 1 : -1, uy = on.t ? 1 : -1;
+    g.save(); g.beginPath();
+    for (let i = 0; i <= 48; i++){ const a = Math.PI / 2 * i / 48; const p = [x0 + ux * (Rd - 7) * Math.cos(a), y0 + uy * (Rd - 7) * Math.sin(a)]; i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); }
+    g.lineWidth = 12; g.strokeStyle = `rgba(255,255,255,${((rimHot ? .085 : .045) * fm).toFixed(3)})`; g.stroke();
+    g.fillStyle = `rgba(255,255,255,${((rimHot ? .4 : .2) * fm).toFixed(3)})`;
+    for (let i = 2; i <= 30; i++){ const a = Math.PI / 2 * i / 32; g.beginPath(); g.arc(x0 + ux * (Rd - 7) * Math.cos(a), y0 + uy * (Rd - 7) * Math.sin(a), 1.2, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  }
+  // alça: um traço curto do lado de dentro, no meio (só encostada numa borda, não no canto)
+  const one = [on.l, on.t, on.r, on.b].filter(Boolean).length === 1;
+  if (one){
+    g.fillStyle = `rgba(255,255,255,${(.22 * fm).toFixed(3)})`;
+    const pill = (x, y, w, h) => { g.beginPath(); g.roundRect(x, y, w, h, Math.min(w, h) / 2); g.fill(); };
+    if (on.t) pill((L + Rr) / 2 - 15, B + 9, 30, 4);
+    else if (on.b) pill((L + Rr) / 2 - 15, T - 13, 30, 4);
+    else if (on.l) pill(Rr + 9, (T + B) / 2 - 15, 4, 30);
+    else pill(L - 13, (T + B) / 2 - 15, 4, 30);
+  }
+  const hs = bodyHit.style;
+  if (fm > .5){
+    hs.display = 'block'; hs.left = L + 'px'; hs.top = T + 'px'; hs.width = (Rr - L) + 'px'; hs.height = (B - T) + 'px';
+    // no canto, a área de pegar é só o quarto de disco (nada de mão nos cantos vazios do retângulo)
+    if (sides.length === 2 && arrangement().startsWith('disc')){
+      const Rd = Math.max(20, sp.arc.w.v), x0 = on.l ? 0 : W, y0 = on.t ? 0 : H;
+      hs.clipPath = `circle(${Rd.toFixed(1)}px at ${(x0 - L).toFixed(1)}px ${(y0 - T).toFixed(1)}px)`;
+    } else hs.clipPath = '';
+  }
+  else hs.display = 'none';
+}
+/* ---------- barras (laterais e base) e onda em arco (cantos) ---------- */
+const cvb = $('cvb'), cbx = cvb.getContext('2d'), cva = $('cva'), cax = cva.getContext('2d'), progFill = $('progFill');
+function prepCanvas(c, g, w, h){
+  const dpr = devicePixelRatio || 1, P = 12, W = Math.round((Math.max(0, w) + 2*P) * dpr), H = Math.round((Math.max(0, h) + 2*P) * dpr);
+  if (c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.setTransform(dpr, 0, 0, dpr, P*dpr, P*dpr);
+}
+const progFrac = () => { const dur = st?.ok ? st.dur : 0; return dur > 0 ? Math.min(1, (seekPreview ?? livePos()) / dur) : 0; };
+// a onda virada em barras: cada barra cresce a partir da borda; o progresso corre a partir da capa
+function drawBars(){
+  const w = sp.bars.w.v, h = sp.bars.h.v; prepCanvas(cvb, cbx, w, h);
+  if (w < 4 || h < 4) return;
+  const col = arrangement().startsWith('col');
+  const len = col ? h : w, depth = col ? w : h, n = Math.max(3, Math.floor(len / 7)), step = len / n, th = Math.max(2, step - 3);
+  const frac = progFrac(), playing = !!(st?.ok && st.playing);
+  const fromStart = col ? Z.hx === 'L' : Z.vy === 'T';          // de que lado fica a borda (a raiz das barras)
+  const gr = col ? cbx.createLinearGradient(0, 0, 0, h) : cbx.createLinearGradient(0, 0, w, 0);
+  gr.addColorStop(0, colors[0]); gr.addColorStop(1, colors[1]);
+  for (let i = 0; i < n; i++){
+    const u = (i + .5) / n;
+    const nz = .5 + .5 * Math.sin(i * 1.9 + phase * 1.4 + Math.sin(i * .7 + phase * .6) * 2);
+    let d = Math.max(2.5, depth * (.1 + .9 * nz * (playing ? .22 + .78 * level : .07)));
+    const alongP = col ? (Z.vy === 'T' ? u : 1 - u) : (Z.hx === 'L' ? u : 1 - u);
+    if (barsPtr != null && !col){ const q = (alongP - barsPtr) / .07; d = Math.min(depth, d + depth * .75 * Math.exp(-q * q)); }   // prateleira: sobe embaixo do mouse
+    const along = col ? (Z.vy === 'T' ? u : 1 - u) : (Z.hx === 'L' ? u : 1 - u);
+    const on = along <= frac;
+    cbx.fillStyle = on ? gr : 'rgba(244,245,248,.26)';
+    cbx.shadowColor = on ? colors[0] : 'transparent'; cbx.shadowBlur = on ? 8 : 0;
+    cbx.beginPath();
+    if (col) cbx.roundRect(fromStart ? 0 : w - d, i * step, d, th, th / 2);
+    else cbx.roundRect(i * step, fromStart ? 0 : h - d, th, d, th / 2);
+    cbx.fill();
+  }
+  if (barsPtr != null && col && st?.ok){
+    // coluna: agulha atravessando no ponto do mouse, com o tempo ao lado
+    const yy = (Z.vy === 'T' ? barsPtr : 1 - barsPtr) * h;
+    cbx.fillStyle = '#fff'; cbx.shadowColor = colors[1]; cbx.shadowBlur = 10; cbx.fillRect(-4, yy - 1, w + 8, 2); cbx.shadowBlur = 0;
+    cbx.font = '600 10px Inter, Segoe UI, sans-serif'; cbx.textAlign = 'center'; cbx.fillStyle = 'rgba(244,245,248,.92)';
+    cbx.fillText(fmt(barsPtr * st.dur), w / 2, yy + (yy > 14 ? -6 : 14));
+  }
+  cbx.shadowBlur = 0;
+}
+// a onda em arco em volta da capa-vinil, de uma borda à outra; no mínimo, só um anel de progresso
+function drawArc(){
+  const d = DISC[tier] || DISC.compact, w = sp.arc.w.v, h = sp.arc.h.v; prepCanvas(cva, cax, w, h);
+  if (w < 10) return;
+  const k = w / d.R, L = Z.hx === 'L', T = Z.vy === 'T', cx = L ? 0 : w, cy = T ? 0 : h, ux = L ? 1 : -1, uy = T ? 1 : -1;
+  const r0 = d.ring * k, N = 120, frac = progFrac(), jf = Math.round(frac * N);
+  const A = tier === 'min' ? 0 : (tier === 'grand' ? 15 : tier === 'exp' ? 11 : 7) * k * amp;   // no compacto o arco fica mais calmo pra não encostar nos botões
+  const layers = tier === 'grand' ? LAYERS_RICH : LAYERS;
+  const pt = (j, Ly) => { const t = j / N, th = t * Math.PI / 2, env = Math.pow(Math.sin(Math.PI * t), 1.4);
+    const rr = r0 + (Ly ? A * Ly.a * env * Math.sin(t * Math.PI * 2 * Ly.f * 1.6 + phase * Ly.s + Ly.f) : 0);
+    return [cx + ux * rr * Math.cos(th), cy + uy * rr * Math.sin(th)]; };
+  const stroke = (Ly, a, b, style, lw, glow) => { cax.beginPath(); for (let j = a; j <= b; j++){ const p = pt(j, Ly); j === a ? cax.moveTo(p[0], p[1]) : cax.lineTo(p[0], p[1]); }
+    cax.strokeStyle = style; cax.lineWidth = lw; cax.shadowColor = glow || 'transparent'; cax.shadowBlur = glow ? 8 : 0; cax.stroke(); };
+  const gr = cax.createLinearGradient(cx + ux * r0, cy, cx, cy + uy * r0); gr.addColorStop(0, colors[0]); gr.addColorStop(1, colors[1]);
+  cax.lineCap = 'round';
+  if (tier === 'min'){ stroke(null, 0, N, 'rgba(244,245,248,.22)', 2.5); if (jf > 0) stroke(null, 0, jf, gr, 3, colors[0]); }
+  else layers.forEach((Ly, i) => {
+    if (jf < N) stroke(Ly, jf, N, `rgba(244,245,248,${i ? .14 : .32})`, Ly.wd);
+    if (jf > 0){ cax.globalAlpha = i ? .55 : 1; stroke(Ly, 0, jf, gr, Ly.wd + (i ? 0 : .4), colors[0]); cax.globalAlpha = 1; }
+  });
+  if (frac > 0){ const p = pt(jf, tier === 'min' ? null : layers[0]); cax.beginPath(); cax.arc(p[0], p[1], tier === 'min' ? 3.5 : 4, 0, Math.PI * 2); cax.fillStyle = '#fff'; cax.shadowColor = colors[1]; cax.shadowBlur = 12; cax.fill(); cax.shadowBlur = 0; }
+}
+// controles móveis: em linha (faixa do topo), em coluna (laterais) ou espalhados ao longo do arco (cantos)
+function placeMctrls(arr){
+  const mc = EL.mctrls, mode = arr.startsWith('disc') ? 'arc' : arr.startsWith('col') ? 'col' : 'row';
+  if (!mc.classList.contains(mode)){ mc.classList.remove('row', 'col', 'arc'); mc.classList.add(mode); if (mode !== 'arc') for (const b of mc.children) b.style.transform = ''; }
+  if (mode !== 'arc') return;
+  const d = DISC[tier]; if (!d?.ctl) return;
+  const s = sp.mctrls, w = s.w.v, h = s.h.v, L = Z.hx === 'L', T = Z.vy === 'T', k = (sp.arc.w.v || d.R) / d.R;
+  const cx = L ? -G : w + G, cy = T ? -G : h + G, ux = L ? 1 : -1, uy = T ? 1 : -1, angs = [18, 45, 72];
+  [...mc.children].forEach((b, i) => { const a = angs[i] * Math.PI / 180, bw = b.offsetWidth || 34;
+    b.style.transform = `translate(${(cx + ux * d.ctl * k * Math.cos(a) - bw / 2).toFixed(1)}px,${(cy + uy * d.ctl * k * Math.sin(a) - bw / 2).toFixed(1)}px)`; });
+}
+EL.mctrls.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; e.stopPropagation(); b.dataset.a === 'play' ? togglePlay() : command(b.dataset.a); });
+/* ---------- gestos próprios de cada forma ----------
+   - quarto de disco: girar a capa-vinil com o mouse anda na música (horário avança, anti-horário volta; 1 volta = 30 s);
+     com o mouse em cima o vinil levanta um pouco;
+   - coluna (laterais): passar o mouse mostra uma agulha com o tempo; deslizar ao longo da coluna ajusta o progresso;
+   - prateleira (base): o equalizador sobe como uma onda de toque embaixo do mouse; clicar/arrastar nele pula na música;
+   - faixa (topo): a rodinha do mouse em cima dela avança/volta 5 s; com o mouse na onda, o horizonte se agita. */
+let barsPtr = null, waveHot = false, spin = null, vinylDeg = 0;
+let waveDot = 1, skinHov = 0;   // molas curtas do hover: a bolinha da onda cresce, o corpo fundido acende
+const barsEl = EL.bars, TAU = Math.PI * 2;
+function barsFrac(e){
+  const r = barsEl.getBoundingClientRect();
+  if (arrangement().startsWith('col')){ const f = clamp01((e.clientY - r.top) / r.height); return Z.vy === 'T' ? f : 1 - f; }
+  const f = clamp01((e.clientX - r.left) / r.width); return Z.hx === 'L' ? f : 1 - f;
+}
+barsEl.addEventListener('pointermove', e => { barsPtr = barsFrac(e); if (seekPreview != null && st?.ok) seekPreview = barsPtr * st.dur; });
+barsEl.addEventListener('pointerleave', () => { if (seekPreview == null) barsPtr = null; });
+barsEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !st?.ok || !st.canSeek) return;
+  e.stopPropagation(); barsEl.setPointerCapture(e.pointerId); barsPtr = barsFrac(e); seekPreview = barsPtr * st.dur;
+});
+barsEl.addEventListener('pointerup', () => {
+  if (seekPreview == null) return;
+  const to = seekPreview; st.pos = to; stAt = performance.now(); seekPreview = null; command('seek', to.toFixed(1));
+});
+waveEl.addEventListener('pointerenter', () => waveHot = true);
+waveEl.addEventListener('pointerleave', () => waveHot = false);
+// faixa do topo: rodinha = ±5 s
+player.addEventListener('wheel', e => {
+  if (!arrangement().startsWith('top') || !st?.ok || !st.canSeek) return;
+  e.preventDefault();
+  const to = Math.max(0, Math.min(st.dur, livePos() + (e.deltaY > 0 ? 5 : -5)));
+  st.pos = to; stAt = performance.now(); toast((e.deltaY > 0 ? '⏩ ' : '⏪ ') + fmt(to) + ' / ' + fmt(st.dur));
+  clearTimeout(player._wt); player._wt = setTimeout(() => command('seek', livePos().toFixed(1)), 280);
+}, { passive:false });
+// vinil: girar a capa
+EL.cover.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || !arrangement().startsWith('disc') || e.target.closest('.mini') || !st?.ok || !st.canSeek) return;
+  e.stopPropagation();                                   // aqui o gesto é girar, não mover a janela
+  const r = EL.cover.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  spin = { cx, cy, a:Math.atan2(e.clientY - cy, e.clientX - cx), turn:0, pos0:livePos(), moved:false, id:e.pointerId };
+  EL.cover.setPointerCapture(e.pointerId);
+});
+EL.cover.addEventListener('pointermove', e => {
+  if (!spin || e.pointerId !== spin.id) return;
+  const a = Math.atan2(e.clientY - spin.cy, e.clientX - spin.cx);
+  let d = a - spin.a; if (d > Math.PI) d -= TAU; else if (d < -Math.PI) d += TAU;
+  spin.a = a; spin.turn += d;
+  if (Math.abs(spin.turn) > .12) spin.moved = true;
+  if (!spin.moved) return;
+  vinylDeg += d * 180 / Math.PI; EL.cover.style.setProperty('--spin', vinylDeg.toFixed(1) + 'deg');
+  seekPreview = Math.max(0, Math.min(st.dur, spin.pos0 + spin.turn / TAU * 30));
+});
+const endSpin = () => {
+  if (!spin) return;
+  const s = spin; spin = null;
+  if (!s.moved || seekPreview == null) return;
+  swallowClick = true; setTimeout(() => swallowClick = false, 0);
+  const to = seekPreview; st.pos = to; stAt = performance.now(); seekPreview = null; command('seek', to.toFixed(1));
+};
+EL.cover.addEventListener('pointerup', endSpin); EL.cover.addEventListener('pointercancel', endSpin); addEventListener('blur', endSpin);
+function frame(t){
+  const rdt = Math.min(.05, (t - lastT) / 1000); lastT = t;
+  const dt = rdt * timeScale;
+  const playing = !!(st?.ok && st.playing);
+  // nível do som normalizado: ganho automático que acompanha o volume
+  gainMax = Math.max(gainMax * .996, peak, .04);
+  const target = playing ? (meterOn ? Math.pow(Math.min(1, peak / gainMax), .85) : .35 + .2 * Math.sin(t / 380)) : 0;
+  level += (target - level) * (target > level ? .5 : .1);
+  const hot = waveHot && arrangement().startsWith('top') ? .35 : 0;
+  waveDot += ((waveHot ? 1.4 : 1) - waveDot) * Math.min(1, rdt * 14);
+  skinHov += ((hov || mv?.on ? 1 : 0) - skinHov) * Math.min(1, rdt * 9);
+  amp += ((playing ? .14 + level * .86 + hot : hot * .6) - amp) * (playing ? .12 : .06);
+  phase += rdt * (1.6 + level * 4.2) * (reduce ? 0 : 1);
+  root.style.setProperty('--pulse', big && playing && !reduce ? (1 + level * .022).toFixed(4) : 1);
+
+  updateZone();
+  retarget();
+  const busy = stepSprings(dt);
+  if (busy || !drawnOnce){ applyPieces(); drawnOnce = true; }
+  fitLR(busy);
+  drawSkin(dt);
+  // base mínima: a capa-bolha boia no ritmo (sobe com o nível do som)
+  EL.cover.style.translate = arrangement().startsWith("bot-min") && !reduce ? `0 ${(-level * 7).toFixed(2)}px` : "";
+  if (pendingAlign && (sp.meta.o.v < .05 || performance.now() > flipUntil + 260)){ EL.meta.classList.toggle('r', pendingAlign === 'R'); pendingAlign = null; }
+
+  if (sp.wave.o.v > .01) drawWave(cv, ctx, sp.wave.w.v, sp.wave.h.v, 'h', (big ? 4.5 : 3.2) * waveDot, tier === 'grand');
+  if (sp.vwave.o.v > .01) drawWave(cv2, ctx2, sp.vwave.w.v, sp.vwave.h.v, Z.vy === 'B' ? 'up' : 'down', 3.2);
+  if (sp.bars.o.v > .01) drawBars();
+  if (sp.arc.o.v > .01) drawArc();
+  if (sp.prog.o.v > .01){ const pv = sp.prog.h.v > sp.prog.w.v, pg = EL.prog; pg.classList.toggle('up', pv && Z.vy === 'B'); pg.classList.toggle('rt', !pv && Z.hx === 'R'); progFill.style.transform = pv ? 'scaleY(' + progFrac().toFixed(4) + ')' : 'scaleX(' + progFrac().toFixed(4) + ')'; }
+  const dur = st?.ok ? st.dur : 0, pos = seekPreview ?? livePos();
+  $('tPos').textContent = fmt(pos); $('tDur').textContent = fmt(dur);
+  waveEl.setAttribute('aria-valuenow', Math.round(pos)); waveEl.setAttribute('aria-valuemax', Math.round(dur));
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controles ---------- */
+async function command(cmd, arg){
+  if (!canRun){ toast('Instale e ative a Onda'); return 'fail'; }
+  const r = await ask(arg != null ? `${cmd} ${arg}` : cmd);
+  setTimeout(refresh, 300); setTimeout(refresh, 1100);
+  return r;
+}
+function togglePlay(){ if (st?.ok){ st.pos = livePos(); stAt = performance.now(); st.playing = !st.playing; render(); } return command('toggle'); }
+$('play').onclick = togglePlay;
+$('mini').onclick = e => { e.stopPropagation(); togglePlay(); };
+$('next').onclick = () => command('next');
+$('prev').onclick = () => command('prev');
+$('shuffle').onclick = () => command('shuffle', st?.shuffle ? '0' : '1');
+$('repeat').onclick = () => command('repeat', { None:'List', List:'Track', Track:'None' }[st?.repeat || 'None']);
+function openSpotify(){ if (!canRun){ toast('Instale e ative a Onda'); return; } desktop.childProcess.spawn('explorer.exe', ['spotify:']); setTimeout(refresh, 2500); }
+$('openSpotify').onclick = openSpotify;
+document.querySelectorAll('button').forEach(b => b.addEventListener('pointerup', () => setTimeout(() => b.blur(), 0)));
+/* ---------- movimento da janela: o motor único (motor.js, igual nos três apps) ----------
+   A posição lógica é a âncora (o canto da capa compacta); a janela é âncora + LR. O motor manda posição e
+   tamanho num setBounds só, no máximo um por quadro, e o CSS da caixa (LR) só entra quando a janela chegou.
+   Aqui fica só o "sentir" da Onda: inclina um pouquinho, estica na direção do arrasto como líquido. */
+/*MOTOR*/
+function createMover(){
+  const F = { tilt:0, st:0, sa:0 };
+  return createMotor({
+    desktop:() => desktop,
+    frame:p => ({ x:Math.round(p.x) + LR.l, y:Math.round(p.y) + LR.t, width:LR.r - LR.l, height:LR.b - LR.t }),
+    unframe:b => ({ x:b.x - LR.l, y:b.y - LR.t }),
+    slow:() => 1 / (timeScale || 1),
+    onDisplaysChanged:() => { if (!gest?.active && !mover?.moving) settle(); },
+    feel(f, dt){
+      const moving = f.mode !== 'idle' && !f.reduce;
+      const want = moving ? Math.max(-2.5, Math.min(2.5, f.vx * .0015)) : 0;
+      F.tilt += (want - F.tilt) * Math.min(1, dt * 14);
+      if (Math.abs(F.tilt) < .01 && want === 0) F.tilt = 0;
+      // estica na direção do arrasto e afina um pouco na perpendicular; ao bater numa borda, amassa contra ela
+      const ws = moving ? Math.min(.06, f.speed / 30000) : 0;
+      F.st += (ws - F.st) * Math.min(1, dt * 9); if (Math.abs(F.st) < .0004 && !ws) F.st = 0;
+      if (f.speed > 40) F.sa = Math.atan2(f.vy, f.vx) * 180 / Math.PI;
+      let st = F.st, sa = F.sa;
+      if (f.bump){ st = -f.bump * .05; sa = Math.atan2(f.bumpN.y, f.bumpN.x) * 180 / Math.PI; }
+      const rs = root.style;
+      rs.setProperty('--tilt', F.tilt.toFixed(3) + 'deg');
+      rs.setProperty('--sa', sa.toFixed(1) + 'deg');
+      rs.setProperty('--sx', (1 + st).toFixed(4)); rs.setProperty('--sy', (1 - st * .5).toFixed(4));
+      rs.setProperty('--grab', f.lift.toFixed(3)); root.classList.toggle('grab', f.lift > .002);
+      return F.tilt !== 0 || F.st !== 0;
+    },
+  });
+}
+let mover = null;
+
+/* ---------- que lado da tela ----------
+   Sente a borda antes de encostar: a até SENSE px dela (só bordas de verdade, não a emenda entre dois monitores)
+   o desenho já se reorganiza; soltando ali, ela encosta. Fora das bordas, a capa fica do lado mais próximo
+   e o resto abre pro centro. Folgas (KEEP, MIDH) evitam ficar trocando de arranjo em cima da linha. */
+const SENSE = 90, KEEP = 130, MIDH = 40, G = 16;
+const within = (d, p) => p.x >= d.bounds.x && p.x < d.bounds.x + d.bounds.width && p.y >= d.bounds.y && p.y < d.bounds.y + d.bounds.height;
+function displayFor(p, ds){
+  let best = ds[0], bd = Infinity;
+  for (const d of ds){
+    if (within(d, p)) return d;
+    const b = d.bounds, dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.width)), dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.height));
+    if (dx*dx + dy*dy < bd){ bd = dx*dx + dy*dy; best = d; }
+  }
+  return best;
+}
+function outerEdge(d, e, ds){
+  const b = d.bounds;
+  return !ds.some(o => {
+    if (o === d) return false;
+    const q = o.bounds, ovY = q.y < b.y + b.height && q.y + q.height > b.y, ovX = q.x < b.x + b.width && q.x + q.width > b.x;
+    if (e === 'l') return ovY && Math.abs(q.x + q.width - b.x) < 3;
+    if (e === 'r') return ovY && Math.abs(q.x - (b.x + b.width)) < 3;
+    if (e === 't') return ovX && Math.abs(q.y + q.height - b.y) < 3;
+    return ovX && Math.abs(q.y - (b.y + b.height)) < 3;
+  });
+}
+const dispKey = d => d.id ?? (d.bounds.x + ',' + d.bounds.y);
+function zoneAt(ax, ay, prev = Z){
+  const ds = mover?.cached || []; if (!ds.length) return null;
+  const c = { x:ax + CW / 2, y:ay + CW / 2 }, d = displayFor(c, ds), wa = d.workArea, key = dispKey(d);
+  const gap = { l:ax - wa.x, r:wa.x + wa.width - (ax + CW), t:ay - wa.y, b:wa.y + wa.height - (ay + CW) };
+  const same = prev?.display === key, near = {};
+  for (const e of ['l','r','t','b']) near[e] = gap[e] < (same && prev.near?.[e] ? KEEP : SENSE) && outerEdge(d, e, ds);
+  if (near.l && near.r) near.r = false;
+  if (near.t && near.b) near.b = false;
+  const mx = wa.x + wa.width / 2, my = wa.y + wa.height / 2;
+  const hx = near.l ? 'L' : near.r ? 'R' : c.x < mx + (same && prev.hx === 'L' ? MIDH : -MIDH) ? 'L' : 'R';
+  const vy = near.t ? 'T' : near.b ? 'B' : c.y < my + (same && prev.vy === 'T' ? MIDH : -MIDH) ? 'T' : 'B';
+  const side = near.l || near.r, tb = near.t || near.b;
+  return { kind: side && tb ? 'corner' : side ? 'side' : tb ? 'edge' : 'free', hx, vy, near, display:key, wa };
+}
+function updateZone(){
+  if (!mover?.ready) return;
+  const p = mover.target, z = p && zoneAt(p.x + AX, p.y + AY, Z);
+  if (z) setZone(z);
+}
+// onde a janela assenta a partir de (wx, wy): encosta na borda que sentiu e mantém tudo que se vê dentro da tela
+function restFor(wx, wy){
+  let ax = wx + AX, ay = wy + AY, z = Z;
+  for (let i = 0; i < 3; i++){
+    z = zoneAt(ax, ay, z); if (!z) return null;
+    const wa = z.wa;
+    if (z.near.l) ax = wa.x + G; else if (z.near.r) ax = wa.x + wa.width - CW - G;
+    if (z.near.t) ay = wa.y + G; else if (z.near.b) ay = wa.y + wa.height - CW - G;
+    const e = extent(layoutFor(z, tier, false), tier, z);
+    ax = Math.min(Math.max(ax, wa.x + G - e.l), wa.x + wa.width - G - e.r);
+    ay = Math.min(Math.max(ay, wa.y + G - e.t), wa.y + wa.height - G - e.b);
+  }
+  return { x:Math.round(ax - AX), y:Math.round(ay - AY), z };
+}
+async function settle(from, vel){
+  if (!mover?.ready) return;
+  await mover.displays();
+  const b = from || mover.target, r = restFor(b.x, b.y); if (!r) return;
+  savePrefs({ anchor:{ x:r.x + AX, y:r.y + AY } });
+  // encostando numa borda: mola sem passar do ponto (não bate e volta) e um micro-amassado contra a borda
+  const n = r.z?.near || {}, land = { x:n.l ? -1 : n.r ? 1 : 0, y:n.t ? -1 : n.b ? 1 : 0 };
+  const docking = land.x || land.y;
+  return mover.glide({ x:r.x, y:r.y }, { ...(vel || {}), firm:!!docking, land:docking ? land : null });
+}
+
+// expandir/recolher: as peças se rearranjam pro lado de dentro da tela; se não couber, a janela anda junto
+// troca de degrau: as peças se rearranjam por molas pro lado de dentro da tela; se não couber, a janela anda junto
+function setTier(t, { stay } = {}){
+  if (!TIERS.includes(t) || t === tier) return;
+  if (TIERS.indexOf(t) > TIERS.indexOf(tier)) openAt = performance.now();   // abrindo: as peças novas entram em sequência
+  tier = t; big = isBig(t); tierClasses(); savePrefs();
+  if (t === 'grand') loadQueue();
+  if (!stay) settle();
+}
+function setBig(v){ return setTier(v ? 'exp' : 'compact'); }
+// clique na capa: mínima → compacta → expandida ⇄ compacta; grande → expandida
+const nextOnClick = () => ({ min:'compact', compact:'exp', exp:'compact', grand:'exp' })[tier];
+
+/* ---------- alça de tamanho ----------
+   Fica no canto de crescimento (o oposto da capa) e só aparece com o mouse em cima. Puxando, ela vai atrás do
+   mouse com elástico e o degrau troca quando o tamanho puxado fica mais perto do próximo; soltando, assenta. */
+function pickTier(dw, dh){
+  let best = tier, bs = Infinity;
+  for (const t of TIERS){
+    const e = extent(layoutFor(Z, t, false), t, Z), W = e.r - e.l, H = e.b - e.t;
+    let s = ((dw - W) / 260) ** 2 + ((dh - H) / 160) ** 2;
+    if (t === tier) s *= .72;                       // folga pra não ficar trocando em cima do limite
+    if (s < bs){ bs = s; best = t; }
+  }
+  return best;
+}
+function localPoint(e){ const f = document.querySelector('.frame').getBoundingClientRect(); return { x:e.clientX - f.left, y:e.clientY - f.top }; }
+grip.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.stopPropagation(); e.preventDefault(); grip.setPointerCapture(e.pointerId);
+  const p = localPoint(e); rz = { px:p.x - 11, py:p.y - 11, id:e.pointerId };
+  root.classList.add('resizing');
+});
+grip.addEventListener('pointermove', e => {
+  if (!rz || e.pointerId !== rz.id) return;
+  const p = localPoint(e); rz.px = p.x - 11; rz.py = p.y - 11;
+  const dw = Z.hx === 'L' ? p.x : CW - p.x, dh = Z.vy === 'T' ? p.y : CW - p.y;
+  const t = pickTier(dw, dh); if (t !== tier) setTier(t, { stay:true });
+});
+const endRz = () => { if (!rz) return; rz = null; root.classList.remove('resizing'); settle(); };
+grip.addEventListener('pointerup', endRz); grip.addEventListener('pointercancel', endRz);
+
+/* ---------- lista do degrau grande: o que vem a seguir (API do Spotify) e as últimas tocadas ---------- */
+let listTab = prefs.listTab === 'recent' ? 'recent' : 'next', queue = null, queueAt = 0, queueKey = '';
+async function loadQueue(force){
+  if (tier !== 'grand') return;
+  if (!force && queueKey === artKey && performance.now() - queueAt < 15000){ renderList(); return; }
+  queueKey = artKey; queueAt = performance.now();
+  if (connected || await checkConnected()){
+    const r = await api('GET', '/me/player/queue');
+    queue = r.status === 200 ? (r.data?.queue || []).filter(Boolean).slice(0, 12).map(it => ({ title:it.name, artist:artistsOf(it) || it.show?.name || '' })) : null;
+  } else queue = null;
+  renderList();
+}
+function renderList(){
+  const rows = $('listRows'); rows.replaceChildren();
+  $('tabNext').classList.toggle('on', listTab === 'next'); $('tabRecent').classList.toggle('on', listTab === 'recent');
+  const items = listTab === 'next' ? queue : history.filter(h => !(st?.ok && h.title === st.title && h.artist === st.artist)).slice(0, 12);
+  if (!items || !items.length){
+    const p = document.createElement('div'); p.className = 'lempty';
+    p.textContent = listTab === 'next' ? (connected ? 'Nada na fila' : 'Conecte o Spotify pra ver a fila') : 'Nada tocado ainda';
+    rows.appendChild(p); return;
+  }
+  items.forEach((it, i) => {
+    const b = document.createElement('button'); b.className = 'lrow'; b.style.setProperty('--i', i);
+    const t = document.createElement('span'); t.className = 'lt'; t.textContent = it.title;
+    const a = document.createElement('span'); a.className = 'la'; a.textContent = it.artist || '';
+    b.append(t, a);
+    b.title = 'Tocar ' + it.title;
+    b.onclick = async () => { const r = await tocarBusca(`${it.title} ${it.artist || ''}`.trim(), 'musica'); toast(r?.tocando ? '♪ ' + r.tocando : r?.erro === 'spotify_nao_conectado' ? 'Conecte o Spotify (botão direito)' : 'Não deu pra tocar'); };
+    rows.appendChild(b);
+  });
+}
+$('tabNext').onclick = () => { listTab = 'next'; savePrefs({ listTab }); loadQueue(true); renderList(); };
+$('tabRecent').onclick = () => { listTab = 'recent'; savePrefs({ listTab }); renderList(); };
+setInterval(() => { if (tier === 'grand') loadQueue(); }, 4000);
+
+// onda = barra de tempo: clicar ou arrastar pula na música (na tira vertical, ao longo da altura)
+const clamp01 = v => Math.min(1, Math.max(0, v));
+function fracAt(el, e){
+  const r = el.getBoundingClientRect();
+  if (el === waveEl) return clamp01((e.clientX - r.left) / r.width);
+  const f = clamp01((e.clientY - r.top) / r.height); return Z.vy === 'B' ? 1 - f : f;
+}
+for (const el of [waveEl, vwaveEl]){
+  el.addEventListener('pointerdown', e => {
+    if (!st?.ok || !st.canSeek) return;
+    e.stopPropagation(); el.setPointerCapture(e.pointerId);
+    seekPreview = fracAt(el, e) * st.dur;
+  });
+  el.addEventListener('pointermove', e => { if (seekPreview != null) seekPreview = fracAt(el, e) * st.dur; });
+  el.addEventListener('pointerup', () => {
+    if (seekPreview == null) return;
+    const to = seekPreview; st.pos = to; stAt = performance.now(); seekPreview = null;
+    command('seek', to.toFixed(1));
+  });
+}
+waveEl.addEventListener('keydown', e => {
+  if (!st?.ok || !st.canSeek) return;
+  const d = e.key === 'ArrowRight' ? 5 : e.key === 'ArrowLeft' ? -5 : 0; if (!d) return;
+  e.preventDefault(); const to = Math.max(0, Math.min(st.dur, livePos() + d)); st.pos = to; stAt = performance.now(); command('seek', to.toFixed(1));
+});
+requestAnimationFrame(frame);
+
+/* ---------- API do Spotify: escolher música, fila, playlists ---------- */
+let connected = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function api(method, path, body){
+  const b64 = body ? btoa(unescape(encodeURIComponent(JSON.stringify(body)))) : '';
+  const raw = await ask(`api ${method} ${path}${b64 ? ' ' + b64 : ''}`, 20000);
+  if (!raw) return { status:0 };
+  try { const j = JSON.parse(raw); let data = null; try { data = j.body ? JSON.parse(j.body) : null; } catch {} return { status:j.status, data, text:j.body }; }
+  catch { return { status:0 }; }
+}
+async function checkConnected(){ connected = (await ask('conectado')) === 'sim'; player.classList.toggle('noapi', !connected); return connected; }
+const artistsOf = it => (it.artists || []).map(a => a.name).join(', ');
+function describe(it){
+  if (!it) return '';
+  if (it.type === 'track') return `${it.name} — ${artistsOf(it)}`;
+  if (it.type === 'album') return `${it.name} (álbum de ${artistsOf(it)})`;
+  if (it.type === 'playlist') return `${it.name} (playlist${it.owner?.display_name ? ' de ' + it.owner.display_name : ''})`;
+  return it.name;
+}
+function apiError(r){
+  const reason = r.data?.error?.reason || r.data?.error?.message || r.text || '';
+  if (r.status === 0 && r.text === 'nao_conectado') return 'spotify_nao_conectado';
+  if (r.status === 401) return 'login do Spotify expirou: conecte de novo pela Onda';
+  if (r.status === 403) return 'o Spotify recusou (' + reason + ')';
+  if (r.status === 404) return 'nenhum dispositivo do Spotify disponível';
+  return `erro ${r.status} ${reason}`.trim();
+}
+async function play(body){
+  let r = await api('PUT', '/me/player/play', body);
+  if (r.status === 404){                                    // nenhum aparelho ativo: acorda o do PC
+    let dv = await api('GET', '/me/player/devices');
+    let dev = dv.data?.devices?.find(d => d.type === 'Computer') || dv.data?.devices?.[0];
+    if (!dev){ openSpotify(); await sleep(6000); dv = await api('GET', '/me/player/devices'); dev = dv.data?.devices?.find(d => d.type === 'Computer') || dv.data?.devices?.[0]; }
+    if (dev) r = await api('PUT', '/me/player/play?device_id=' + encodeURIComponent(dev.id), body);
+  }
+  setTimeout(refresh, 800);
+  return r;
+}
+async function searchOne(q, type){
+  const r = await api('GET', `/search?q=${encodeURIComponent(q)}&type=${type}&limit=5`);
+  if (r.status !== 200) return { r };
+  return { item: r.data?.[type + 's']?.items?.filter(Boolean)?.[0], r };
+}
+const TIPO = { musica:'track', track:'track', album:'album', artista:'artist', artist:'artist', playlist:'playlist' };
+async function tocarBusca(q, tipo){
+  if (!connected && !(await checkConnected())) return { erro:'spotify_nao_conectado', dica:'Botão direito na Onda → Conectar Spotify' };
+  const type = TIPO[tipo] || 'track';
+  const { item, r } = await searchOne(String(q || ''), type);
+  if (!item) return { erro: r.status === 200 ? `nada encontrado pra "${q}"` : apiError(r) };
+  const p = await play(type === 'track' ? { uris:[item.uri] } : { context_uri:item.uri });
+  return p.status < 300 ? { tocando:describe(item) } : { erro:apiError(p) };
+}
+async function myPlaylists(){
+  const r = await api('GET', '/me/playlists?limit=50');
+  return r.status === 200 ? (r.data.items || []).filter(Boolean) : null;
+}
+async function connectSpotify(){
+  if (!canRun){ toast('Instale e ative a Onda'); return; }
+  if (!CLIENT_ID || CLIENT_ID === 'SEU_CLIENT_ID'){ toast('Falta o Client ID do Spotify (config.json)'); return; }
+  const rnd = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return a; };
+  const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const verifier = b64u(rnd(48)), state = b64u(rnd(16));
+  const challenge = b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  const code = AUTH_PS.replace('__CLIENT__', CLIENT_ID).replace('__VERIFIER__', verifier).replace('__STATE__', state);
+  const p = desktop.childProcess.spawn('powershell.exe', psArgs(code));
+  let out = '';
+  p.stdout.on('data', c => { out += c; });
+  p.on('exit', async () => {
+    const res = out.replace(/^﻿/, '').trim();
+    if (res.endsWith('ok')){ await checkConnected(); toast('Spotify conectado ✓'); }
+    else toast('Não conectou: ' + (res.replace(/^err\s*/, '') || 'tente de novo'));
+  });
+  const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({ response_type:'code', client_id:CLIENT_ID, redirect_uri:'http://127.0.0.1:8977/callback', scope:SCOPES, code_challenge_method:'S256', code_challenge:challenge, state });
+  setTimeout(() => desktop.childProcess.spawn('explorer.exe', [url]), 600);
+  toast('Autorize no navegador que abriu');
+}
+$('connect').onclick = connectSpotify;
+
+/* ---------- canal com a Órbita: ~/.orbita ---------- */
+let lastPub = 0;
+function busState(){
+  const s = st?.ok && st.title ? st : null;
+  return {
+    v:1, from:'Onda', updated:Date.now(),
+    tocando: s ? { titulo:s.title, artista:s.artist, album:s.album } : null,
+    status: s ? (s.playing ? 'tocando' : 'pausado') : 'parado',
+    posicao_s: s ? Math.round(livePos()) : 0, duracao_s: s ? Math.round(s.dur) : 0,
+    aleatorio: !!s?.shuffle, repetir: s ? ({ None:'desligado', List:'playlist', Track:'musica' }[s.repeat] || s.repeat) : 'desligado',
+    nivel_do_som: Math.round(level * 100),
+    historico: history.slice(0, 15),
+  };
+}
+async function publish(){
+  if (!desktop?.fs || !canRun) return;
+  lastPub = performance.now();
+  try { await desktop.fs.writeFile(ST + '.tmp', JSON.stringify(busState())); await desktop.fs.rename(ST + '.tmp', ST); } catch {}
+}
+const ACTIONS = {
+  tocar_pausar:() => command('toggle'), tocar:() => command('play'), pausar:() => command('pause'),
+  proxima:() => command('next'), anterior:() => command('prev'),
+  ir_para:a => command('seek', Math.max(0, Number(a) || 0).toFixed(1)),
+  aleatorio:a => command('shuffle', a === 'off' || a === false || a === '0' ? '0' : '1'),
+  repetir:a => command('repeat', { desligado:'None', playlist:'List', musica:'Track' }[a] || 'None'),
+  buscar:a => { if (!a) return 'fail'; desktop.childProcess.spawn('explorer.exe', ['spotify:search:' + encodeURIComponent(String(a))]); return 'ok'; },
+  abrir_spotify:() => { openSpotify(); return 'ok'; },
+  expandir:() => { setBig(true); return 'ok'; }, recolher:() => { setBig(false); return 'ok'; },
+  tamanho:a => { const t = { minima:'min', 'mínima':'min', compacta:'compact', expandida:'exp', grande:'grand' }[String(a || '').toLowerCase()] || a; if (!TIERS.includes(t)) return { erro:'use minima, compacta, expandida ou grande' }; setTier(t); return 'ok'; },
+  // posição: "topo", "base", "esquerda", "direita", "centro" ou cantos ("canto superior esquerdo"...); msg.tela = 1, 2... (da esquerda pra direita)
+  posicao:async (a, m) => {
+    if (!mover?.ready) return { erro:'a Onda ainda não está na tela' };
+    const ds = [...await mover.displays(true)].sort((p, q) => p.bounds.x - q.bounds.x || p.bounds.y - q.bounds.y);
+    const cur = mover.target, n = Number(m?.tela);
+    const d = n >= 1 && n <= ds.length ? ds[n - 1] : displayFor({ x:cur.x + CW / 2, y:cur.y + CW / 2 }, ds), wa = d.workArea;
+    const s = String(a || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const L = /esquerd/.test(s), Rt = /direit/.test(s), T = /topo|cima|superior/.test(s), B = /base|baixo|inferior/.test(s);
+    if (!(L || Rt || T || B || /centro|meio/.test(s))) return { erro:'use topo, base, esquerda, direita, centro ou um canto' };
+    const x = L ? wa.x : Rt ? wa.x + wa.width - CW : wa.x + wa.width / 2 - CW / 2;
+    const y = T ? wa.y : B ? wa.y + wa.height - CW : wa.y + wa.height / 2 - CW / 2;
+    await settle({ x:Math.round(x), y:Math.round(y) });
+    return 'ok';
+  },
+  // pela API do Spotify
+  tocar_busca:(a, m) => tocarBusca(a, m.tipo),
+  adicionar_fila:async a => {
+    const { item, r } = await searchOne(String(a || ''), 'track');
+    if (!item) return { erro: r.status === 200 ? `nada encontrado pra "${a}"` : apiError(r) };
+    const q = await api('POST', '/me/player/queue?uri=' + encodeURIComponent(item.uri));
+    return q.status < 300 ? { na_fila:describe(item) } : { erro:apiError(q) };
+  },
+  ver_fila:async () => {
+    const r = await api('GET', '/me/player/queue');
+    return r.status === 200 ? { tocando:describe(r.data.currently_playing), proximas:(r.data.queue || []).slice(0, 10).map(describe) } : { erro:apiError(r) };
+  },
+  minhas_playlists:async () => { const l = await myPlaylists(); return l ? { playlists:l.map(p => p.name) } : { erro:'não deu pra ler as playlists' }; },
+  tocar_minha_playlist:async a => {
+    const l = await myPlaylists(); if (!l) return { erro:'não deu pra ler as playlists' };
+    const n = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const want = n(a);
+    const pl = l.find(p => n(p.name) === want) || l.find(p => n(p.name).includes(want)) || l.find(p => want.includes(n(p.name)));
+    if (!pl) return { erro:`não achei a playlist "${a}"`, suas_playlists:l.map(p => p.name).slice(0, 30) };
+    const p = await play({ context_uri:pl.uri });
+    return p.status < 300 ? { tocando:describe(pl) } : { erro:apiError(p) };
+  },
+};
+let inboxBusy = false;
+async function inbox(){
+  if (inboxBusy || !desktop?.fs || !canRun) return; inboxBusy = true;
+  try {
+    const list = (await desktop.fs.readdir(CMD).catch(() => [])).filter(e => e.isFile && e.name.endsWith('.json'));
+    for (const e of list){
+      const p = CMD + '/' + e.name;
+      let msg; try { msg = JSON.parse(await desktop.fs.readFile(p, 'utf8')); } catch { msg = null; }
+      await desktop.fs.rm(p, { force:true }).catch(() => {});
+      if (!msg?.id) continue;
+      const fn = ACTIONS[msg.acao];
+      let result;
+      try { result = fn ? ((await fn(msg.valor, msg)) || 'ok') : 'acao desconhecida'; } catch (err) { result = { erro:String(err?.message || err) }; }
+      await new Promise(r => setTimeout(r, 650)); await refresh();
+      await desktop.fs.writeFile(RES + '/' + msg.id + '.json', JSON.stringify({ id:msg.id, resultado:result, estado:busState() })).catch(() => {});
+      if (fn) toast(result?.tocando ? '♪ ' + result.tocando : result?.na_fila ? '+ Na fila: ' + result.na_fila : 'Órbita pediu: ' + msg.acao.replace(/_/g, ' '));
+    }
+  } finally { inboxBusy = false; }
+}
+
+/* ---------- janela ---------- */
+function drawIcon(size){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'), k = size / 256;
+  if (size >= 64){
+    const bg = g.createLinearGradient(0, 0, size, size); bg.addColorStop(0, '#2a1f4d'); bg.addColorStop(1, '#0b0d16');
+    g.fillStyle = bg; g.beginPath(); g.roundRect(8*k, 8*k, 240*k, 240*k, 58*k); g.fill();
+  }
+  const wv = g.createLinearGradient(30*k, 0, 226*k, 0); wv.addColorStop(0, '#9fffc4'); wv.addColorStop(1, '#a9b8ff');
+  g.strokeStyle = size >= 64 ? wv : '#fff'; g.lineWidth = (size >= 64 ? 20 : 26) * k; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(40*k, 140*k);
+  g.bezierCurveTo(70*k, 140*k, 70*k, 96*k, 98*k, 96*k); g.bezierCurveTo(128*k, 96*k, 118*k, 176*k, 148*k, 176*k);
+  g.bezierCurveTo(178*k, 176*k, 176*k, 84*k, 216*k, 84*k); g.stroke();
+  return c.toDataURL('image/png');
+}
+const OPTS = () => ({ frame:false, transparent:true, alwaysOnTop:pinned, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:LR.r - LR.l, height:LR.b - LR.t });
+function menuItems(){
+  return [
+    { label: st?.ok && st.playing ? 'Pausar' : 'Tocar', click:togglePlay },
+    { label:'Próxima', click:() => command('next') },
+    { label:'Tamanho', submenu:[['min','Mínima'],['compact','Compacta'],['exp','Expandida'],['grand','Grande']].map(([t, l]) => ({ label:l, type:'radio', checked:tier === t, click:() => setTier(t) })) },
+    { type:'separator' },
+    { label:'Abrir Spotify', click:openSpotify },
+    { label: connected ? 'Spotify conectado ✓ (reconectar)' : 'Conectar Spotify…', click:connectSpotify },
+    { label:'Sempre por cima', type:'checkbox', checked:pinned, click:async () => { pinned = !pinned; savePrefs(); await desktop.window.setOptions(OPTS()).catch(() => {}); } },
+    { label:'Esconder', click:() => desktop.window.hide() },
+    { type:'separator' },
+    { label:'Permissões…', click:() => desktop.permissions.manage().catch(() => {}) },
+  ];
+}
+// abre onde estava, já no arranjo daquele lado (sem animar a chegada: aparece com um fade)
+async function placeInitial(){
+  root.classList.add('booting');
+  try {
+    mover ||= createMover();
+    await mover.sync();
+    const ds = await mover.displays(true);
+    let a = prefs.anchor;
+    if (!a && prefs.pos) a = { x:prefs.pos.x + 34, y:prefs.pos.y + 30 };   // posição salva pela versão anterior
+    if (!(a && ds.some(d => within(d, { x:a.x + CW / 2, y:a.y + CW / 2 })))){
+      const wa = ds[0]?.workArea || { x:0, y:0, width:1920, height:1080 };
+      a = { x:wa.x + wa.width - CW - 180, y:wa.y + wa.height - CW - 140 };
+    }
+    const r = restFor(a.x - AX, a.y - AY) || { x:a.x - AX, y:a.y - AY, z:null };
+    if (r.z) setZone(r.z, true);
+    snapAll = true;
+    await mover.set({ x:r.x, y:r.y });
+    savePrefs({ anchor:{ x:r.x + AX, y:r.y + AY } });
+  } catch {}
+  setTimeout(() => requestAnimationFrame(() => root.classList.remove('booting')), 120);
+}
+
+// clique na capa expande/recolhe; arrastar capa, texto ou tira move a janela
+// o clique passa fora do que se vê; com o botão pressionado, nunca (senão o "soltar" cai na janela de baixo)
+let through = null;
+const pass = on => { if (!desktop?.window || through === on || (on && gest?.active)) return; through = on; desktop.window.setIgnoreMouseEvents(on, { forward:true }).catch(() => {}); };
+let mv = null, swallowClick = false;   // mv: espelho do gesto do motor ({ on }); swallowClick: o giro do vinil engole o clique
+player.addEventListener('click', e => { if (swallowClick){ e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
+const gest = createGesture({
+  // capture:false — segurar o ponteiro já no pressionar manda o clique pro player e a capa, o nome em pé e o play da capa
+  // param de responder; a captura entra só quando o gesto vira arrasto de verdade (onStart, depois de 5 px)
+  targets:document.querySelector('.preview'), captureEl:player, capture:false, threshold:5,
+  accept(e){
+    if (!e.target.closest('.hit') || !root.classList.contains('app-mode') || !mover?.ready || e.target.closest('.c, .wave, .vwave, .bars, .openbtn, .grip, .lrow, .ltab')) return null;
+    return {};
+  },
+  onPress(){ mv = { on:false }; pass(false); },
+  onStart(e, g){ try { player.setPointerCapture(g.id); } catch {} mv = { on:true }; document.body.classList.add('moving'); mover.startDrag(e, g.down); },
+  onMove(e){ mover.moveDrag(e); },
+  onEnd(g, why){
+    mv = null; document.body.classList.remove('moving');
+    // soltar perdido (botão já solto, foco perdido, tempo-limite): assenta onde está, sem embalo
+    const rel = why === 'up' ? mover.endDrag() : mover.cancelDrag();
+    settle(rel?.rest, rel ? { vx:rel.vx, vy:rel.vy } : null);
+  },
+  onTap(){ mv = null; }, onAbort(){ mv = null; },
+});
+// degrau só muda por ação clara (a alça ou o menu); clicar na capa (no vinil, inclusive) toca ou pausa
+$('cover').addEventListener('click', e => { if (e.target.closest('.mini')) return; togglePlay(); });
+player.addEventListener('contextmenu', e => { if (!desktop?.Menu) return; e.preventDefault(); desktop.Menu.popup(menuItems()).catch(() => {}); });
+// mouse em cima: no canto, a versão compacta se abre na linha inteira
+let hovT = 0, hovOn = 0, rimHot = false;
+function setHov(on){
+  if (on){ clearTimeout(hovT); hovT = 0; if (!hov && !hovOn) hovOn = setTimeout(() => { hovOn = 0; hov = true; }, 80); }
+  else { clearTimeout(hovOn); hovOn = 0; if (!hovT) hovT = setTimeout(() => { hovT = 0; if (!mv?.on) hov = false; }, 420); }
+}
+
+async function enterApp(perms){
+  let res;
+  try { res = await desktop.window.setOptions(OPTS()); }
+  catch (e) { say(`O Windows não deixou a janela flutuar (${String(e.message).split(':')[0]}).`); return; }
+  if (res.reloading) return;
+  if (res.applied === 'next_open'){ say('Quase lá: feche a Onda e abra de novo pelo menu Iniciar.'); return; }
+  canRun = perms['full-access'] === 'granted';
+  document.documentElement.classList.add('app-mode');
+  await placeInitial();
+  // só a capa, o texto, os botões e a onda pegam o mouse; o resto da janela deixa o clique passar
+  pass(true);
+  let outT = 0;
+  document.addEventListener('pointermove', e => {
+    if (mv || seekPreview != null || rz || spin) return;
+    const inside = !!e.target.closest?.('.hit:not(.gone), .toast');
+    rimHot = e.target === bodyHit;
+    if (inside){ clearTimeout(outT); outT = 0; pass(false); setHov(true); }
+    else if (!outT) outT = setTimeout(() => { outT = 0; pass(true); setHov(false); }, 160);   // saiu mesmo: só então o clique passa
+  });
+  document.addEventListener('pointerleave', () => { if (!mv?.on){ pass(true); setHov(false); } });
+  document.addEventListener('mouseleave', () => setHov(false));
+  if (canRun){
+    await desktop.fs.mkdir(CMD, { recursive:true }).catch(() => {});
+    await desktop.fs.mkdir(RES, { recursive:true }).catch(() => {});
+    try { history = JSON.parse(await desktop.fs.readFile(HIST, 'utf8')); if (!Array.isArray(history)) history = []; } catch { history = []; }
+    startMeter();
+    checkConnected();
+  }
+  if (perms['menu-bar'] === 'granted'){
+    desktop.tray.set({ icon:drawIcon(32), iconIsTemplate:false, toolTip:'Onda', menu:[
+      { label:'Mostrar Onda', click:() => desktop.window.show() },
+      { label:'Tocar ou pausar', click:togglePlay },
+      { label:'Próxima', click:() => command('next') },
+      { label:'Expandir ou recolher', click:() => setBig(!big) },
+      { label:'Esconder', click:() => desktop.window.hide() },
+    ] }).catch(() => {});
+  }
+  if (!canRun) toast('Sem permissão de acesso: clique direito → Permissões');
+  refresh(); setInterval(refresh, 1000);
+  setInterval(inbox, 400);
+}
+
+/* ---------- configuração ---------- */
+const statusEl = $('status'), actionsEl = $('actions');
+function say(m){ statusEl.textContent = m; }
+function button(label, fn){ const b = document.createElement('button'); b.className = 'btn'; b.textContent = label; b.onclick = fn; actionsEl.appendChild(b); }
+function showSetup(perms){
+  actionsEl.replaceChildren();
+  if (perms?.overlay === 'denied' || perms?.['full-access'] === 'denied'){
+    say('Alguma permissão foi negada. A Onda precisa flutuar na tela e conversar com o Windows pra ler o Spotify.');
+    button('Abrir permissões', () => desktop.permissions.manage().then(boot).catch(() => {}));
+    return;
+  }
+  say('Falta um passo: deixar a Onda flutuar por cima das janelas, ler o que o Spotify está tocando e ficar na bandeja.');
+  button('Ativar a Onda', async () => {
+    let r;
+    try { r = await desktop.permissions.request(['overlay','full-access','menu-bar']); }
+    catch { say('Não deu pra pedir as permissões agora. Clique de novo.'); return; }
+    if (r.overlay === 'granted') enterApp(r); else showSetup(r);
+  });
+}
+async function boot(){
+  const sim = /[?&]sim/.test(location.search) && location.hostname === 'localhost' && parent !== window ? parent.__simDesktop : null;   // só no simulador local
+  desktop = sim || (window.claude?.use ? await window.claude.use('desktop') : null);
+  if (!desktop?.window){
+    actionsEl.replaceChildren();
+    const s = desktop?.install ? await desktop.install.state().catch(() => 'unavailable') : 'unavailable';
+    if (s === 'available'){
+      say('Instale como app pra ela flutuar na tela e ler o seu Spotify.');
+      button('Instalar como app', async () => {
+        const r = await desktop.install.request().catch(() => 'failed');
+        if (r === 'cancelled') say('Instalação cancelada. O botão continua aqui.');
+        else if (r !== 'installed') say('Não deu pra instalar daqui. Use "Install as app" no menu do artefato.');
+      });
+    } else if (s === 'installed') say('Já está instalada. Abra "Onda" pelo menu Iniciar.');
+    else say('Pra instalar: no app do Claude, abra o menu com o nome “Onda” no topo do artefato e escolha Instalar como app (ou abra o artefato em tela cheia).');
+    return;
+  }
+  desktop.app.dock.setIcon(drawIcon(256)).catch(() => {});
+  const perms = await desktop.permissions.state().catch(() => null);
+  if (perms?.overlay === 'granted') enterApp(perms); else showSetup(perms);
+}
+render();
+boot();
+// só pra testar o visual abrindo o arquivo localmente
+if (location.protocol === 'file:' || location.protocol === 'data:' || location.hostname === 'localhost') window.__onda = {
+  play(s, art, pk){ st = { ok:true, canSeek:true, canShuffle:true, repeat:'None', ...s }; stAt = performance.now(); artKey = s.title; setArt(art); swapText(); render(); if (pk) setInterval(() => { peak = Math.max(0, .06 + .05 * Math.sin(performance.now() / 160) + Math.random() * .05); meterOn = true; }, 33); },
+  big:setBig,
+  tier:setTier,
+  list(h, q){ history = h || history; queue = q || queue; connected = !!q; renderList(); },
+  hover(on){ clearTimeout(hovT); clearTimeout(hovOn); hovT = hovOn = 0; hov = !!on; },
+  slow(f){ timeScale = f; },
+  // leva a capa até (ax, ay) na tela e assenta como se tivesse soltado ali
+  to(ax, ay){ return settle({ x:ax - AX, y:ay - AY }); },
+  // arrasto de mentira: começa, anda até (ax, ay) com a capa, solta
+  grab(){ const t = mover.target; this._g = { screenX:t.x + AX, screenY:t.y + AY }; mover.startDrag(this._g, this._g); },
+  drag(ax, ay){ mover.moveDrag({ screenX:ax, screenY:ay }); },
+  drop(){ const rel = mover.endDrag(); return settle(rel?.rest, rel ? { vx:rel.vx, vy:rel.vy } : null); },
+  get motor(){ return mover; }, gest, get grabEl(){ return EL.cover; },
+  get state(){ return { Z:{ ...Z, wa:undefined }, tier, big, hov, arrangement:arrangement(), win:mover?.target }; },
+};
+</script>

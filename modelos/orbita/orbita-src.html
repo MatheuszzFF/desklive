@@ -1,0 +1,1642 @@
+<title>Órbita</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script type="application/json" id="claude-artifacts-manifest">{"permissions":["overlay","full-access","menu-bar","shortcuts"]}</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap">
+<style>
+/* A Órbita é uma fileira solta sobre a área de trabalho (sem caixas), que se reorganiza conforme o lado da tela:
+   embaixo e em cima é uma barra deitada, nas laterais vira coluna, nos cantos vira um núcleo que abre em leque.
+   Quem decide o lado é html[data-o] (bottom, top, left, right, bl, br, tl, tr). */
+:root{
+  --ink:#090b10;
+  --fg:#f4f5f8;
+  --muted:rgba(244,245,248,.62);
+  --faint:rgba(244,245,248,.38);
+  --line:rgba(255,255,255,.09);
+  --glass:rgba(14,16,24,.86);
+  --claude:#d97757;
+  --accent:#a9b8ff;
+  --warm:#f2c14e;
+  --hot:#ff7d6e;
+  --display:"Space Grotesk","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --body:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --spring:cubic-bezier(.2,.9,.25,1.12);
+  --springy:cubic-bezier(.2,.9,.25,1.1);   /* trocado no JS por uma mola de verdade (linear()) */
+  --shadow-text:0 1px 2px rgba(0,0,0,.7),0 0 14px rgba(0,0,0,.35);
+  color-scheme:dark;
+}
+html,body{height:100%}
+/* nada da interface é selecionável (relógio, números, nomes): é um app, não uma página */
+html{-webkit-user-select:none;user-select:none}
+body{background:var(--ink);color:var(--fg);font-family:var(--body);margin:0;box-sizing:border-box;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+
+/* ---------- palco (a página fora do app) ---------- */
+.stage{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding-block:40px;box-sizing:border-box}
+.stage header{text-align:center;display:flex;flex-direction:column;gap:8px;max-width:54ch}
+h1{font-family:var(--display);font-weight:600;font-size:34px;letter-spacing:-.02em;margin:0}
+.lede{color:var(--muted);margin:0;line-height:1.55}
+.setup{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;max-width:58ch}
+.setup p{margin:0;color:var(--muted);line-height:1.55}
+.btn{font:600 14px/1 var(--body);color:#0b0d12;background:var(--accent);border:0;border-radius:10px;padding:12px 18px;cursor:pointer}
+.btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.notes{list-style:none;margin:0;padding:0;display:grid;gap:6px;color:var(--muted);font-size:13px;text-align:center}
+kbd{font:500 11px var(--body);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--fg)}
+.preview{width:1000px;max-width:100%;height:220px;border-radius:22px;position:relative;overflow:hidden;
+  background:radial-gradient(90% 140% at 75% 110%,#3b3f8f,#151a33 45%,#07080d 80%)}
+
+/* ---------- posição da barra dentro da janela ---------- */
+.bar-wrap{position:absolute;left:50%;bottom:30px;translate:-50% 0;pointer-events:none;isolation:isolate;
+  /* arrastando: estica na direção do movimento e inclina de leve (valores vêm da mola, no JS) */
+  scale:var(--wsx,1) var(--wsy,1);rotate:calc(var(--tilt,0deg) * .35)}
+html.bar-mode .bar-wrap{left:var(--pl,0px);top:var(--pt,0px);bottom:auto;translate:0 0;transition:translate .55s var(--springy),opacity .3s var(--ease)}
+.bar{position:relative;display:flex;align-items:center;gap:14px;pointer-events:auto;zoom:var(--s,1);
+  transition:transform .5s var(--spring);transform-origin:50% 50%}
+.bar.sizing{transition:transform .08s linear}
+html.ocn .bar{transform-origin:var(--hx) var(--hy)}
+html.moving,html.moving *{cursor:grabbing!important}
+
+/* ---------- a ilha: superfície escura que se funde à borda da tela ----------
+   desenhada em SVG (path gerado no JS a cada quadro enquanto algo se mexe): cada lado colado na borda vai até
+   a beirada da janela, com ombros côncavos ligando à borda; solta, vira uma pílula. */
+.island{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;z-index:-1;pointer-events:none}
+.island path.isl{fill:url(#islFill);stroke:rgba(255,255,255,.07);stroke-width:1;pointer-events:visiblePainted;cursor:default;
+  filter:drop-shadow(0 10px 20px rgba(0,0,0,.42)) drop-shadow(0 1px 2px rgba(0,0,0,.35)) drop-shadow(0 0 calc(var(--grab,0) * 11px) rgba(0,0,0,calc(var(--grab,0) * .3)));transition:stroke .35s var(--ease)}
+.island path.rim{fill:none;stroke:url(#islRim);stroke-width:1;pointer-events:none}
+html[data-snap] .island path.isl{stroke:rgba(169,184,255,.38)}
+.sep{flex:none;width:1px;height:24px;background:linear-gradient(transparent,rgba(255,255,255,.22),transparent);transition:opacity .25s}
+
+/* apps: sem caixa, um halo da cor do app */
+#apps{display:flex;align-items:center;gap:6px}
+.app{position:relative;flex:none;width:44px;height:44px;border:0;padding:0;border-radius:14px;background:transparent;display:grid;place-items:center;cursor:pointer;outline:none}
+.app::before{content:"";position:absolute;left:50%;bottom:0;width:38px;height:30px;margin-left:-19px;border-radius:50%;
+  background:radial-gradient(closest-side,var(--c),transparent);filter:blur(9px);opacity:0;transition:opacity .35s,transform .35s var(--ease);transform:scale(.8)}
+.app.running::before{opacity:.72;transform:none}
+.app:hover::before{opacity:.95;transform:scale(1.12)}
+.app img{position:relative;width:30px;height:30px;display:block;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.45));transition:transform .28s var(--spring),filter .2s,opacity .25s}
+.app:hover img{transform:translateY(-5px) scale(1.12)}
+.app:active img{filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)) brightness(.88)}
+.app:focus-visible img{outline:2px solid var(--fg);outline-offset:4px;border-radius:8px}
+.app.bounce img{animation:hop .55s var(--spring)}
+@keyframes hop{0%,100%{transform:none}35%{transform:translateY(-10px) scale(1.06)}}
+.app::after{content:none}
+
+/* balões: por padrão acima (barra embaixo); as outras posições trocam o lado logo abaixo */
+.tip{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translate(-50%,4px);translate:var(--tx,0px) var(--ty,0px);z-index:5;
+  background:var(--glass);border:1px solid var(--line);color:var(--fg);font:500 12px/1 var(--body);white-space:nowrap;padding:6px 10px;border-radius:9px;
+  opacity:0;pointer-events:none;transition:opacity .15s,transform .2s var(--ease)}
+.app:hover .tip,.app:focus-visible .tip,.stat:hover .tip{opacity:1;transform:translate(-50%,0)}
+
+/* relógio e pulso */
+.status{position:relative;display:flex;align-items:center;gap:12px;flex:none;text-shadow:var(--shadow-text)}
+.rings{display:flex;gap:6px}
+.stat{position:relative;flex:none;display:flex;align-items:center;gap:7px}
+.stat[hidden]{display:none}
+.ring{position:relative;width:22px;height:22px;flex:none}
+.ring svg{width:100%;height:100%;display:block;transform:rotate(-90deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+.ring .bg{fill:none;stroke:rgba(255,255,255,.16);stroke-width:2.6}
+.ring .fg{fill:none;stroke:var(--accent);stroke-width:2.6;stroke-linecap:round;stroke-dasharray:56.5;stroke-dashoffset:56.5;transition:stroke-dashoffset .7s var(--ease),stroke .4s}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:600 8.5px/1 var(--display);color:var(--fg);font-variant-numeric:tabular-nums;transition:opacity .2s}
+.stat.temp .ring b{font-size:8px;letter-spacing:-.02em}
+.stat.temp .ring b::after{content:"°";font-size:7px;margin-left:.5px;opacity:.75}
+.stat .tip{bottom:calc(100% + 10px)}
+.meta{display:none}
+.music{display:none}
+.clock{display:flex;flex-direction:column;align-items:flex-end;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock .t{font:500 18px/1.05 var(--display);letter-spacing:.01em}
+.clock .d{font-size:10.5px;color:var(--muted);margin-top:2px}
+.fold{flex:none;width:22px;height:34px;border:0;padding:0;border-radius:9px;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--muted);opacity:0;transition:opacity .2s,background .15s,color .15s}
+.bar:hover .fold,.bar.collapsed .fold,.fold:focus-visible{opacity:1}
+.fold:hover{background:rgba(255,255,255,.08);color:var(--fg)}
+.fold svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s var(--ease);filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.bar.collapsed .fold svg{transform:rotate(180deg)}
+.bar.collapsed #apps,.bar.collapsed .sep,.bar.collapsed .status{display:none}
+/* alça de tamanho: um traço fino no fim da barra; puxando, troca de degrau (fina, normal, larga) */
+.grip{position:absolute;right:-17px;top:50%;width:14px;height:40px;margin-top:-20px;cursor:ew-resize;display:grid;place-items:center;opacity:0;transition:opacity .25s var(--ease);touch-action:none}
+.grip::after{content:"";width:3px;height:18px;border-radius:2px;background:rgba(244,245,248,.32);box-shadow:0 0 0 rgba(169,184,255,0);
+  transition:background .2s,height .3s var(--spring),box-shadow .3s}
+.grip:hover::after,.bar.sizing .grip::after{background:rgba(244,245,248,.85);height:24px;box-shadow:0 0 10px rgba(169,184,255,.6)}
+.bar:hover .grip,.bar.sizing .grip,.grip:focus-visible{opacity:1}
+.steps{position:absolute;left:50%;bottom:calc(100% + 2px);translate:-50% 0;display:flex;flex-direction:column-reverse;gap:3px;opacity:0;transition:opacity .2s;pointer-events:none}
+.steps i{width:4px;height:4px;border-radius:50%;background:rgba(244,245,248,.28);transition:background .2s,scale .3s var(--spring)}
+.bar.sizing .steps{opacity:1}
+html[data-t=slim] .steps i:nth-child(1),html[data-t=normal] .steps i:nth-child(2),html[data-t=wide] .steps i:nth-child(3){background:var(--accent);scale:1.35}
+/* puxão elástico enquanto não chega no próximo degrau */
+.bar{transform:scale(var(--px,1),var(--py,1))}
+
+/* ---------- degraus de tamanho ---------- */
+/* fina: só os ícones */
+html[data-t=slim]:not(.ocn) :is(.sep,.status,.fold){display:none}
+html[data-t=slim].ocn .rings{display:none}
+html[data-t=slim].ocn .clock .t{font-size:13px}
+/* larga: anéis com número, rótulo e mini gráfico; a música tocando; data completa */
+.lbl{font:600 8.5px/1 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.val{font:500 12.5px/1 var(--display);font-variant-numeric:tabular-nums;color:var(--fg)}
+.spark{width:46px;height:12px;overflow:visible;display:block}
+.spark polyline{fill:none;stroke:var(--sc,var(--accent));stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:.9;filter:drop-shadow(0 0 3px var(--sc,var(--accent)))}
+html[data-t=wide]:not(.ocn) .meta{display:flex;flex-direction:column;gap:3px;min-width:46px}
+html[data-t=wide]:not(.ocn) .ring{width:26px;height:26px}
+html[data-t=wide]:not(.ocn) .rings{gap:14px}
+html[data-t=wide]:not(.ocn) .stat .tip{display:none}
+html[data-t=wide]:not(.ocn) .status{gap:18px}
+html[data-t=wide]:not(.ocn) .clock .t{font-size:20px}
+html[data-t=wide]:not(.ocn) .music:not([hidden]){display:flex;align-items:center;gap:9px;max-width:200px;min-width:0}
+.note{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font:600 14px/1 var(--body);font-style:normal;color:#07130b;
+  background:linear-gradient(135deg,#5af08f,#1ed760 55%,#13a54a);box-shadow:0 4px 12px rgba(30,215,96,.35)}
+.note::before{content:"♪"}
+.mt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mt b,.mt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt b{font:600 12px/1.1 var(--body)}
+.mt span{font:400 10.5px/1.1 var(--body);color:var(--muted)}
+.app .name{display:none}
+html.ovt[data-t=wide] .app .name,html[data-t=wide]:not(.ocn) .meta,html[data-t=wide]:not(.ocn) .music:not([hidden]),html.ocn[data-t=wide] .clock .d{animation:fadein .45s var(--ease) .12s both}
+@keyframes fadein{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
+/* larga na lateral: vira uma lista com o nome dos apps, o resto empilhado no pé */
+html.ovt[data-t=wide] .app{width:184px;display:flex;align-items:center;justify-content:flex-start;gap:11px;padding:0 7px;box-sizing:border-box}
+html[data-o=right][data-t=wide] .app{flex-direction:row-reverse}
+html.ovt[data-t=wide] .app .name{display:block;font:500 12.5px/1 var(--body);text-shadow:var(--shadow-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+html.ovt[data-t=wide] .app .tip{display:none}
+html[data-o=left][data-t=wide] .app::before{right:auto;left:1px}
+html[data-o=right][data-t=wide] .app::before{left:auto;right:1px}
+html.ovt[data-t=wide] .rings{gap:12px;align-items:flex-start}
+html.ovt[data-t=wide] .status{gap:14px;align-items:center}
+html.ovt[data-t=wide] .music:not([hidden]){max-width:176px}
+html.ovt[data-t=wide] .clock .t{font-size:18px}
+html.ovt[data-t=wide] .clock .d{display:block}
+/* larga no canto: núcleo com data e números nos anéis, leque mais aberto */
+html.ocn[data-t=wide] .ring{width:21px;height:21px}
+html.ocn[data-t=wide] .ring b{opacity:1;font-size:7.5px}
+html.ocn[data-t=wide] .clock .t{font-size:19px}
+html.ocn[data-t=wide] .clock .d{display:block}
+
+.toast{position:absolute;left:50%;bottom:calc(100% + 14px);transform:translateX(-50%);z-index:6;background:var(--glass);border:1px solid var(--line);color:var(--fg);font:500 12px/1.3 var(--body);padding:7px 12px;border-radius:10px;white-space:nowrap;animation:rise .3s var(--ease) both}
+@keyframes rise{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+
+/* ---------- em cima: balões pra baixo, brilho e movimento pro lado de dentro ---------- */
+html[data-o=top] .app::before{bottom:-5px}
+html[data-o=top] .app:hover img{transform:translateY(5px) scale(1.12)}
+html:is([data-o=top],[data-o=tl],[data-o=tr]) .tip{bottom:auto;top:calc(100% + 12px);transform:translate(-50%,-4px)}
+html:is([data-o=top],[data-o=tl],[data-o=tr]) .stat .tip{top:calc(100% + 10px)}
+html:is([data-o=top],[data-o=tl],[data-o=tr]) :is(.app:hover,.app:focus-visible,.stat:hover) .tip{transform:translate(-50%,0)}
+html[data-o=top] .toast{bottom:auto;top:calc(100% + 14px)}
+
+/* ---------- laterais: coluna, balões abrindo pra dentro, relógio e anéis no pé ---------- */
+html.ovt .bar{flex-direction:column;gap:12px}
+html.ovt #apps{flex-direction:column}
+html.ovt .sep{width:24px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent)}
+html.ovt .status{flex-direction:column;gap:10px}
+html.ovt .rings{flex-direction:column;gap:7px}
+html.ovt .clock{align-items:center}
+html.ovt .clock .t{font-size:14px}
+html.ovt .clock .d{display:none}
+html.ovt .fold svg{rotate:90deg}
+html.ovt .grip{right:auto;top:auto;left:50%;bottom:-17px;width:40px;height:14px;margin:0 0 0 -20px;cursor:ns-resize}
+html.ovt .grip::after{width:18px;height:3px}
+html.ovt .grip:hover::after,html.ovt .bar.sizing .grip::after{width:24px;height:3px}
+html.ovt .steps{bottom:auto;left:calc(100% + 4px);top:50%;translate:0 -50%;flex-direction:row}
+html.ovt .app::before{left:auto;right:-3px;bottom:auto;top:50%;width:30px;height:38px;margin:-19px 0 0}
+html[data-o=right] .app::before{right:auto;left:-3px}
+html[data-o=left] .app:hover img{transform:translateX(5px) scale(1.12)}
+html[data-o=right] .app:hover img{transform:translateX(-5px) scale(1.12)}
+html.ovt .tip,html.ovt .stat .tip{bottom:auto;top:50%;left:calc(100% + 12px);transform:translate(-4px,-50%)}
+html[data-o=right] .tip,html[data-o=right] .stat .tip{left:auto;right:calc(100% + 12px);transform:translate(4px,-50%)}
+html.ovt :is(.app:hover,.app:focus-visible,.stat:hover) .tip{transform:translate(0,-50%)}
+html.ovt .toast{bottom:auto;top:50%;left:calc(100% + 14px);transform:translateY(-50%)}
+html[data-o=right] .toast{left:auto;right:calc(100% + 14px)}
+
+/* ---------- cantos: um núcleo (relógio + anéis) com os apps orbitando em pontinhos; abre em leque pra dentro ---------- */
+html.ocn .bar{display:block;width:var(--fan,236px);height:var(--fan,236px)}
+html.ocn #apps{display:block;position:absolute;inset:0;pointer-events:none}
+html.ocn .app{position:absolute;left:0;top:0;translate:var(--cx) var(--cy);pointer-events:none;
+  transition:translate .5s var(--springy) var(--dc,0ms)}
+html.ocn.fan .app{translate:var(--ox) var(--oy);pointer-events:auto;transition-delay:var(--do,0ms)}
+html.ocn .app img{opacity:0;transform:scale(.2)}
+html.ocn.fan .app img{opacity:1;transform:none;transition-delay:var(--do,0ms)}
+html.ocn.fan .app:hover img{transform:scale(1.14)}
+html.ocn .app::before{left:50%;top:50%;bottom:auto;margin:-15px 0 0 -19px}
+html.ocn:not(.fan) .app::before{opacity:0}
+html.ocn .app::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;
+  background:var(--c);box-shadow:0 0 7px var(--c);opacity:.3;transition:opacity .3s,transform .35s var(--spring)}
+html.ocn .app.running::after{opacity:1}
+html.ocn.fan .app::after{opacity:0;transform:scale(.2)}
+html.ocn .sep,html.ocn .fold{display:none}
+/* no canto a alça fica na diagonal do núcleo, apontando pra dentro da tela */
+html.ocn .grip{right:auto;left:var(--gx);top:var(--gy);margin:0;width:16px;height:16px;translate:-50% -50%;rotate:var(--gr,45deg);cursor:nwse-resize}
+html:is([data-o=tr],[data-o=bl]) .grip{cursor:nesw-resize}
+html.ocn .grip::after{width:3px;height:13px}
+html.ocn .grip:hover::after,html.ocn .bar.sizing .grip::after{height:18px}
+html.ocn .steps{display:none}
+html.ocn .status{position:absolute;left:var(--hx);top:var(--hy);translate:-50% -50%;flex-direction:column-reverse;gap:6px;padding:10px;cursor:pointer}
+html.ocn .rings{gap:5px}
+html.ocn .ring{width:15px;height:15px}
+html.ocn .ring b{opacity:0}
+html.ocn .clock{align-items:center}
+html.ocn .clock .t{font-size:16px}
+html.ocn .clock .d{display:none}
+html.ocn .status .tip{display:none}
+html.ocn .toast{left:var(--hx);bottom:auto;top:calc(var(--hy) - 74px)}
+html:is([data-o=tl],[data-o=tr]) .toast{top:calc(var(--hy) + 44px)}
+
+/* ---------- janela transparente ----------
+   color-scheme "light" de propósito: esquema diferente do da janela faz o Chromium pintar um fundo opaco. */
+html.bar-mode{color-scheme:light}
+html.bar-mode,html.bar-mode body{background:transparent!important;padding:0;overflow:hidden}
+html.bar-mode .stage{padding:0;display:block;min-height:0}
+html.bar-mode .stage > :not(.preview){display:none}
+html.bar-mode .preview{position:fixed;inset:0;width:auto;height:auto;border-radius:0;background:none;overflow:hidden}
+html.oenter .bar-wrap{opacity:0;translate:0 14px}
+/* arrastando: levantada, inclina de leve com a velocidade; perto da borda, acende daquele lado */
+html.nomotion .app,html.nomotion .app img,html.nomotion .app::after{transition:none!important}
+
+/* ================= cada lado tem a sua forma =================
+   embaixo encostada: doca · em cima encostada: barra de menu · laterais: coluna com medidores · cantos: núcleo radial
+   solta (longe da borda): a pílula. html.ofloat = solta. */
+.clock .t{display:flex;align-items:baseline}
+.clock .mm::before{content:":"}
+.conc{display:none}
+.ring .fg{animation:ringdraw .8s var(--ease) both}
+@keyframes ringdraw{from{stroke-dashoffset:56.5}}
+
+/* ---- embaixo, encostada: doca (ícones maiores, lupa, pontinho de aberto) ---- */
+html[data-o=bottom]:not(.ofloat) #apps{gap:8px}
+html[data-o=bottom]:not(.ofloat) .app{width:52px;height:52px}
+html[data-o=bottom]:not(.ofloat) .app img{width:38px;height:38px;transform-origin:50% 100%;
+  transform:translateY(var(--lift,0px)) scale(var(--lens,1));transition:transform .34s var(--spring),filter .2s,opacity .25s}
+html[data-o=bottom]:not(.ofloat) .app:hover img{transform:translateY(var(--lift,0px)) scale(var(--lens,1))}
+html[data-o=bottom]:not(.ofloat) #apps.lensing .app img{transition:transform .09s linear}
+html[data-o=bottom]:not(.ofloat) .app .tip{bottom:calc(100% + 32px)}
+html[data-o=bottom]:not(.ofloat) .app::after{content:"";position:absolute;left:50%;bottom:-2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;
+  background:var(--fg);opacity:0;scale:.4;transition:opacity .3s,scale .4s var(--spring)}
+html[data-o=bottom]:not(.ofloat) .app.running::after{opacity:.8;scale:1}
+html[data-o=bottom]:not(.ofloat) .app::before{bottom:4px}
+html[data-o=bottom]:not(.ofloat) .ring{width:24px;height:24px}
+
+/* ---- em cima, encostada: barra de menu fina (apps à esquerda, relógio no meio, pílulas à direita) ---- */
+html[data-o=top]:not(.ofloat) .bar{gap:22px}
+html[data-o=top]:not(.ofloat) #apps{gap:2px;order:1}
+html[data-o=top]:not(.ofloat) .app{width:32px;height:30px;border-radius:8px;transition:background .15s}
+html[data-o=top]:not(.ofloat) .app img{width:19px;height:19px;filter:none}
+html[data-o=top]:not(.ofloat) .app:hover img{transform:translateY(1px) scale(1.12)}
+html[data-o=top]:not(.ofloat) .app:hover{background:rgba(255,255,255,.07)}
+html[data-o=top]:not(.ofloat) .app::before{width:24px;height:16px;margin-left:-12px;bottom:-6px}
+html[data-o=top]:not(.ofloat) .sep{display:none}
+html[data-o=top]:not(.ofloat):not([data-t=slim]) .status{display:contents}
+html[data-o=top]:not(.ofloat) .clock{order:2;flex-direction:row;align-items:baseline;gap:8px}
+html[data-o=top]:not(.ofloat) .clock .t{font-size:14px}
+html[data-o=top]:not(.ofloat) .clock .d{margin:0;font-size:11px}
+html[data-o=top]:not(.ofloat) .music{order:3}
+html[data-o=top]:not(.ofloat) .rings{order:4;gap:6px}
+html[data-o=top]:not(.ofloat) .fold{order:5;height:26px}
+html[data-o=top]:not(.ofloat) .stat{padding:4px 10px 5px;border-radius:999px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);gap:0;
+  animation:pillin .55s var(--springy) both}
+@keyframes pillin{from{opacity:0;scale:.55}}
+html[data-o=top]:not(.ofloat) .stat .ring{display:none}
+html[data-o=top]:not(.ofloat) .stat .meta{display:flex;flex-direction:row;align-items:baseline;gap:5px;min-width:0}
+html[data-o=top]:not(.ofloat) .stat .spark{display:none}
+html[data-o=top]:not(.ofloat) .stat .val{font-size:11.5px}
+html[data-o=top]:not(.ofloat) .stat::after{content:"";position:absolute;left:10px;bottom:2px;height:2px;border-radius:2px;
+  width:calc((100% - 20px) * var(--pct,0) / 100);background:var(--sc,var(--accent));box-shadow:0 0 6px var(--sc,var(--accent));transition:width .7s var(--ease)}
+
+/* ---- laterais: relógio empilhado (horas sobre minutos) e medidores verticais que enchem de baixo pra cima ---- */
+html.ovt .clock .t{flex-direction:column;align-items:center;line-height:.9;font-size:18px;letter-spacing:.02em}
+html.ovt .clock .mm::before{content:none}
+html.ovt .clock .mm{color:var(--muted)}
+html.ovt .rings{flex-direction:row;gap:6px;align-items:flex-end}
+html.ovt .stat{width:8px;height:44px;padding:0;gap:0}
+html.ovt .stat .ring{display:none}
+html.ovt .stat::before{content:"";position:absolute;left:0;bottom:0;width:8px;height:44px;border-radius:4px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+html.ovt .stat::after{content:"";position:absolute;left:0;bottom:0;width:8px;height:calc(44px * var(--pct,0) / 100);border-radius:4px;
+  background:linear-gradient(to top,var(--sc,var(--accent)),color-mix(in srgb,var(--sc,var(--accent)) 55%,white));
+  box-shadow:0 0 8px color-mix(in srgb,var(--sc,var(--accent)) 45%,transparent);transition:height .7s var(--spring);animation:unroll .75s var(--springy) .08s both}
+@keyframes unroll{from{height:0}}
+/* coluna, interação própria: chegando o mouse nos medidores, eles alargam, mostram o número e enchem de novo */
+html.ovt .rings{gap:4px}
+html.ovt .stat{transition:width .35s var(--spring)}
+html.ovt .stat::before,html.ovt .stat::after{width:100%}
+html.ovt:not([data-t=wide]) .rings:hover .stat{width:12px}
+html.ovt:not([data-t=wide]) .rings:hover .stat::after{animation:unroll2 .7s var(--springy) both}
+@keyframes unroll2{from{height:0}}
+html.ovt .stat .meta{display:flex;position:absolute;left:50%;bottom:calc(100% + 4px);translate:-50% 3px;opacity:0;pointer-events:none;
+  transition:opacity .2s,translate .3s var(--spring)}
+html.ovt .stat .meta :is(.lbl,.spark){display:none}
+html.ovt .stat .val{font-size:0}
+html.ovt .stat .val::after{content:attr(data-n);font:600 8.5px/1 var(--display);letter-spacing:-.03em}
+html.ovt:not([data-t=wide]) .rings:hover .stat .meta{opacity:1;translate:-50% 0}
+html.ovt:not([data-t=wide]) .rings:hover .stat .tip{opacity:0}
+/* coluna larga: os medidores ficam em linha (12 px, número sempre à mostra) em vez de três linhas empilhadas: ~90 px a menos de altura */
+html.ovt[data-t=wide] .rings{flex-direction:row;align-items:flex-end;gap:10px;margin-top:14px}
+html.ovt[data-t=wide] .stat{width:12px}
+html.ovt[data-t=wide] .stat .meta{opacity:1;translate:-50% 0}
+/* barra de menu, interação própria: a pílula sob o mouse se abre e mostra o mini gráfico */
+html[data-o=top]:not(.ofloat) .stat .spark{display:block;width:0;opacity:0;transition:width .4s var(--spring),opacity .25s,margin .4s var(--spring)}
+html[data-o=top]:not(.ofloat) .stat:hover .spark{width:46px;opacity:1;margin-left:4px}
+html[data-o=top]:not(.ofloat) .stat:hover{background:rgba(255,255,255,.1)}
+html[data-o=top]:not(.ofloat) .stat .tip{display:none}
+/* canto, interação própria: o mouse chegando perto, os pontinhos se afastam do núcleo e acendem, antecipando o leque */
+html.ocn.near:not(.fan) .app{translate:var(--nx) var(--ny)}
+html.ocn.near:not(.fan) .app::after{transform:scale(1.45)}
+html.ocn.near:not(.fan) .conc{scale:1.06}
+html.ocn .conc{transition:scale .4s var(--spring)}
+/* solta, interação própria: o contorno da pílula acende de leve com o mouse em cima */
+html.ofloat .bar-wrap:hover .island path.isl{stroke:rgba(255,255,255,.17)}
+
+/* ---- cantos: núcleo radial, o relógio no centro e os três anéis concêntricos em volta ---- */
+html.ocn .rings{display:none}
+html.ocn .status{width:var(--cs,80px);height:var(--cs,80px);padding:0;box-sizing:border-box;justify-content:center}
+html.ocn .conc{display:block;position:absolute;left:50%;top:50%;width:var(--cs,80px);height:var(--cs,80px);translate:-50% -50%;rotate:-90deg;pointer-events:none;overflow:visible}
+.conc circle{fill:none;stroke-width:3.4}
+.conc .bg{stroke:rgba(255,255,255,.08)}
+.conc .fg{stroke-linecap:round;transition:stroke-dashoffset .8s var(--ease),stroke .4s;animation:concdraw 1.1s var(--ease) both}
+@keyframes concdraw{from{stroke-dashoffset:300}}
+html.ocn .clock .t{font-size:17px}
+/* na fina, o canto é só o núcleo: os anéis respiram (mais rápido com a CPU alta) */
+html[data-t=slim].ocn .conc{animation:breathe var(--breath,3.6s) ease-in-out infinite}
+@keyframes breathe{0%,100%{scale:1;opacity:.82}50%{scale:1.08;opacity:1}}
+html[data-t=wide].ocn .clock .t{font-size:20px}
+
+/* ================= degrau mínimo (fina): uma forma viva por lado =================
+   --k (0..1) vem do JS: o quanto o mouse está perto de cada app (curva de sino ao longo da barra). */
+/* embaixo: doca dormindo. ícones de 22 px, sem cor; os do caminho do mouse crescem até 1,72×, sobem 9 px e ganham cor */
+html[data-o=bottom][data-t=slim]:not(.ofloat) #apps{gap:10px}
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app{width:30px;height:30px}
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app img,
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app:hover img{width:22px;height:22px;transform-origin:50% 100%;
+  transform:translateY(calc(var(--k,0) * -9px)) scale(calc(1 + var(--k,0) * .72));
+  filter:saturate(calc(.3 + var(--k,0) * .7)) brightness(calc(.74 + var(--k,0) * .26)) drop-shadow(0 2px 4px rgba(0,0,0,.4));
+  transition:transform .55s var(--spring),filter .55s var(--ease)}
+html[data-o=bottom][data-t=slim]:not(.ofloat) #apps.waking .app img{transition:transform .12s linear,filter .12s linear}
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app .tip{bottom:calc(100% + 26px)}
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app::after{bottom:-4px;width:3px;height:3px;margin-left:-1.5px}
+html[data-o=bottom][data-t=slim]:not(.ofloat) .app::before{opacity:calc(var(--k,0) * .9)}
+
+/* laterais: só os pontos de cor dos apps (7 px); chegando o mouse, cada ponto vira ícone (26 px) e anda 5 px pra dentro */
+html.ovt[data-t=slim] #apps{gap:2px}
+html.ovt[data-t=slim] .app{width:30px;height:32px}
+html[data-o=left][data-t=slim] .app{--inx:5px}
+html[data-o=right][data-t=slim] .app{--inx:-5px}
+html.ovt[data-t=slim] .app img,html.ovt[data-t=slim] .app:hover img{width:26px;height:26px;opacity:calc(var(--k,0) * 1.5 - .25);
+  transform:translateX(calc(var(--k,0) * var(--inx,0px))) scale(calc(.25 + var(--k,0) * .75));
+  transition:transform .55s var(--spring),opacity .4s var(--ease)}
+html.ovt[data-t=slim] #apps.waking .app img{transition:transform .12s linear,opacity .12s linear}
+html.ovt[data-t=slim] .app::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;
+  background:var(--c);box-shadow:0 0 8px var(--c);opacity:calc(1 - var(--k,0) * 1.7);scale:calc(1 + var(--k,0) * 1.2);transition:opacity .45s,scale .5s var(--spring)}
+html.ovt[data-t=slim] #apps.waking .app::after{transition:opacity .12s linear,scale .12s linear}
+html.ovt[data-t=slim] .app:not(.running)::after{background:color-mix(in srgb,var(--c) 40%,#4a4d57);box-shadow:none}
+html.ovt[data-t=slim] .app::before,html.ovt[data-t=slim] .app.running::before{opacity:calc(var(--k,0) * .75)}
+
+/* em cima: ilha dinâmica. fechada, só a hora e três pontinhos de estado (CPU, RAM, placa, na cor do nível);
+   com o mouse, ela abre a partir do meio e os apps entram em sequência (28 ms entre um e outro) */
+html[data-o=top][data-t=slim]:not(.ofloat) .status{display:flex;flex-direction:row;gap:10px;order:2}
+html[data-o=top][data-t=slim]:not(.ofloat) .clock .d{display:none}
+html[data-o=top][data-t=slim]:not(.ofloat) .clock .t{font-size:13.5px}
+html[data-o=top][data-t=slim]:not(.ofloat) .rings{display:flex;gap:4px;order:0}
+html[data-o=top][data-t=slim]:not(.ofloat) .stat{width:5px;height:5px;padding:0;border-radius:50%;background:var(--sc,var(--accent));
+  box-shadow:0 0 6px var(--sc,var(--accent));animation:none}
+html[data-o=top][data-t=slim]:not(.ofloat) .stat > :is(.ring,.meta,.tip),html[data-o=top][data-t=slim]:not(.ofloat) .stat::after{display:none}
+html[data-o=top][data-t=slim]:not(.ofloat):not(.tx) #apps{display:none}
+html[data-o=top][data-t=slim].tx:not(.ofloat) #apps{order:1}
+html[data-o=top][data-t=slim].tx:not(.ofloat) .app{animation:revealIn .5s var(--springy) both;animation-delay:calc(var(--i,0) * 28ms + 60ms)}
+@keyframes revealIn{from{opacity:0;scale:.35;filter:blur(3px)}}
+html[data-o=top][data-t=slim]:not(.ofloat) .bar{gap:16px}
+
+/* canto e fina: só o núcleo; os pontinhos dos apps somem e reaparecem quando o leque abre */
+html[data-t=slim].ocn:not(.fan) .app::after{opacity:0;transform:scale(.2)}
+
+/* solta e fina: ao entrar o mouse, os ícones pulam em onda (40 ms entre um e outro) */
+html.ofloat[data-t=slim] .app.hop img{animation:hop .6s var(--spring) both;animation-delay:calc(var(--i,0) * 40ms)}
+
+/* ---------- hover e pressionar (vale em todas as formas) ----------
+   hover: mola calma (passa só 4% do ponto), resposta imediata; pressionar: o botão afunda 8% na hora (.08 s) e volta
+   numa mola ao soltar (.42 s); os anéis crescem 8% com o mouse em cima. Tudo em propriedades separadas (scale),
+   pra nunca brigar com a lupa, o leque nem o FLIP (que usam transform/translate). */
+:root{--hov:cubic-bezier(.22,.9,.32,1.04)}
+.app{transition:scale .42s var(--spring),background .15s}
+.app:active{scale:.92;transition:scale .08s ease-out,background .15s}
+.app img{transition:transform .26s var(--hov),filter .2s,opacity .25s}
+.app::before{transition:opacity .3s var(--ease),transform .3s var(--hov)}
+.stat .ring{transition:scale .3s var(--hov)}
+.stat:hover .ring{scale:1.08}
+.stat:active .ring{scale:.94;transition:scale .08s ease-out}
+.fold:active{scale:.88}
+.fold{transition:opacity .2s,background .15s,color .15s,scale .3s var(--spring)}
+
+/* ---------- balão único: os balões de dentro da barra não aparecem mais (só guardam o texto) ---------- */
+.bar .tip{display:none!important}
+.tipone{position:fixed;left:0;top:0;z-index:60;pointer-events:none;background:var(--glass);border:1px solid var(--line);color:var(--fg);
+  font:500 12px/1 var(--body);white-space:nowrap;padding:6px 10px;border-radius:9px;box-shadow:0 6px 18px rgba(0,0,0,.35);
+  opacity:0;scale:.94;transition:opacity .14s var(--ease),scale .2s var(--spring),translate .22s var(--ease)}
+.tipone.on{opacity:1;scale:1}
+.tipone.snap{transition:none}
+
+@media (prefers-reduced-motion:reduce){
+  .bar,.bar *,.bar-wrap{transition-duration:0s!important;animation:none!important}
+}
+</style>
+
+<main class="stage">
+  <header>
+    <h1>Órbita</h1>
+    <p class="lede">Sua barra flutuante: seus apps e o pulso do PC. Ela se reorganiza pro lado da tela onde você a deixa.</p>
+  </header>
+
+  <div class="preview">
+    <div class="tipone" id="tipone" role="tooltip"></div>
+    <div class="bar-wrap" id="wrap">
+      <svg class="island" id="island" aria-hidden="true"><defs><linearGradient id="islFill" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17181e"/><stop offset="1" stop-color="#0c0d11"/></linearGradient><linearGradient id="islRim" gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.10)"/><stop offset=".35" stop-color="rgba(255,255,255,0)"/></linearGradient></defs><path class="isl" id="islPath"/><path class="rim" id="islRimPath"/></svg>
+      <div class="bar" id="bar">
+        <nav id="apps" aria-label="Apps"></nav>
+        <span class="sep" id="sep"></span>
+        <section class="status" id="statusEl" aria-label="Relógio e PC">
+          <svg class="conc" id="conc" viewBox="0 0 100 100" aria-hidden="true"><circle class="bg" cx="50" cy="50" r="46"/><circle class="fg" data-k="cpuR" cx="50" cy="50" r="46"/><circle class="bg" cx="50" cy="50" r="39.5"/><circle class="fg" data-k="ramR" cx="50" cy="50" r="39.5"/><circle class="bg" cx="50" cy="50" r="33"/><circle class="fg" data-k="gpuR" cx="50" cy="50" r="33"/></svg>
+          <div class="music" id="music" hidden><i class="note"></i><span class="mt"><b id="mTitle"></b><span id="mArtist"></span></span></div>
+          <div class="rings">
+            <div class="stat" id="cpuR"><div class="ring"><svg viewBox="0 0 22 22"><circle class="bg" cx="11" cy="11" r="9"/><circle class="fg" cx="11" cy="11" r="9"/></svg><b>CPU</b></div><div class="meta"><span class="lbl">CPU</span><span class="val">–</span><svg class="spark" viewBox="0 0 48 14" preserveAspectRatio="none"><polyline/></svg></div><span class="tip">CPU –</span></div>
+            <div class="stat" id="ramR"><div class="ring"><svg viewBox="0 0 22 22"><circle class="bg" cx="11" cy="11" r="9"/><circle class="fg" cx="11" cy="11" r="9"/></svg><b>RAM</b></div><div class="meta"><span class="lbl">RAM</span><span class="val">–</span><svg class="spark" viewBox="0 0 48 14" preserveAspectRatio="none"><polyline/></svg></div><span class="tip">RAM –</span></div>
+            <div class="stat temp" id="gpuR" hidden><div class="ring"><svg viewBox="0 0 22 22"><circle class="bg" cx="11" cy="11" r="9"/><circle class="fg" cx="11" cy="11" r="9"/></svg><b>–</b></div><div class="meta"><span class="lbl">Placa</span><span class="val">–</span><svg class="spark" viewBox="0 0 48 14" preserveAspectRatio="none"><polyline/></svg></div><span class="tip">Placa de vídeo –</span></div>
+          </div>
+          <div class="clock" id="clock"><span class="t" id="ct"><span class="hh" id="hh">00</span><span class="mm" id="mm">00</span></span><span class="d" id="cd"></span></div>
+        </section>
+        <button class="fold" id="fold" aria-label="Recolher a barra"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="grip" id="grip" title="Arraste pra mudar o tamanho" aria-hidden="true"><span class="steps"><i></i><i></i><i></i></span></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="setup">
+    <p id="status">Verificando onde a Órbita está aberta…</p>
+    <div class="row" id="actions"></div>
+  </section>
+
+  <ul class="notes">
+    <li>Arraste pra qualquer lado: embaixo e em cima ela fica deitada, nas laterais vira coluna, nos cantos vira um núcleo que abre em leque.</li>
+    <li>Botão direito num app: nova janela e atalhos. Shift + clique também abre uma janela nova.</li>
+    <li>A alça da direita (ou <kbd>Ctrl</kbd> + rodinha) muda o tamanho.</li>
+  </ul>
+</main>
+
+<script type="module">
+const W = 1100, H_BAR = 132;     // tamanho inicial da janela; depois ela passa a ter o tamanho do conteúdo
+const WINDOW_OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:W, height:H_BAR };
+const ICONS = /*ICONS*/{};   // o build extrai o ícone de cada app da lista APPS (pela aumid) e põe aqui
+const HELPER_PS = /*HELPER*/'';
+let SLOW = 1;   // câmera lenta, só pros prints de teste
+const TEST = location.protocol === 'file:' || location.protocol === 'data:' || location.hostname === 'localhost';
+
+/* Apps da barra (MODELO: só apps que já vêm no Windows 11; troque pelos seus, veja modelos/orbita/README.md).
+   key   = nome curto, único (o build guarda o ícone com esse nome)
+   aumid = AppID do Windows: no PowerShell, Get-StartApps lista o nome e o AppID de cada app instalado
+   procs = processos (minúsculo, com .exe) que acendem o pontinho de "aberto"
+   win   = [processo(s) separados por vírgula, classe da janela (opcional)] pra trazer a janela que já existe pra frente
+   extra = itens do botão direito (o primeiro também é o Shift + clique) */
+const APPS = [
+  { key:'explorer', name:'Explorador de Arquivos', color:'#f2c14e', aumid:'Microsoft.Windows.Explorer', procs:[], win:['explorer.exe','CabinetWClass'],
+    extra:[ { label:'Nova janela', run:a => spawnApp(a.aumid) },
+            { label:'Downloads', run:() => spawnRaw('explorer.exe', ['shell:Downloads']) },
+            { label:'Documentos', run:() => spawnRaw('explorer.exe', ['shell:Personal']) } ] },
+  { key:'edge', name:'Microsoft Edge', color:'#3aa0e8', aumid:'MSEdge', procs:['msedge.exe'], win:['msedge.exe','Chrome_WidgetWin_1'],
+    extra:[ { label:'Nova janela', run:a => spawnApp(a.aumid) } ] },
+  { key:'terminal', name:'Terminal', color:'#9aa3b5', aumid:'Microsoft.WindowsTerminal_8wekyb3d8bbwe!App', procs:['windowsterminal.exe'], win:['windowsterminal.exe','CASCADIA_HOSTING_WINDOW_CLASS'],
+    extra:[ { label:'Nova janela', run:a => spawnApp(a.aumid) } ] },
+  { key:'notepad', name:'Bloco de Notas', color:'#7fc4a8', aumid:'Microsoft.WindowsNotepad_8wekyb3d8bbwe!App', procs:['notepad.exe'], win:['notepad.exe'] },
+  { key:'settings', name:'Configurações', color:'#8ea0c4', aumid:'windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel', procs:[] },
+];
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+const appsEl = $('apps'), barEl = $('bar'), wrapEl = $('wrap'), toastEl = $('toast');
+let desktop = null, canRun = false;
+const buttons = new Map();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* ---------- molas ----------
+   springEase: simula uma mola (massa 1) e vira uma curva linear() pro CSS e pras animações. */
+function springEase(k, zeta){
+  const pts = [0], dt = 1/120; let x = 0, v = 0, t = 0;
+  while (t < 2){
+    const a = k * (1 - x) - 2 * zeta * Math.sqrt(k) * v; v += a * dt; x += v * dt; t += dt; pts.push(x);
+    if (t > .2 && Math.abs(1 - x) < .0015 && Math.abs(v) < .02) break;
+  }
+  const step = Math.max(1, Math.round(pts.length / 44)), out = [];
+  for (let i = 0; i < pts.length; i += step) out.push(+pts[i].toFixed(4));
+  out.push(1);
+  return { easing:`linear(${out.join(',')})`, duration:Math.round(t * 1000) };
+}
+const LINEAR_OK = CSS.supports('transition-timing-function', 'linear(0, 1)');
+const MORPH = LINEAR_OK ? springEase(210, .8) : { easing:'cubic-bezier(.2,.9,.25,1.08)', duration:560 };
+if (LINEAR_OK) root.style.setProperty('--springy', springEase(240, .74).easing);
+
+/* ---------- preferências ---------- */
+const SIZES = [['Pequena', .85], ['Normal', 1], ['Grande', 1.15], ['Enorme', 1.3]];
+const MIN_S = .7, MAX_S = 1.5;
+const MODES = ['bottom','top','left','right','bl','br','tl','tr'];
+const TIERS = ['slim','normal','wide'];
+let scale = 1, collapsed = false, autohide = false, pos = null, legacy = null, tier = 'normal';
+try {
+  const s = JSON.parse(localStorage.getItem('orbita') || '{}');
+  if (typeof s.scale === 'number') scale = s.scale;
+  if (TIERS.includes(s.tier)) tier = s.tier;
+  collapsed = !!s.collapsed; autohide = false;   // esconder numa aba saiu: encostada, ela se funde à borda
+  if (s.pos && MODES.includes(s.pos.mode) && typeof s.pos.fx === 'number') pos = s.pos;
+  else if (s.off && typeof s.off.x === 'number') legacy = { off:s.off, dispId:s.dispId };   // posição da versão anterior
+} catch {}
+function savePrefs(){ try { localStorage.setItem('orbita', JSON.stringify({ scale:userScale, collapsed, autohide, pos, tier })); } catch {} }
+
+/* ---------- orientação ---------- */
+let mode = pos?.mode || 'bottom', docked = !!pos?.docked;
+const isH = m => m === 'bottom' || m === 'top', isV = m => m === 'left' || m === 'right', isC = m => m.length === 2;
+const G = 12;        // folga entre o conteúdo e a borda da tela; é também a margem da janela do lado da borda
+// margens da janela em volta da barra, por orientação: do lado de dentro cabem os balões, do lado da borda só a folga
+const PADS = {
+  bottom:{ l:50, r:50, t:62, b:G }, top:{ l:50, r:50, t:G, b:62 },
+  left:{ l:G, r:196, t:50, b:50 },  right:{ l:196, r:G, t:50, b:50 },
+  bl:{ l:G, r:50, t:62, b:G }, br:{ l:50, r:G, t:62, b:G }, tl:{ l:G, r:50, t:G, b:62 }, tr:{ l:50, r:G, t:G, b:62 },
+};
+function padsFor(m){ const p = PADS[m], f = v => v === G ? G : Math.ceil(v * scale); return { l:f(p.l), r:f(p.r), t:f(p.t), b:f(p.b) }; }
+
+// leque dos cantos: núcleo no canto, 3 apps num arco de dentro e o resto num de fora; fechado, viram pontinhos em volta do núcleo
+// medidas do canto por degrau: caixa do leque, centro do núcleo, raio do núcleo, arcos de dentro e de fora
+// medidas do canto por degrau: caixa do leque, centro do núcleo, raio do núcleo, arcos de dentro e de fora.
+// a caixa é só o que o leque ocupa (núcleo + arco de fora + meio ícone + folga), sem sobra
+const CORNER = { slim:{ fan:196, hub:32, hr:22, r1:84, r2:136 }, normal:{ fan:208, hub:38, hr:34, r1:90, r2:142 }, wide:{ fan:250, hub:50, hr:46, r1:112, r2:172 } };
+function layoutCorner(m){
+  const C = CORNER[tier], FAN = C.fan, HUB = C.hub;
+  const left = m[1] === 'l', top = m[0] === 't';
+  const hx = left ? HUB : FAN - HUB, hy = top ? HUB : FAN - HUB, sx = left ? 1 : -1, sy = top ? 1 : -1;
+  root.style.setProperty('--fan', FAN + 'px'); root.style.setProperty('--cs', (2 * C.hr + 12) + 'px');
+  root.style.setProperty('--hx', hx + 'px'); root.style.setProperty('--hy', hy + 'px');
+  // alça na diagonal do núcleo, pra dentro
+  const gd = (C.hr + 12) / Math.SQRT2;
+  root.style.setProperty('--gx', (hx + sx * gd).toFixed(1) + 'px'); root.style.setProperty('--gy', (hy + sy * gd).toFixed(1) + 'px');
+  root.style.setProperty('--gr', (sx * sy > 0 ? -45 : 45) + 'deg');
+  const list = [...buttons.values()], n = list.length, inner = n <= 4 ? n : 3, outer = n - inner;
+  list.forEach((b, i) => {
+    const ring = i < inner, j = ring ? i : i - inner, cnt = ring ? inner : outer, r = ring ? C.r1 : C.r2;
+    const a = (90 * (j + .5) / cnt) * Math.PI / 180;
+    const ox = hx + sx * r * Math.cos(a), oy = hy + sy * r * Math.sin(a);
+    const ca = (8 + 74 * (n > 1 ? i / (n - 1) : .5)) * Math.PI / 180, cr = C.hr + 14;
+    const cx = hx + sx * cr * Math.cos(ca), cy = hy + sy * cr * Math.sin(ca);
+    b.style.setProperty('--ox', (ox - 22).toFixed(1) + 'px'); b.style.setProperty('--oy', (oy - 22).toFixed(1) + 'px');
+    b.style.setProperty('--cx', (cx - 22).toFixed(1) + 'px'); b.style.setProperty('--cy', (cy - 22).toFixed(1) + 'px');
+    const nr = cr + 14, nx = hx + sx * nr * Math.cos(ca), ny = hy + sy * nr * Math.sin(ca);
+    b.style.setProperty('--nx', (nx - 22).toFixed(1) + 'px'); b.style.setProperty('--ny', (ny - 22).toFixed(1) + 'px');
+    b.style.setProperty('--do', (i * 24) + 'ms'); b.style.setProperty('--dc', ((n - 1 - i) * 14) + 'ms');
+  });
+}
+function applyModeClasses(){
+  root.dataset.o = mode; root.dataset.t = tier;
+  root.classList.toggle('ohz', isH(mode)); root.classList.toggle('ovt', isV(mode)); root.classList.toggle('ocn', isC(mode));
+  if (isC(mode)) layoutCorner(mode); else root.classList.remove('fan');
+  applyCollapsed();
+}
+function applyCollapsed(){
+  barEl.classList.toggle('collapsed', collapsed && !isC(mode));
+  $('fold').setAttribute('aria-label', collapsed ? 'Mostrar os apps' : 'Recolher a barra');
+}
+// tamanho da barra sem transformações (o invólucro tem o tamanho de layout da barra, já com o zoom)
+function barSize(){ return { w:wrapEl.offsetWidth, h:wrapEl.offsetHeight }; }
+function setBarVars(){ const { w, h } = barSize(); root.style.setProperty('--bw', w + 'px'); root.style.setProperty('--bh', h + 'px'); }
+
+/* ---------- desenho ---------- */
+function renderApps(){
+  for (const app of APPS){
+    const b = document.createElement('button');
+    b.className = 'app'; b.setAttribute('aria-label', app.name); b.style.setProperty('--c', app.color);
+    const img = document.createElement('img'); img.src = ICONS[app.key] || ''; img.alt = ''; img.draggable = false;
+    const tip = document.createElement('span'); tip.className = 'tip'; tip.textContent = app.name;
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = app.name;
+    b.append(img, name, tip);
+    b.addEventListener('click', e => { b.blur(); e.shiftKey ? newWindow(app, b) : openApp(app, b); });
+    b.addEventListener('auxclick', e => { if (e.button === 1){ e.preventDefault(); newWindow(app, b); } });
+    b.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); appMenu(app, b); });
+    b.style.setProperty('--i', buttons.size);
+    appsEl.appendChild(b); buttons.set(app, b);
+  }
+}
+function tickClock(){
+  const now = new Date();
+  const [h, m] = now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }).split(':');
+  $('hh').textContent = h; $('mm').textContent = m;
+  $('cd').textContent = now.toLocaleDateString('pt-BR', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g, '');
+}
+// histórico curto (≈ 1,5 min) pros mini gráficos da versão larga
+const hist = { cpuR:[], ramR:[], gpuR:[] }, HIST = 36;
+function spark(el, v){
+  const h = hist[el.id]; h.push(v); if (h.length > HIST) h.shift();
+  // o gráfico começa na direita e vai crescendo pra esquerda
+  const off = (HIST - h.length) / (HIST - 1) * 48;
+  el.querySelector('.spark polyline').setAttribute('points', h.map((x, i) => `${(off + i / (HIST - 1) * 48).toFixed(1)},${(13 - Math.min(100, x) / 100 * 12).toFixed(1)}`).join(' '));
+  // o mesmo valor alimenta as outras formas: medidor vertical (laterais), pílula (em cima) e anel concêntrico (cantos)
+  const p = Math.max(2, Math.min(100, v));
+  el.style.setProperty('--pct', p.toFixed(1)); el.querySelector('.val').dataset.n = Math.round(v);
+  if (el.id === 'cpuR') root.style.setProperty('--breath', (Math.round((4.2 - Math.min(100, v) * .028) / .4) * .4).toFixed(1) + 's');   // canto fino: respira mais rápido com a CPU alta
+  const c = document.querySelector(`#conc .fg[data-k="${el.id}"]`);
+  if (c){ const len = 2 * Math.PI * c.r.baseVal.value; c.style.strokeDasharray = len.toFixed(2); c.style.strokeDashoffset = (len * (1 - p / 100)).toFixed(2); c.style.stroke = getComputedStyle(el).getPropertyValue('--sc') || 'var(--accent)'; }
+}
+/* solta (longe da borda), a barra deitada vira a pílula compacta; encostada, ganha a forma do lado (doca, barra de menu) */
+function setFloat(f){
+  if (f === root.classList.contains('ofloat')) return;
+  if (!isH(mode)){ root.classList.toggle('ofloat', f); return; }
+  contentChange(() => root.classList.toggle('ofloat', f));
+}
+/* lupa da doca: o ícone sob o mouse cresce e os vizinhos acompanham numa curva suave */
+const lensOn = () => mode === 'bottom' && !root.classList.contains('ofloat') && tier !== 'slim' && !mv?.on && !sizing;
+appsEl.addEventListener('pointermove', e => {
+  if (!lensOn()) return;
+  appsEl.classList.add('lensing');
+  for (const b of buttons.values()){
+    const r = b.getBoundingClientRect(), d = (e.clientX - (r.left + r.width / 2)) / (78 * scale), k = Math.exp(-d * d);
+    b.style.setProperty('--lens', (1 + .5 * k).toFixed(3)); b.style.setProperty('--lift', (-k * 15).toFixed(1) + 'px');
+  }
+});
+appsEl.addEventListener('pointerleave', () => {
+  appsEl.classList.remove('lensing');
+  for (const b of buttons.values()){ b.style.setProperty('--lens', '1'); b.style.setProperty('--lift', '0px'); }
+});
+
+/* ---------- degrau mínimo (fina): cada lado tem a sua forma viva ----------
+   embaixo: doca dormindo (o mouse chegando acorda os ícones do caminho) · laterais: pontos de cor que viram ícone
+   conforme o mouse se aproxima · em cima: ilha dinâmica (só a hora; com o mouse, abre e os apps entram em sequência)
+   · canto: só o núcleo, respirando · solta: os ícones pulam em onda quando o mouse entra. */
+const PROX = { reach:110, spread:62 };      // a partir de que distância acorda; largura da "onda" ao longo da barra
+let slimWaking = false, wasHit = false, txT = 0;
+function slimMove(e, hit){
+  const slim = tier === 'slim';
+  // doca dormindo e coluna de pontos: a proximidade acorda os ícones numa curva de sino em volta do mouse
+  if (slim && (mode === 'bottom' || isV(mode)) && !root.classList.contains('ofloat')){
+    const br = barEl.getBoundingClientRect();
+    const dx = Math.max(br.left - e.clientX, 0, e.clientX - br.right), dy = Math.max(br.top - e.clientY, 0, e.clientY - br.bottom);
+    const gate = Math.max(0, 1 - Math.hypot(dx, dy) / (PROX.reach * scale));
+    const along = mode === 'bottom' ? e.clientX : e.clientY;
+    for (const b of buttons.values()){
+      const r = b.getBoundingClientRect(), c = mode === 'bottom' ? r.left + r.width / 2 : r.top + r.height / 2;
+      const d = (along - c) / (PROX.spread * scale), k = Math.exp(-d * d) * gate * gate * (3 - 2 * gate);
+      b.style.setProperty('--k', k.toFixed(3));
+    }
+    if (gate > 0 && !slimWaking){ slimWaking = true; appsEl.classList.add('waking'); }
+    if (gate === 0 && slimWaking) slimLeave();
+  } else if (slimWaking) slimLeave();
+  // ilha dinâmica (em cima, fina): abre com o mouse em cima, fecha 420 ms depois que ele sai
+  if (slim && mode === 'top' && !root.classList.contains('ofloat')){
+    const open = root.classList.contains('tx');
+    if (hit){ clearTimeout(txT); if (!open) txT = setTimeout(() => contentChange(() => root.classList.add('tx')), 60); }
+    else if (open){ clearTimeout(txT); txT = setTimeout(() => contentChange(() => root.classList.remove('tx')), 420); }
+  }
+  // solta e fina: ao entrar, os ícones pulam em onda, um depois do outro
+  if (hit && !wasHit && slim && root.classList.contains('ofloat')){
+    for (const b of buttons.values()){ b.classList.remove('hop'); void b.offsetWidth; b.classList.add('hop'); }
+    setTimeout(() => { for (const b of buttons.values()) b.classList.remove('hop'); }, 1100);
+  }
+  wasHit = hit;
+}
+function slimLeave(){
+  slimWaking = false; appsEl.classList.remove('waking');
+  for (const b of buttons.values()) b.style.setProperty('--k', '0');
+  wasHit = false;
+  if (root.classList.contains('tx')){ clearTimeout(txT); txT = setTimeout(() => contentChange(() => root.classList.remove('tx')), 420); }
+}
+function setRing(el, label, pct){
+  if (typeof pct !== 'number') return;
+  const fg = el.querySelector('.fg'), c = pct >= 85 ? 'var(--hot)' : pct >= 60 ? 'var(--warm)' : 'var(--accent)';
+  fg.style.strokeDashoffset = String(56.5 * (1 - Math.max(.02, Math.min(1, pct / 100))));
+  fg.style.stroke = c; el.style.setProperty('--sc', c);
+  el.querySelector('.tip').textContent = `${label} ${pct}%`;
+  el.querySelector('b').textContent = String(pct);
+  el.querySelector('.val').textContent = pct + '%';
+  spark(el, pct);
+}
+// música tocando (título da janela do Spotify, "Artista - Música"); sem música, some
+function setSong(s){
+  const el = $('music'), m = /^(.+?) - (.+)$/.exec(String(s || '').trim());
+  const apply = fn => tier === 'wide' && !isC(mode) ? contentChange(fn) : fn();
+  if (!m){ if (!el.hidden) apply(() => { el.hidden = true; }); return; }
+  if (!el.hidden && $('mTitle').textContent === m[2] && $('mArtist').textContent === m[1]) return;
+  apply(() => { $('mArtist').textContent = m[1]; $('mTitle').textContent = m[2]; el.title = `${m[2]} · ${m[1]}`; el.hidden = false; });
+}
+// temperatura da placa de vídeo: o anel enche até 100 °C; âmbar de 70 a 80, vermelho acima. Sem leitura, some.
+function setTemp(t){
+  const el = $('gpuR');
+  if (typeof t !== 'number' || !(t > 0)){ if (!el.hidden) contentChange(() => { el.hidden = true; }); return; }
+  const was = el.hidden;
+  if (was) contentChange(() => { el.hidden = false; });
+  const fg = el.querySelector('.fg');
+  fg.style.strokeDashoffset = String(56.5 * (1 - Math.max(.02, Math.min(1, t / 100))));
+  const c = t > 80 ? 'var(--hot)' : t >= 70 ? 'var(--warm)' : 'var(--accent)';
+  fg.style.stroke = c; el.style.setProperty('--sc', c);
+  el.querySelector('b').textContent = String(Math.round(t));
+  el.querySelector('.val').textContent = Math.round(t) + ' °C';
+  spark(el, t);
+  el.querySelector('.tip').textContent = `Placa de vídeo ${Math.round(t)} °C`;
+}
+// balão nunca sai da janela: empurra pra dentro se passar da beirada
+function fitTip(tip){
+  if (!tip) return;
+  tip.style.setProperty('--tx', '0px'); tip.style.setProperty('--ty', '0px');
+  const r = tip.getBoundingClientRect(), m = 6;
+  let dx = 0, dy = 0;
+  if (r.left < m) dx = m - r.left; else if (r.right > innerWidth - m) dx = innerWidth - m - r.right;
+  if (r.top < m) dy = m - r.top; else if (r.bottom > innerHeight - m) dy = innerHeight - m - r.bottom;
+  if (dx) tip.style.setProperty('--tx', (dx / scale).toFixed(1) + 'px');
+  if (dy) tip.style.setProperty('--ty', (dy / scale).toFixed(1) + 'px');
+}
+/* ---------- balão único ----------
+   Um balão só, fora da barra, numa camada por cima de tudo: nunca fica por baixo de outro ícone (no leque cada ícone
+   é uma camada própria) e nunca sai da janela. Abre pro lado de dentro da tela, segue o ícone (lupa, leque) e
+   desliza de um ícone pro outro. Entra depois de 140 ms parado em cima; sai 160 ms depois de sair do ícone. */
+const tipEl = $('tipone');
+let tipFor = null, tipShowT = 0, tipHideT = 0;
+function tipAllowed(el){
+  if (mv || sizing) return false;
+  if (el.classList.contains('app')) return !(isV(mode) && tier === 'wide') && !(isC(mode) && !root.classList.contains('fan'));
+  // anéis: os números já aparecem na larga, na barra de menu, nos medidores da coluna e no núcleo do canto
+  return tier !== 'wide' && (mode === 'bottom' || root.classList.contains('ofloat')) && !isC(mode);
+}
+function placeTip(el){
+  const text = el.querySelector(':scope > .tip')?.textContent;
+  if (!text || !tipAllowed(el)){ hideTip(); return; }
+  const shown = tipEl.classList.contains('on');
+  if (tipEl.textContent !== text) tipEl.textContent = text;
+  const r = (el.querySelector('img') || el).getBoundingClientRect(), tw = tipEl.offsetWidth, th = tipEl.offsetHeight, g = 10, m = 6;
+  const dir = isV(mode) ? (mode === 'left' ? 'r' : 'l') : (mode === 'top' || mode === 'tl' || mode === 'tr') ? 'b' : 't';
+  let x = r.left + r.width / 2 - tw / 2, y = r.top - g - th;
+  if (dir === 'b') y = r.bottom + g;
+  if (dir === 'r' || dir === 'l'){ y = r.top + r.height / 2 - th / 2; x = dir === 'r' ? r.right + g : r.left - g - tw; }
+  x = clamp(x, m, innerWidth - tw - m); y = clamp(y, m, innerHeight - th - m);
+  if (!shown) tipEl.classList.add('snap');           // aparecendo: já no lugar (só desliza de um ícone pro outro)
+  tipEl.style.translate = `${Math.round(x)}px ${Math.round(y)}px`;
+  if (!shown){ void tipEl.offsetWidth; tipEl.classList.remove('snap'); }
+  tipEl.dataset.dir = dir; tipEl.classList.add('on'); tipFor = el;
+}
+function hideTip(){ clearTimeout(tipShowT); clearTimeout(tipHideT); tipEl.classList.remove('on'); tipFor = null; }
+barEl.addEventListener('pointerover', e => {
+  const h = e.target.closest?.('.app,.stat'); if (!h) return;
+  clearTimeout(tipHideT);
+  if (tipEl.classList.contains('on')) placeTip(h);
+  else { clearTimeout(tipShowT); tipShowT = setTimeout(() => placeTip(h), 140); }
+});
+barEl.addEventListener('pointerout', e => {
+  const h = e.target.closest?.('.app,.stat'); if (!h || h.contains(e.relatedTarget)) return;
+  clearTimeout(tipShowT); clearTimeout(tipHideT); tipHideT = setTimeout(hideTip, 160);
+});
+barEl.addEventListener('pointermove', () => { if (tipFor) placeTip(tipFor); });   // o ícone anda (lupa, leque): o balão vai junto
+let toastTimer;
+function toast(msg){ toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.hidden = true, 2600); }
+
+/* ---------- ajudante (PowerShell) ---------- */
+function encodePs(s){ let bin = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); bin += String.fromCharCode(c & 255, c >> 8); } return btoa(bin); }
+const psArgs = code => ['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand', encodePs(code)];
+let helper = null, reqId = 0, outBuf = '';
+const pending = new Map();
+function startHelper(){
+  helper = desktop.childProcess.spawn('powershell.exe', psArgs(HELPER_PS));
+  outBuf = '';
+  helper.stdout.on('data', chunk => {
+    outBuf += chunk; let i;
+    while ((i = outBuf.indexOf('\n')) >= 0){
+      const line = outBuf.slice(0, i).replace(/^\uFEFF/, '').trim(); outBuf = outBuf.slice(i + 1);
+      const sp = line.indexOf(' '); const id = sp < 0 ? line : line.slice(0, sp);
+      const res = pending.get(id); if (res){ pending.delete(id); res(sp < 0 ? '' : line.slice(sp + 1)); }
+    }
+  });
+  const dead = () => { helper = null; for (const r of pending.values()) r(null); pending.clear(); };
+  helper.on('exit', dead); helper.on('error', dead);
+}
+function ask(cmd, timeout = 8000){
+  if (!canRun) return Promise.resolve(null);
+  if (!helper) startHelper();
+  const id = 'r' + (++reqId);
+  return new Promise(resolve => {
+    pending.set(id, resolve);
+    helper.stdin.write(id + ' ' + cmd + '\n').catch(() => { pending.delete(id); resolve(null); });
+    setTimeout(() => { if (pending.has(id)){ pending.delete(id); resolve(null); } }, timeout);
+  });
+}
+
+/* ---------- abrir apps ---------- */
+function bounce(btn){ if (!btn) return; btn.classList.remove('bounce'); void btn.offsetWidth; btn.classList.add('bounce'); }
+function spawnRaw(cmd, args){
+  if (!canRun){ toast('Instale e ative a Órbita pra abrir os apps'); return; }
+  try { const p = desktop.childProcess.spawn(cmd, args); p.on('error', e => toast(`Não deu pra abrir: ${String(e.message).split(':')[0]}`)); setTimeout(poll, 2500); }
+  catch { toast('Não deu pra abrir'); }
+}
+function spawnApp(aumid){ spawnRaw('explorer.exe', ['shell:AppsFolder\\' + aumid]); }
+async function openApp(app, btn){
+  bounce(btn);
+  if (!canRun){ toast('Instale e ative a Órbita pra abrir os apps'); return; }
+  if (isC(mode)) setTimeout(() => setFan(false), 260);
+  if (app.win){ const r = await ask(`focus ${app.win[0]}${app.win[1] ? ' ' + app.win[1] : ''}`); if (r === 'ok') return; }
+  spawnApp(app.aumid);
+}
+function newWindow(app, btn){ bounce(btn); const first = app.extra?.[0]; first ? first.run(app) : spawnApp(app.aumid); }
+function appMenu(app, btn){
+  if (!desktop?.Menu) return;
+  const running = btn.classList.contains('running') || app.key === 'explorer';
+  const items = [{ label: running ? 'Mostrar janela' : 'Abrir', click:() => openApp(app, btn) }];
+  if (app.extra?.length){ items.push({ type:'separator' }); for (const x of app.extra) items.push({ label:x.label, click:() => { bounce(btn); x.run(app); } }); }
+  items.push({ type:'separator' }, { label:'Órbita', submenu: barMenuItems() });
+  desktop.Menu.popup(items).catch(() => {});
+}
+
+/* ---------- pulso do PC ---------- */
+async function poll(){
+  if (!canRun || document.visibilityState === 'hidden') return;
+  const raw = await ask('tick', 10000); if (!raw) return;
+  let d; try { d = JSON.parse(raw); } catch { return; }
+  const names = new Set(String(d.p || '').split(','));
+  for (const [app, b] of buttons) b.classList.toggle('running', app.procs.some(p => names.has(p)));
+  setRing($('cpuR'), 'CPU', d.c); setRing($('ramR'), 'RAM', d.r);
+  setTemp(d.g); setSong(d.s);
+}
+
+/* o Eco (app do Claude) usa a posição da barra pra saber em que tela aparecer na primeira vez */
+const BUS = '~/.orbita';
+async function anchorEco(){
+  if (!desktop?.fs || !canRun || !mover?.ready) return;
+  try {
+    const t = mover.target, r = barEl.getBoundingClientRect();
+    await desktop.fs.mkdir(BUS, { recursive:true });
+    await desktop.fs.writeFile(BUS + '/eco-ancora.json', JSON.stringify({ x:Math.round(t.x + r.left), y:Math.round(t.y + r.top), lado:mode, at:Date.now() }));
+  } catch {}
+}
+
+/* ---------- ícones da Órbita ---------- */
+function drawAppIcon(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const bg = g.createLinearGradient(0, 0, 256, 256); bg.addColorStop(0, '#1b2034'); bg.addColorStop(1, '#090b10');
+  g.fillStyle = bg; g.beginPath(); g.roundRect(8, 8, 240, 240, 58); g.fill();
+  const og = g.createLinearGradient(40, 40, 216, 216); og.addColorStop(0, '#d4dcff'); og.addColorStop(1, '#7f93ff');
+  g.save(); g.translate(128, 128); g.rotate(-28 * Math.PI / 180);
+  g.strokeStyle = og; g.lineWidth = 12; g.globalAlpha = .9; g.beginPath(); g.ellipse(0, 0, 96, 44, 0, 0, Math.PI * 2); g.stroke(); g.restore();
+  g.globalAlpha = 1; g.fillStyle = og; g.beginPath(); g.arc(128, 128, 38, 0, Math.PI * 2); g.fill();
+  const cg = g.createRadialGradient(198, 84, 2, 208, 90, 18); cg.addColorStop(0, '#ffe1d2'); cg.addColorStop(1, '#d97757');
+  g.fillStyle = cg; g.beginPath(); g.arc(208, 90, 16, 0, Math.PI * 2); g.fill();
+  return c.toDataURL('image/png');
+}
+function drawTrayIcon(){
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d');
+  g.save(); g.translate(16, 16); g.rotate(-28 * Math.PI / 180);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 2.4; g.beginPath(); g.ellipse(0, 0, 13, 6, 0, 0, Math.PI * 2); g.stroke(); g.restore();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(16, 16, 5, 0, Math.PI * 2); g.fill();
+  return c.toDataURL('image/png');
+}
+
+/* ---------- movimento da janela: o motor único (motor.js, igual nos três apps) ----------
+   Aqui só fica o "sentir" da Órbita: inclina de leve, estica na direção do movimento e afina no outro eixo,
+   levanta 2% (e a sombra da ilha cresce) ao pegar, e dá um micro-amassado ao assentar numa borda. */
+/*MOTOR*/
+function createMover(){
+  const F = { tilt:0, sx:1, sy:1 };
+  return createMotor({
+    desktop:() => desktop, slow:() => SLOW,
+    onDisplaysChanged:ds => { screens = ds; if (!gest?.active && !mover?.moving) place(); },
+    feel(f, dt){
+      const still = f.mode === 'idle' || f.reduce;
+      const want = still ? 0 : clamp(f.vx * .0017, -3, 3);
+      F.tilt += (want - F.tilt) * Math.min(1, dt * 14);
+      if (Math.abs(F.tilt) < .01 && want === 0) F.tilt = 0;
+      const ex = still ? 0 : Math.min(1, Math.abs(f.vx) / 2600) * .05, ey = still ? 0 : Math.min(1, Math.abs(f.vy) / 2600) * .05;
+      // batida na borda: amassa um tiquinho contra ela (na direção da normal) e alarga no outro eixo
+      const bx = f.bumpN.x ? f.bump * .06 : -f.bump * .03 * (f.bumpN.y ? 1 : 0), by = f.bumpN.y ? f.bump * .06 : -f.bump * .03 * (f.bumpN.x ? 1 : 0);
+      const lift = f.lift * .02, k = Math.min(1, dt * 12);
+      F.sx += ((1 + lift + ex - ey * .5 - bx) - F.sx) * k;
+      F.sy += ((1 + lift + ey - ex * .5 - by) - F.sy) * k;
+      const rest = still && !f.bump && !f.lift;
+      if (rest && Math.abs(F.sx - 1) < .0005 && Math.abs(F.sy - 1) < .0005){ F.sx = 1; F.sy = 1; }
+      root.style.setProperty('--tilt', F.tilt.toFixed(3) + 'deg');
+      root.style.setProperty('--wsx', F.sx.toFixed(4)); root.style.setProperty('--wsy', F.sy.toFixed(4));
+      root.style.setProperty('--grab', f.lift.toFixed(3));
+      island.kick();
+      return F.tilt !== 0 || F.sx !== 1 || F.sy !== 1;
+    },
+  });
+}
+let mover = null;
+
+/* ---------- margens do conteúdo dentro da janela ----------
+   Quando a janela muda de tamanho e anda, a margem do conteúdo muda junto. O motor manda tamanho + posição num
+   setBounds só e aplica a margem nova (o CSS) quando a janela já chegou (no resize), assim nada pisca fora do lugar. */
+let pads = padsFor(mode), cssPads = { l:pads.l, t:pads.t }, pendingCss = null;
+function setCssPads(p){ cssPads = { l:p.l, t:p.t }; root.style.setProperty('--pl', p.l + 'px'); root.style.setProperty('--pt', p.t + 'px'); island.kick(true); }
+window.addEventListener('resize', () => island.kick());
+/** janela nova: margens p em volta da barra (bw×bh); dx/dy: quanto a janela anda na tela */
+function reshapeWindow(p, bw, bh, dx, dy){
+  // margens inteiras: a janela anda em pixels inteiros, então a margem também (senão sobra meio pixel a cada troca)
+  const rl = Math.round(p.l), rt = Math.round(p.t);
+  dx += p.l - rl; dy += p.t - rt;
+  p = { l:rl, t:rt, r:Math.round(p.r), b:Math.round(p.b) };
+  const w = Math.round(p.l + bw + p.r), h = Math.round(p.t + bh + p.b);
+  pads = p; pendingCss = p;
+  // a margem entra junto com a janela; os envios saem em ordem, então uma troca antiga nunca passa por cima da nova
+  mover.reshape(w, h, Math.round(dx), Math.round(dy), () => { setCssPads(p); if (pendingCss === p) pendingCss = null; });
+}
+
+/* ---------- troca de layout com FLIP ----------
+   Anota onde cada item está, troca o layout, mede de novo e anima cada item do lugar antigo pro novo numa mola.
+   A janela cresce pra caber os dois layouts enquanto os itens voam (sem corte), e encolhe quando eles assentam. */
+const flipEls = () => [...appsEl.children, $('sep'), $('music'), $('cpuR'), $('ramR'), $('gpuR'), $('hh'), $('mm'), $('cd'), $('fold'), $('grip')];
+function snapshot(anchor){
+  const b = barEl.getBoundingClientRect(), m = new Map();
+  for (const el of flipEls()){
+    const r = el.getBoundingClientRect(); if (!r.width && !r.height) continue;
+    m.set(el, { l:r.left - b.left, t:r.top - b.top, w:r.width, h:r.height });
+  }
+  let a = { x:b.width / 2, y:b.height / 2 };
+  if (anchor?.fx != null) a = { x:b.width * anchor.fx, y:b.height * anchor.fy };      // ponto fixo da caixa (ex.: o lado da borda)
+  else if (anchor && anchor !== barEl){ const r = anchor.getBoundingClientRect(); if (r.width || r.height) a = { x:r.left - b.left + r.width / 2, y:r.top - b.top + r.height / 2, el:true }; }
+  return { w:b.width, h:b.height, m, a };
+}
+/** de onde até onde o item anda: pelo centro; se ele mudou muito de largura/altura, pelo lado da borda (o ícone fica no lugar) */
+function flipDelta(b, a){
+  let dx = (b.l + b.w / 2) - (a.l + a.w / 2), dy = (b.t + b.h / 2) - (a.t + a.h / 2);
+  if (Math.abs(b.w - a.w) > 10) dx = mode === 'right' || mode[1] === 'r' ? (b.l + b.w) - (a.l + a.w) : b.l - a.l;
+  if (Math.abs(b.h - a.h) > 10) dy = mode === 'bottom' || mode[0] === 'b' ? (b.t + b.h) - (a.t + a.h) : b.t - a.t;
+  return { dx, dy };
+}
+/** o lado da caixa que fica parado quando o tamanho muda: o da borda */
+function edgeAnchor(){
+  if (isC(mode)) return $('statusEl');
+  if (mode === 'left') return { fx:0, fy:.5 };
+  if (mode === 'right') return { fx:1, fy:.5 };
+  if (mode === 'top') return { fx:.5, fy:0 };
+  return { fx:.5, fy:1 };
+}
+let shrinkT = 0;
+/**
+ * muda a orientação (e/ou o conteúdo, via change) animando.
+ * anchor: o item que deve ficar parado (ou sob o mouse). jump: a janela pula pra manter o anchor parado já;
+ * sem jump (arrastando), a mola leva a janela até o anchor voltar pra baixo do mouse.
+ */
+function morph(newMode, { anchor = null, jump = false, change = null } = {}){
+  const s = scale, A = snapshot(anchor);
+  if (newMode !== mode) hideTip();     // trocou de forma: o balão some (volta no próximo hover, no lugar novo)
+  for (const el of flipEls()) for (const an of el.getAnimations()) if (an.id === 'flip') an.cancel();
+  root.classList.add('nomotion');
+  if (newMode !== mode){ mode = newMode; applyModeClasses(); }
+  change?.();
+  refitScale();          // lado ou degrau novo: confere o teto de área antes de medir
+  const B = snapshot(anchor);
+  // o item seguro sumiu no layout novo (ex.: o núcleo do canto na barra do topo): fica sob o mouse o mesmo ponto
+  // proporcional da barra, em vez de ela correr atrás de um item invisível
+  if (A.a.el && !B.a.el && A.w && A.h) B.a = { x:B.w * clamp(A.a.x / A.w, 0, 1), y:B.h * clamp(A.a.y / A.h, 0, 1) };
+  void barEl.offsetWidth; root.classList.remove('nomotion');
+  const j = { x:A.a.x - B.a.x, y:A.a.y - B.a.y };           // quanto a barra precisa andar pra o anchor ficar no lugar
+  const jx = jump ? j.x : 0, jy = jump ? j.y : 0;
+  let seq = 0;          // os itens partem em sequência, um logo depois do outro
+  for (const [el, a] of B.m){
+    const b = A.m.get(el);
+    if (!b){   // item que aparece agora: entra crescendo do lugar dele
+      const an = el.animate([{ opacity:0, transform:'scale(.6)' }, { opacity:1, transform:'none' }], { duration:MORPH.duration, easing:MORPH.easing, delay:60, fill:'backwards' });
+      an.id = 'flip'; an.playbackRate = 1 / SLOW; continue;
+    }
+    let { dx, dy } = flipDelta(b, a); dx -= jx; dy -= jy;
+    if (Math.abs(dx) < .5 && Math.abs(dy) < .5) continue;
+    const an = el.animate([{ transform:`translate(${dx / s}px,${dy / s}px)` }, { transform:'none' }], { duration:MORPH.duration, easing:MORPH.easing, delay:Math.min(160, seq++ * 14), fill:'backwards' });
+    an.id = 'flip'; an.playbackRate = 1 / SLOW;
+  }
+  setBarVars();
+  island.shift(-jx, -jy); island.kick();     // a ilha fica onde estava na tela e escorre até o formato novo
+  if (!mover?.ready || !root.classList.contains('bar-mode')) return;
+  // janela = união do layout antigo com o novo, medidos a partir da origem nova da barra
+  const P = pads, T = padsFor(mode);
+  let L = Math.max(T.l, P.l + jx), Tp = Math.max(T.t, P.t + jy);
+  let R = Math.max(B.w + T.r, A.w + P.r - jx) - B.w, Bt = Math.max(B.h + T.b, A.h + P.b - jy) - B.h;
+  // a união (antes + depois) cabe em 90% da área útil: corta a sobra (nunca abaixo da margem do layout novo);
+  // um item ainda voando pode sair cortado por um instante, mas a janela nunca pede mais que a tela
+  const dU = screens.length ? displayFor({ x:mover.target.x + P.l + A.w / 2, y:mover.target.y + P.t + A.h / 2 }) : null;
+  if (dU){
+    const capH = .9 * dU.workArea.height, capW = .9 * dU.workArea.width;
+    let over = Tp + B.h + Bt - capH;
+    if (over > 0){ const cb = Math.min(over, Bt - T.b); Bt -= cb; over -= cb; Tp -= Math.min(over, Tp - T.t); }
+    over = L + B.w + R - capW;
+    if (over > 0){ const cr = Math.min(over, R - T.r); R -= cr; over -= cr; L -= Math.min(over, L - T.l); }
+  }
+  reshapeWindow({ l:L, t:Tp, r:R, b:Bt }, B.w, B.h, P.l + jx - L, P.t + jy - Tp);
+  if (!jump) mover.regrab(j.x, j.y);
+  clearTimeout(shrinkT); shrinkT = setTimeout(shrinkWhenIdle, MORPH.duration + 40);
+}
+/** quando nada está voando nem sendo arrastado, a janela volta ao tamanho do conteúdo */
+async function shrinkWhenIdle(){
+  if (!mover?.ready) return;
+  if (mv?.on || mover.dragging){ clearTimeout(shrinkT); shrinkT = setTimeout(shrinkWhenIdle, 300); return; }
+  await mover.settled();
+  if (mv?.on || mover.dragging) return;
+  const T = padsFor(mode), { w, h } = barSize();
+  if (T.l === pads.l && T.t === pads.t && T.r === pads.r && T.b === pads.b && mover.size.w === T.l + w + T.r && mover.size.h === T.t + h + T.b) return;
+  reshapeWindow(T, w, h, pads.l - T.l, pads.t - T.t);
+}
+/** o tamanho do conteúdo mudou (ex.: apareceu o anel da placa): ajeita a janela sem mexer no que se vê */
+function contentChange(fn){
+  if (!mover?.ready || !root.classList.contains('bar-mode')){ fn(); setBarVars(); return; }
+  // o lado da borda fica parado e o resto se acomoda com o mesmo morph
+  morph(mode, { anchor:edgeAnchor(), jump:!mv?.on, change:fn });
+  if (!mv?.on && !sizing) settleHere();
+}
+
+/* ---------- a ilha ----------
+   Um retângulo em volta da barra cujo lado colado na borda vai até a beirada da janela (que é a borda da tela).
+   Cada canto é uma curva só que varia entre: convexo (canto solto, arredondado), ombro côncavo (um lado colado:
+   a curva se abre ao longo da borda) e reto (os dois lados colados, escondido no canto da tela).
+   Tudo anda em molas: o retângulo segue o layout, e o "colado" de cada lado segue a distância até a borda,
+   numa mola mais mole, pra os ombros se formarem e se recolherem como líquido. */
+const island = (() => {
+  const path = $('islPath'), rim = $('islRimPath'), K = .5523;
+  const SPR = { rect:{ k:300, z:.86 }, grow:{ k:2600, z:1 }, glue:{ k:170, z:.7 } };
+  const v = {}; for (const n of ['x0','y0','x1','y1','r','at','ab','al','ar']) v[n] = { x:0, v:0, t:0 };
+  let raf = 0, calm = 0, ready = false, last = 0, gradFor = '';
+  const smooth = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function targets(){
+    const s = scale, P = 11 * s, { w, h } = barSize();
+    // invólucro dos itens onde eles ESTÃO agora (com as animações): a ilha abraça os ícones em voo, como líquido
+    const br = barEl.getBoundingClientRect(), kx = w / (br.width || 1), ky = h / (br.height || 1);
+    const fan = root.classList.contains('fan'), corner = isC(mode);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const el of [...appsEl.children, $('sep'), $('music'), $('statusEl'), $('clock'), document.querySelector('.rings'), $('fold')]){
+      if (!el.offsetParent) continue;
+      const r = el.getBoundingClientRect(); if (!r.width && !r.height) continue;
+      const cx = (r.left + r.width / 2 - br.left) * kx, cy = (r.top + r.height / 2 - br.top) * ky;
+      let hw = r.width / 2 * kx, hh = r.height / 2 * ky;
+      if (corner && el.classList.contains('app') && !fan){ if (tier === 'slim') continue; hw = hh = 5 * s; }     // fechado, o app é só um pontinho (na fina, nem isso: só o núcleo)
+      x0 = Math.min(x0, cx - hw); y0 = Math.min(y0, cy - hh); x1 = Math.max(x1, cx + hw); y1 = Math.max(y1, cy + hh);
+    }
+    if (!(x1 > x0)){ x0 = 0; y0 = 0; x1 = w; y1 = h; }
+    const Pc = corner ? 14 * s : P;
+    x0 -= Pc; y0 -= Pc; x1 += Pc; y1 += Pc;
+    let r = Math.min(22 * s, (Math.min(x1 - x0, y1 - y0)) / 2);
+    if (corner) r = Math.min(x1 - x0, y1 - y0) * (fan ? .97 : .92);
+    // quanto cada lado está colado: pela distância real da barra até a borda da tela (só os lados deste layout)
+    const g = { top:0, bottom:0, left:0, right:0 };
+    if (root.classList.contains('bar-mode') && mover?.ready && screens.length){
+      const n = mover.now, bx = n.x + wrapEl.offsetLeft, by = n.y + wrapEl.offsetTop;
+      const d = displayFor({ x:bx + w / 2, y:by + h / 2 }), wa = d.workArea;
+      const gap = { left:bx - wa.x, right:wa.x + wa.width - (bx + w), top:by - wa.y, bottom:wa.y + wa.height - (by + h) };
+      const sides = isC(mode) ? [mode[0] === 't' ? 'top' : 'bottom', mode[1] === 'l' ? 'left' : 'right'] : [mode];
+      // funde nos últimos px antes de encostar (é quando a beirada da janela coincide com a da tela); a mola mole faz o resto
+      for (const k of sides) g[k] = smooth(1 - (gap[k] - G) / 16);
+    }
+    return { x0, y0, x1, y1, r, at:g.top, ab:g.bottom, al:g.left, ar:g.right };
+  }
+  function corner(left, top, X0, Y0, X1, Y1, R, S, a){
+    const xV = left ? X0 : X1, yH = top ? Y0 : Y1, ux = left ? 1 : -1, vy = top ? 1 : -1;
+    const aH = top ? a.at : a.ab, aV = left ? a.al : a.ar;
+    const conv = R * (1 - aH) * (1 - aV);
+    const offA = conv - S * aH * (1 - aV) + S * (1 - aH) * aV, offB = conv + S * aH * (1 - aV) - S * (1 - aH) * aV;
+    const A = [xV + ux * offA, yH], B = [xV, yH + vy * offB];
+    return { A, B, c1:[A[0] + K * (xV - A[0]), yH], c2:[xV, B[1] + K * (yH - B[1])] };
+  }
+  const f = p => p[0].toFixed(2) + ' ' + p[1].toFixed(2);
+  function draw(){
+    const L = -wrapEl.offsetLeft - 2, T = -wrapEl.offsetTop - 2;
+    const Rt = innerWidth - wrapEl.offsetLeft + 2, Bt = innerHeight - wrapEl.offsetTop + 2;
+    const a = { at:clamp(v.at.x, 0, 1), ab:clamp(v.ab.x, 0, 1), al:clamp(v.al.x, 0, 1), ar:clamp(v.ar.x, 0, 1) };
+    // lado colado: vai até a beirada da janela (um pouco além, pro contorno ficar fora da tela)
+    // nunca estica mais que uns 30 px: enquanto a janela está maior (no meio de uma troca), a beirada dela fica longe
+    const reach = 30 * scale;
+    const X0 = lerp(v.x0.x, Math.max(L, v.x0.x - reach), a.al), X1 = lerp(v.x1.x, Math.min(Rt, v.x1.x + reach), a.ar);
+    const Y0 = lerp(v.y0.x, Math.max(T, v.y0.x - reach), a.at), Y1 = lerp(v.y1.x, Math.min(Bt, v.y1.x + reach), a.ab);
+    // o canto de dentro pode arredondar até a largura toda quando os dois lados estão colados (vira um quarto de disco
+    // abraçando o leque); solto, no máximo a metade (pílula)
+    const aBoth = isC(mode) ? Math.min(mode[0] === "t" ? a.at : a.ab, mode[1] === "l" ? a.al : a.ar) : 0;
+    const R = Math.max(0, Math.min(v.r.x, Math.min(X1 - X0, Y1 - Y0) * (.5 + .5 * aBoth))), S = 18 * scale;
+    const tl = corner(true, true, X0, Y0, X1, Y1, R, S, a), tr = corner(false, true, X0, Y0, X1, Y1, R, S, a);
+    const br = corner(false, false, X0, Y0, X1, Y1, R, S, a), bl = corner(true, false, X0, Y0, X1, Y1, R, S, a);
+    const d = `M${f(tl.A)}L${f(tr.A)}C${f(tr.c1)} ${f(tr.c2)} ${f(tr.B)}L${f(br.B)}C${f(br.c2)} ${f(br.c1)} ${f(br.A)}` +
+              `L${f(bl.A)}C${f(bl.c1)} ${f(bl.c2)} ${f(bl.B)}L${f(tl.B)}C${f(tl.c2)} ${f(tl.c1)} ${f(tl.A)}Z`;
+    path.setAttribute('d', d); rim.setAttribute('d', d);
+    // luz vem do lado de dentro da tela, a borda fica mais escura
+    const gk = mode;
+    if (gk !== gradFor){
+      gradFor = gk;
+      const dir = { bottom:[0,0,0,1], top:[0,1,0,0], left:[1,0,0,0], right:[0,0,1,0], bl:[1,0,0,1], br:[0,0,1,1], tl:[1,1,0,0], tr:[0,1,1,0] }[gk];
+      for (const id of ['islFill','islRim']){ const g = $(id); ['x1','y1','x2','y2'].forEach((k, i) => g.setAttribute(k, dir[i])); }
+    }
+  }
+  function step(t){
+    const dt = (last ? Math.min(1 / 30, (t - last) / 1000) : 1 / 60) / SLOW; last = t;
+    const T = targets();
+    let moving = false;
+    for (const n in v){
+      const q = v[n];
+      q.t = T[n];
+      // crescer acompanha na hora (nenhum ícone sai da ilha); encolher vem na mola, devagar, como líquido
+      const grows = (n === 'x0' || n === 'y0') ? q.t < q.x - .5 : (n === 'x1' || n === 'y1') ? q.t > q.x + .5 : false;
+      const c = n.length === 2 && n[0] === 'a' ? SPR.glue : grows ? SPR.grow : SPR.rect;
+      if (!ready){ q.x = q.t; q.v = 0; continue; }
+      const sub = 3, h = dt / sub;
+      for (let i = 0; i < sub; i++){ const acc = c.k * (q.t - q.x) - 2 * c.z * Math.sqrt(c.k) * q.v; q.v += acc * h; q.x += q.v * h; }
+      if (Math.abs(q.t - q.x) > .02 || Math.abs(q.v) > .05) moving = true; else { q.x = q.t; q.v = 0; }
+    }
+    ready = true;
+    draw();
+    calm = moving ? 0 : calm + 1;
+    if (calm < 20) raf = requestAnimationFrame(step); else { raf = 0; last = 0; }
+  }
+  return {
+    kick(){ calm = 0; if (!raf){ last = 0; raf = requestAnimationFrame(step); } },
+    shift(dx, dy){ if (!dx && !dy) return; v.x0.x += dx; v.x1.x += dx; v.y0.x += dy; v.y1.x += dy; },
+    get state(){ const o = {}; for (const n in v) o[n] = +v[n].x.toFixed(2); return o; },
+  };
+})();
+setInterval(() => island.kick(), 700);   // garantia barata: se algo mudou sem avisar, a ilha confere
+
+/* ---------- telas e lados ---------- */
+let screens = [];
+const inside = (d, p) => p.x >= d.bounds.x && p.x < d.bounds.x + d.bounds.width && p.y >= d.bounds.y && p.y < d.bounds.y + d.bounds.height;
+function displayFor(p){
+  let best = screens[0], bd = Infinity;
+  for (const d of screens){
+    if (inside(d, p)) return d;
+    const b = d.bounds, dx = Math.max(b.x - p.x, 0, p.x - (b.x + b.width)), dy = Math.max(b.y - p.y, 0, p.y - (b.y + b.height));
+    if (dx*dx + dy*dy < bd){ bd = dx*dx + dy*dy; best = d; }
+  }
+  return best;
+}
+/** distâncias do ponto até as bordas da área útil; borda colada em outra tela não conta (dá pra passar direto) */
+function edgeGaps(p, d){
+  const wa = d.workArea, other = q => screens.some(o => o !== d && inside(o, q));
+  const g = { left:p.x - wa.x, right:wa.x + wa.width - p.x, top:p.y - wa.y, bottom:wa.y + wa.height - p.y };
+  if (other({ x:d.bounds.x - 30, y:p.y })) g.left = Infinity;
+  if (other({ x:d.bounds.x + d.bounds.width + 30, y:p.y })) g.right = Infinity;
+  if (other({ x:p.x, y:d.bounds.y - 30 })) g.top = Infinity;
+  if (other({ x:p.x, y:d.bounds.y + d.bounds.height + 30 })) g.bottom = Infinity;
+  return g;
+}
+/** qual layout combina com o ponto (o mouse, arrastando): perto de canto, leque; perto da lateral, coluna; senão deitada.
+ *  cada troca tem folga pra voltar (histerese), assim ela não fica trocando na fronteira. */
+function modeFor(p, cur){
+  const d = displayFor(p); if (!d) return cur;
+  const g = edgeGaps(p, d), hx = Math.min(g.left, g.right), hy = Math.min(g.top, g.bottom);
+  const cIn = isC(cur) ? 230 : 160;
+  if (hx < cIn && hy < cIn) return (g.top < g.bottom ? 't' : 'b') + (g.left < g.right ? 'l' : 'r');
+  const vIn = isV(cur) ? 300 : 230;
+  if (hx < vIn && hx < hy + 60) return g.left < g.right ? 'left' : 'right';
+  const tIn = cur === 'top' ? 330 : 250;
+  return g.top < tIn && g.top < g.bottom ? 'top' : 'bottom';
+}
+
+/** onde a barra (canto de cima à esquerda bx, by; tamanho bw×bh) deve assentar: dentro da tela, grudando na borda se estiver perto */
+function restFor(bx, by, bw, bh, m, extra = 0){
+  const d = displayFor({ x:bx + bw / 2, y:by + bh / 2 }), wa = d.workArea;
+  // na coluna, a alça e o botão de recolher ficam além da ponta: folga maior em cima e embaixo pra nada cortar na borda da tela
+  const gy = isV(m) ? G + 24 : G;
+  const minX = wa.x + G, maxX = wa.x + wa.width - G - bw, minY = wa.y + gy, maxY = wa.y + wa.height - gy - bh;
+  let x = clamp(bx, minX, maxX), y = clamp(by, minY, maxY), stuck = false;
+  const near = (isV(m) ? 130 : 60) + extra;   // extra: histerese (já encostada, só solta mais longe)
+  if (m === 'bottom' && maxY - y < near){ y = maxY; stuck = true; }
+  if (m === 'top' && y - minY < near){ y = minY; stuck = true; }
+  if (m === 'left' && x - minX < near){ x = minX; stuck = true; }
+  if (m === 'right' && maxX - x < near){ x = maxX; stuck = true; }
+  if (isC(m)){ x = m[1] === 'l' ? minX : maxX; y = m[0] === 't' ? minY : maxY; stuck = true; }
+  // ímã no meio da borda
+  if (isH(m) && Math.abs(x + bw / 2 - (wa.x + wa.width / 2)) < 30) x = wa.x + (wa.width - bw) / 2;
+  if (isV(m) && Math.abs(y + bh / 2 - (wa.y + wa.height / 2)) < 30) y = wa.y + (wa.height - bh) / 2;
+  return { x:Math.round(x), y:Math.round(y), stuck, d };
+}
+function remember(r, bw, bh){
+  const wa = r.d.workArea;
+  pos = { dispId:r.d.id, mode, docked:r.stuck, fx:+((r.x + bw / 2 - wa.x) / wa.width).toFixed(4), fy:+((r.y + bh / 2 - wa.y) / wa.height).toFixed(4) };
+  docked = r.stuck; savePrefs(); applyDockState(); setFloat(!r.stuck);
+}
+/** a janela no destino nunca passa da tela: o Windows a empurraria pra dentro e a barra ficaria longe da borda
+ *  (a margem extra de uma troca de forma, encostada na borda, sobrava pra fora). Corta só a margem que sobraria. */
+function fitToScreen(r, bw, bh){
+  if (!mover?.ready || !r?.d) return;
+  const P = pads, D = r.d.bounds, x = r.x - P.l, y = r.y - P.t, W = P.l + bw + P.r, H = P.t + bh + P.b;
+  const cut = { l:Math.min(P.l, Math.max(0, D.x - x)), t:Math.min(P.t, Math.max(0, D.y - y)),
+    r:Math.min(P.r, Math.max(0, x + W - (D.x + D.width))), b:Math.min(P.b, Math.max(0, y + H - (D.y + D.height))) };
+  if (!(cut.l || cut.t || cut.r || cut.b)) return;
+  reshapeWindow({ l:P.l - cut.l, t:P.t - cut.t, r:P.r - cut.r, b:P.b - cut.b }, bw, bh, cut.l, cut.t);
+}
+/** assenta onde a barra está agora (ou vai parar), numa mola; depois a janela volta ao tamanho do conteúdo */
+async function settleHere({ vx = 0, vy = 0, tau = 0 } = {}){
+  if (!mover?.ready) return;
+  const t = mover.target, { w, h } = barSize();
+  const r = restFor(t.x + pads.l + vx * tau, t.y + pads.t + vy * tau, w, h, mode, root.classList.contains('ofloat') ? 0 : 28);   // mesma histerese da prévia: solta onde a prévia mostrou
+  remember(r, w, h);
+  // grudando numa borda: mola sem passar do ponto e um micro-amassado contra ela; solta, a mola de sempre
+  const land = !r.stuck ? null : isC(mode) ? { x:mode[1] === 'l' ? -1 : 1, y:mode[0] === 't' ? -1 : 1 } : { x:mode === 'left' ? -1 : mode === 'right' ? 1 : 0, y:mode === 'top' ? -1 : mode === 'bottom' ? 1 : 0 };
+  fitToScreen(r, w, h);
+  await mover.glide({ x:r.x - pads.l, y:r.y - pads.t, width:mover.size.w, height:mover.size.h }, { vx, vy, firm:!!land, land });
+  shrinkWhenIdle();
+  anchorEco();
+}
+/** leva a barra pra uma posição (menu, trocar de tela, centralizar): troca o layout no lugar e desliza até lá */
+async function moveTo(m, d = null, fx = null, fy = null){
+  if (!mover?.ready || !screens.length) return;
+  d = d || displayFor({ x:mover.target.x + pads.l, y:mover.target.y + pads.t });
+  if (m !== mode) morph(m, { jump:true });
+  const wa = d.workArea, { w, h } = barSize();
+  fx = fx ?? (isV(m) ? (m === 'left' ? 0 : 1) : m[1] === 'l' ? 0 : m[1] === 'r' ? 1 : .5);
+  fy = fy ?? (m === 'top' || m[0] === 't' ? 0 : isV(m) ? .5 : 1);
+  const bx = wa.x + fx * wa.width - w / 2, by = wa.y + fy * wa.height - h / 2;
+  const r = restFor(bx, by, w, h, m);
+  if (fx === 0 || fx === 1 || fy === 0 || fy === 1) r.stuck = true;
+  remember(r, w, h);
+  const t = mover.target;
+  fitToScreen(r, w, h);
+  await mover.glide({ x:r.x - pads.l, y:r.y - pads.t, width:mover.size.w, height:mover.size.h }, { soft:true });
+  shrinkWhenIdle(); anchorEco();
+}
+
+/* ---------- recolher na borda (opcional) ---------- */
+let peekT = 0, hideT = 0;
+function applyDockState(){
+  const on = docked && autohide && !isC(mode) && root.classList.contains('bar-mode');
+  root.classList.toggle('odock', on);
+  if (!on) root.classList.remove('opeek');
+}
+function setPeek(on){ root.classList.toggle('opeek', on); }
+function hoverDock(insideNow){
+  if (!root.classList.contains('odock')) return;
+  if (insideNow){ clearTimeout(hideT); if (!root.classList.contains('opeek')){ clearTimeout(peekT); peekT = setTimeout(() => setPeek(true), 80); } }
+  else { clearTimeout(peekT); if (mv?.on) return; clearTimeout(hideT); hideT = setTimeout(() => setPeek(false), 560); }
+}
+function toggleAutohide(){
+  autohide = !autohide; savePrefs(); applyDockState();
+  if (autohide){ setPeek(true); clearTimeout(hideT); hideT = setTimeout(() => setPeek(false), 900); }
+}
+
+/* ---------- leque dos cantos ---------- */
+let fanT = 0;
+function setFan(on){
+  if (!isC(mode)) return;
+  clearTimeout(fanT);
+  if (on === root.classList.contains('fan')) return;
+  root.classList.toggle('fan', on); island.kick();
+}
+function fanZone(e){
+  if (!isC(mode) || !root.classList.contains('fan')) return false;
+  const r = $('statusEl').getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  return Math.hypot(e.clientX - cx, e.clientY - cy) < (CORNER[tier].r2 + 36) * scale;
+}
+
+/* ---------- menu ---------- */
+const PLACES = [['Embaixo','bottom'],['Em cima','top'],['Na esquerda','left'],['Na direita','right'],
+  ['Canto de baixo, à esquerda','bl'],['Canto de baixo, à direita','br'],['Canto de cima, à esquerda','tl'],['Canto de cima, à direita','tr']];
+function barMenuItems(){
+  return [
+    ...(!isC(mode) ? [{ label: collapsed ? 'Mostrar os apps' : 'Recolher os apps', click:() => toggleCollapsed() }] : []),
+    { label:'Tamanho', submenu: [['Fina','slim'],['Normal','normal'],['Larga','wide']].map(([label, t]) => ({ label, type:'radio', checked: t === tier, click:() => setTier(t) })) },
+    { label:'Zoom', submenu: SIZES.map(([label, s]) => ({ label, type:'radio', checked: Math.abs(userScale - s) < .01, click:() => setSize(s) })) },
+    { label:'Posição', submenu: PLACES.map(([label, m]) => ({ label, type:'radio', checked: m === mode, click:() => moveTo(m) })) },
+    ...(screens.length > 1 ? [{ label:'Tela', submenu: screens.map((d, i) => ({
+      label:`${d.label || 'Tela ' + (i + 1)} · ${d.size.width}×${d.size.height}`, type:'radio', checked: d.id === pos?.dispId, click:() => moveTo(mode, d, pos?.fx, pos?.fy) })) }] : []),
+    { type:'separator' },
+    { label:'Centralizar de novo', click:() => moveTo('bottom', null, .5, 1) },
+    { label:'Esconder Órbita', click:() => desktop.window.hide() },
+    { type:'separator' },
+    { label:'Permissões…', click:() => openPermissions() },
+  ];
+}
+function toggleCollapsed(){
+  if (isC(mode)) return;
+  collapsed = !collapsed; savePrefs();
+  morph(mode, { anchor:$('fold'), jump:true, change:applyCollapsed });
+  settleHere();
+}
+
+/* ---------- tamanho ---------- */
+function maxScale(){ const d = screens.find(x => x.id === pos?.dispId) || screens[0]; return d ? Math.max(MIN_S, Math.min(MAX_S, (d.workArea.width - 40) / 760)) : MAX_S; }
+/* teto de área: a janela nunca passa de 70% da altura útil nem de 60% da largura útil (senão não sobra espaço pra
+   arrastar). userScale é o zoom que a pessoa escolheu; scale é o que vale agora, já com o teto daquela forma e degrau. */
+const CAP = { w:.6, h:.7 };
+let userScale = scale;
+function capScale(){
+  const d = screens.find(x => x.id === pos?.dispId) || screens[0];
+  if (!d || !root.classList.contains('bar-mode')) return userScale;
+  const { w, h } = barSize(); if (!w || !h) return userScale;
+  const P = PADS[mode], nw = w / scale + (P.l === G ? 0 : P.l) + (P.r === G ? 0 : P.r), nh = h / scale + (P.t === G ? 0 : P.t) + (P.b === G ? 0 : P.b);
+  return Math.max(.5, Math.min(userScale, (CAP.w * d.workArea.width - 2 * G) / nw, (CAP.h * d.workArea.height - 2 * G) / nh));
+}
+/** aplica o teto agora (o layout já está no lado e degrau novos); devolve se a escala mudou */
+function refitScale(){
+  const s = Math.round(capScale() * 100) / 100;
+  if (Math.abs(s - scale) < .01) return false;
+  scale = s; root.style.setProperty('--s', scale); if (isC(mode)) layoutCorner(mode);
+  return true;
+}
+function applyScale(s){ userScale = Math.round(Math.min(maxScale(), Math.max(MIN_S, s)) * 100) / 100; scale = userScale; root.style.setProperty('--s', scale); refitScale(); }
+/** muda o tamanho mantendo o centro da barra (e a borda, se estiver grudada) */
+function resizeTo(s){
+  if (!mover?.ready || !root.classList.contains('bar-mode')){ applyScale(s); return; }
+  const t = mover.target, b0 = barSize(), cx = t.x + pads.l + b0.w / 2, cy = t.y + pads.t + b0.h / 2;
+  applyScale(s); if (isC(mode)) layoutCorner(mode);
+  const { w, h } = barSize(), T = padsFor(mode);
+  const r = restFor(cx - w / 2, cy - h / 2, w, h, mode);
+  if (pos?.docked) remember(restFor(r.x, r.y, w, h, mode), w, h);
+  reshapeWindow(T, w, h, (r.x - T.l) - t.x, (r.y - T.t) - t.y);
+  setBarVars();
+}
+function setSize(s){ resizeTo(s); savePrefs(); settleHere(); }
+
+/* ---------- degraus (fina, normal, larga) ----------
+   A alça puxa na direção de crescer (pra fora na barra deitada, pra baixo na coluna, pra dentro na diagonal do canto).
+   A barra estica um pouco, elástica, e a cada STEP px troca de degrau com o mesmo morph da troca de lado;
+   o lado da borda fica parado. */
+const STEP = 52;
+function setTier(t){
+  if (t === tier || !TIERS.includes(t)) return;
+  morph(mode, { anchor:edgeAnchor(), jump:true, change:() => { tier = t; root.dataset.t = t; if (isC(mode)) layoutCorner(mode); applyCollapsed(); } });
+  savePrefs();
+  if (!sizing) settleHere();
+}
+function growAxis(){
+  if (isH(mode)) return { x:1, y:0 };
+  if (isV(mode)) return { x:0, y:1 };
+  const sx = mode[1] === 'l' ? 1 : -1, sy = mode[0] === 't' ? 1 : -1;
+  return { x:sx / Math.SQRT2, y:sy / Math.SQRT2 };
+}
+function setPull(p){
+  // estica até 4% na direção da alça, com resistência (quanto mais puxa, menos cede)
+  const k = 1 + Math.sign(p) * (1 - Math.exp(-Math.abs(p) * 1.4)) * .045, ax = growAxis();
+  root.style.setProperty('--px', ax.x ? k.toFixed(4) : '1');
+  root.style.setProperty('--py', ax.y ? k.toFixed(4) : '1');
+}
+const gripEl = $('grip');
+let sizing = null;
+gripEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault(); e.stopPropagation(); try { gripEl.setPointerCapture(e.pointerId); } catch {}
+  sizing = { x:e.screenX, y:e.screenY, base:0, ax:growAxis() };
+  barEl.classList.add('sizing'); setPassThrough(false);
+});
+function sizeMove(e){
+  if (!sizing) return;
+  if (e instanceof PointerEvent && e.buttons === 0){ endSizing(); return; }     // botão já solto: não fica puxando sozinho
+  const proj = (e.screenX - sizing.x) * sizing.ax.x + (e.screenY - sizing.y) * sizing.ax.y - sizing.base;
+  const i = TIERS.indexOf(tier);
+  if (proj > STEP && i < TIERS.length - 1){ sizing.base += STEP; setTier(TIERS[i + 1]); }
+  else if (proj < -STEP && i > 0){ sizing.base -= STEP; setTier(TIERS[i - 1]); }
+  const rest = (e.screenX - sizing.x) * sizing.ax.x + (e.screenY - sizing.y) * sizing.ax.y - sizing.base;
+  const last = TIERS.indexOf(tier);
+  // nas pontas (já é o maior ou o menor) estica bem menos: avisa que acabou
+  const damp = (rest > 0 && last === TIERS.length - 1) || (rest < 0 && last === 0) ? .35 : 1;
+  setPull(rest / STEP * damp);
+}
+gripEl.addEventListener('pointermove', sizeMove);
+const endSizing = () => {
+  if (!sizing) return; sizing = null; barEl.classList.remove('sizing');
+  root.style.setProperty('--px', '1'); root.style.setProperty('--py', '1');
+  savePrefs(); settleHere();
+};
+gripEl.addEventListener('pointerup', endSizing); gripEl.addEventListener('pointercancel', endSizing);
+gripEl.addEventListener('dblclick', () => setTier('normal'));
+let wheelTimer;
+barEl.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return; e.preventDefault();
+  resizeTo(userScale * (e.deltaY < 0 ? 1.05 : 1 / 1.05));
+  clearTimeout(wheelTimer); wheelTimer = setTimeout(() => { savePrefs(); settleHere(); }, 140);
+}, { passive:false });
+
+/* ---------- arrastar ----------
+   passou de 6 px, vira arrasto (o clique é engolido). Enquanto arrasta, o layout segue o lado mais perto do mouse,
+   com o item que você segurou continuando embaixo do mouse. Ao soltar, o embalo decide onde ela para. */
+let mv = null, lastPt = null;   // mv: o gesto atual ({ on, anchor }), espelho do gesto do motor
+const gest = createGesture({
+  // capture:false: segurar o ponteiro já no pressionar faz o Chromium mandar o clique pra caixa da barra, e o botão
+  // de recolher (e os apps) nunca recebiam o clique. A Órbita só segura quando vira arrasto (onStart).
+  targets:wrapEl, threshold:6, capture:false,
+  accept(e){
+    if (e.target.closest?.('.grip') || !mover?.ready) return null;
+    return { anchor:e.target.closest?.('.app,.stat,.clock,.status,.fold') || null };
+  },
+  onPress(e, g){ mv = { on:false, anchor:g.data.anchor }; setPassThrough(false); },
+  onStart(e, g){
+    hideTip();
+    try { wrapEl.setPointerCapture(e.pointerId); } catch {}
+    if (!mv) mv = { on:false, anchor:g.data.anchor };
+    mv.on = true; lastPt = { x:e.screenX, y:e.screenY };
+    root.classList.add('moving');
+    if (root.classList.contains('odock')){ docked = false; applyDockState(); }
+    setFan(false);
+    if (mv.anchor?.classList.contains('app') && isC(mode)) mv.anchor = $('statusEl');
+    mover.startDrag(e, g.down);
+    clearTimeout(shrinkT);
+    follow();
+  },
+  onMove(e){ lastPt = { x:e.screenX, y:e.screenY }; mover.moveDrag(e); follow(); },
+  onEnd(g, why){ dragUp(why); },
+  // toque (sem arrastar): no botão de recolher, alterna; com a barra recolhida, qualquer toque nela abre de novo
+  onTap(e, g){ mv = null; const t = g?.target; if (t?.closest?.('.app,.grip')) return; if (t?.closest?.('.fold') || (collapsed && !isC(mode))){ foldTapAt = performance.now(); toggleCollapsed(); } },
+  onAbort(){ mv = null; },
+});
+function follow(){
+  const want = modeFor(lastPt, mode);
+  if (want !== mode) morph(want, { anchor:mv.anchor });
+  hint();
+}
+function hint(){
+  // prévia do encaixe: acende o lado da borda onde ela vai parar se soltar agora (já contando o embalo)
+  const p = mover.projected(), { w, h } = barSize();
+  // histerese: encostada (forma da borda), só vira solta 28 px depois do limiar; assim não troca duas vezes nem pisca
+  const r = restFor(p.x + pads.l, p.y + pads.t, w, h, mode, root.classList.contains('ofloat') ? 0 : 28);
+  setFloat(!r.stuck);
+  const edge = !r.stuck ? null : isC(mode) ? null : mode;
+  if (edge) root.dataset.snap = edge; else delete root.dataset.snap;
+}
+async function dragUp(why){
+  const m = mv; mv = null;
+  if (!m?.on) return;
+  root.classList.remove('moving'); delete root.dataset.snap;
+  // soltar perdido (botão já solto, foco perdido, tempo-limite): assenta onde está, sem embalo
+  const lost = why !== 'up';
+  const r = lost ? mover.cancelDrag() : mover.endDrag();
+  const vx = r?.vx || 0, vy = r?.vy || 0, tau = r?.tau || .14;
+  if (lastPt){
+    const want = modeFor({ x:lastPt.x + vx * tau, y:lastPt.y + vy * tau }, mode);
+    if (want !== mode) morph(want, { anchor:m.anchor });
+  }
+  await settleHere({ vx, vy, tau });
+}
+window.addEventListener('blur', () => { if (sizing) endSizing(); });
+addEventListener('pointerup', () => { if (sizing) endSizing(); }, true);
+let foldTapAt = 0;   // o toque já tratado pelo gesto não pode alternar de novo no clique que vem logo depois
+$('fold').addEventListener('click', () => { $('fold').blur(); if (performance.now() - foldTapAt < 500) return; toggleCollapsed(); });
+// clique duplo na barra recolhida também abre (caminho óbvio extra)
+wrapEl.addEventListener('dblclick', e => { if (collapsed && !isC(mode) && !e.target.closest?.('.grip')) { foldTapAt = performance.now(); if (collapsed) toggleCollapsed(); } });
+$('statusEl').addEventListener('click', () => { if (isC(mode)) setFan(!root.classList.contains('fan')); });
+
+/* ---------- clique passa fora do que se vê ---------- */
+let passOn = null, dialogOpen = false, passT = 0;
+function setPassThrough(on){
+  if (!desktop?.window || passOn === on) return;
+  // com o botão pressionado (mesmo antes de virar arrasto) a janela segura o mouse, pra o "soltar" não se perder
+  if (on && (mv || dialogOpen || sizing)) return;
+  passOn = on; desktop.window.setIgnoreMouseEvents(on, { forward:true }).catch(() => {});
+}
+function isHit(t){
+  if (!t?.closest) return false;
+  if (t.closest('.isl')) return true;      // a superfície da ilha também pega o mouse (dá pra arrastar por ela)
+  if (!barEl.contains(t)) return false;
+  if (t.closest('.tip')) return false;
+  if (isC(mode)) return !!t.closest('.status,.grip') || (root.classList.contains('fan') && !!t.closest('.app'));
+  if (root.classList.contains('odock') && !root.classList.contains('opeek')) return false;
+  return true;
+}
+document.addEventListener('pointermove', e => {
+  if (!root.classList.contains('bar-mode') || dialogOpen) return;
+  if (mv || sizing) return;
+  const hit = isHit(e.target), zone = fanZone(e);
+  // o "clique passa" só liga depois de 140 ms fora do que se vê (desliga na hora ao voltar): nada de ligar e desligar
+  // no meio do hover, nas frestas entre ícones ou enquanto a forma muda de tamanho embaixo do mouse
+  if (hit || zone){ clearTimeout(passT); passT = 0; setPassThrough(false); }
+  else if (!passT) passT = setTimeout(() => { passT = 0; setPassThrough(true); }, 140);
+  hoverDock(hit);
+  slimMove(e, hit);
+  if (isC(mode)){
+    // perto do núcleo (antes de chegar nele), os pontinhos já reagem
+    const hr = $('statusEl').getBoundingClientRect(), dn = Math.hypot(e.clientX - (hr.left + hr.width / 2), e.clientY - (hr.top + hr.height / 2));
+    const near = dn < hr.width / 2 + 70 * scale;
+    if (near !== root.classList.contains('near')){ root.classList.toggle('near', near); island.kick(); }
+    if (e.target.closest?.('.status')){ clearTimeout(fanT); if (!root.classList.contains('fan')) fanT = setTimeout(() => setFan(true), 70); }
+    else if (!zone && !hit){ clearTimeout(fanT); if (root.classList.contains('fan')) fanT = setTimeout(() => setFan(false), 380); }
+    else clearTimeout(fanT);
+  }
+});
+document.addEventListener('mouseleave', () => { hoverDock(false); slimLeave(); root.classList.remove('near'); island.kick(); if (isC(mode)){ clearTimeout(fanT); fanT = setTimeout(() => setFan(false), 380); } });
+
+async function withDialog(fn){
+  dialogOpen = true; setPassThrough(false);
+  const back = mover.target, d = displayFor({ x:back.x + pads.l, y:back.y + pads.t }), wa = d.workArea;
+  await mover.set({ x:Math.round(wa.x + (wa.width - 600) / 2), y:Math.round(wa.y + (wa.height - 640) / 2), width:600, height:640 });
+  try { return await fn(); }
+  finally { dialogOpen = false; await mover.set(back, { apply:() => setCssPads(pads) }); passOn = null; setPassThrough(true); }
+}
+function openPermissions(){ return withDialog(() => desktop.permissions.manage()).catch(() => toast('Abra as permissões pelo menu do artefato no app do Claude')); }
+
+/* ---------- abrir na posição salva ---------- */
+async function place(){
+  try {
+    const [ds, b] = await Promise.all([desktop.screen.getAllDisplays(), desktop.window.getBounds()]);
+    screens = ds;
+    let d = ds.find(x => x.id === (pos?.dispId ?? legacy?.dispId)) || ds.find(x => inside(x, { x:b.x + b.width / 2, y:b.y + b.height / 2 })) || ds[0];
+    const wa = d.workArea;
+    applyScale(userScale); root.classList.toggle('ofloat', !(pos ? pos.docked : true)); applyModeClasses(); refitScale();
+    const { w, h } = barSize();
+    let bx, by;
+    if (pos){ bx = wa.x + pos.fx * wa.width - w / 2; by = wa.y + pos.fy * wa.height - h / 2; }
+    else {                                                // primeira vez nesta versão: herda o lugar antigo (barra embaixo)
+      const off = legacy?.off || { x:0, y:0 };
+      bx = wa.x + (wa.width - w) / 2 + off.x; by = wa.y + wa.height - G - h - Math.max(0, off.y);
+    }
+    let r = restFor(bx, by, w, h, mode);
+    if (pos?.docked && !r.stuck){ const m = mode; r = restFor(m === 'left' ? -1e6 : m === 'right' ? 1e6 : bx, m === 'top' ? -1e6 : m === 'bottom' ? 1e6 : by, w, h, mode); r.stuck = true; }
+    remember(r, w, h);
+    const T = padsFor(mode); pads = T; setBarVars();
+    await mover.set({ x:r.x - T.l, y:r.y - T.t, width:T.l + w + T.r, height:T.t + h + T.b }, { apply:() => setCssPads(T) });
+  } catch {}
+}
+
+async function enterBar(perms){
+  let res;
+  try { res = await desktop.window.setOptions(WINDOW_OPTS); }
+  catch (e) { say(`O Windows não deixou a janela flutuar (${String(e.message).split(':')[0]}).`); return; }
+  if (res.reloading) return;
+  if (res.applied === 'next_open'){ say('Quase lá: feche a Órbita e abra de novo pelo menu Iniciar.'); return; }
+  canRun = perms['full-access'] === 'granted';
+  root.classList.add('bar-mode', 'oenter');
+  mover = createMover();
+  await mover.sync().catch(() => {});
+  await place();
+  applyDockState();
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('oenter')));
+  setPassThrough(true);
+  wrapEl.addEventListener('contextmenu', e => { e.preventDefault(); desktop.Menu.popup(barMenuItems()).catch(() => {}); });
+  if (perms['menu-bar'] === 'granted'){
+    desktop.tray.set({ icon:drawTrayIcon(), iconIsTemplate:false, toolTip:'Órbita', menu:[
+      { label:'Mostrar Órbita', click:async () => { await desktop.window.show(); place(); } },
+      { label:'Centralizar de novo', click:() => moveTo('bottom', null, .5, 1) },
+      { label:'Esconder Órbita', click:() => desktop.window.hide() },
+    ] }).catch(() => {});
+  }
+  // telas podem entrar e sair: confere de vez em quando e reposiciona se a tela salva sumiu
+  setInterval(async () => {
+    if (gest.active || mover.moving) return;
+    const ds = await desktop.screen.getAllDisplays().catch(() => null); if (!ds) return;
+    const changed = JSON.stringify(ds.map(d => d.workArea)) !== JSON.stringify(screens.map(d => d.workArea));
+    screens = ds; if (changed) place();
+  }, 5000);
+  if (!canRun) toast('Sem permissão pra abrir programas: clique direito → Permissões');
+  poll(); setInterval(poll, 2500);
+  setTimeout(anchorEco, 1500);
+}
+
+/* ---------- configuração ---------- */
+const statusEl = $('status'), actionsEl = $('actions');
+function say(msg){ statusEl.textContent = msg; }
+function button(label, onClick){ const b = document.createElement('button'); b.className = 'btn'; b.textContent = label; b.onclick = onClick; actionsEl.appendChild(b); return b; }
+function showSetup(perms){
+  actionsEl.replaceChildren();
+  if (perms?.overlay === 'denied' || perms?.['full-access'] === 'denied'){
+    say('Alguma permissão foi negada. A Órbita precisa flutuar na tela e abrir programas.');
+    button('Abrir permissões', () => desktop.permissions.manage().then(boot).catch(() => {}));
+    return;
+  }
+  say('Falta um passo: deixar a Órbita flutuar por cima das janelas, abrir programas, ficar na bandeja e ouvir os atalhos.');
+  button('Ativar a Órbita', async () => {
+    let r;
+    try { r = await desktop.permissions.request(['overlay','full-access','menu-bar','shortcuts']); }
+    catch { say('Não deu pra pedir as permissões agora. Clique de novo com a janela em primeiro plano.'); return; }
+    if (r.overlay === 'granted') enterBar(r); else showSetup(r);
+  });
+}
+async function boot(){
+  const sim = TEST && location.search.includes('sim') ? parent.__simDesktop : null;   // só no teste local
+  const use = window.claude?.use;
+  desktop = sim || (use ? await use('desktop') : null);
+  if (!desktop?.window){
+    actionsEl.replaceChildren();
+    const st = desktop?.install ? await desktop.install.state().catch(() => 'unavailable') : 'unavailable';
+    if (st === 'available'){
+      say('Instale como app pra ela flutuar na tela e abrir seus programas.');
+      button('Instalar como app', async () => {
+        const r = await desktop.install.request().catch(() => 'failed');
+        if (r === 'cancelled') say('Instalação cancelada. O botão continua aqui.');
+        else if (r !== 'installed') say('Não deu pra instalar daqui. Use "Instalar como app" no menu do artefato.');
+      });
+    } else if (st === 'installed') say('Já está instalada. Abra "Órbita" pelo menu Iniciar.');
+    else say('Pra instalar: no app do Claude, abra o menu com o nome “Órbita” no topo do artefato e escolha Instalar como app.');
+    return;
+  }
+  desktop.app.dock.setIcon(drawAppIcon()).catch(() => {});
+  const perms = await desktop.permissions.state().catch(() => null);
+  if (perms?.overlay === 'granted') enterBar(perms); else showSetup(perms);
+}
+
+/* prévia */
+setRing($('cpuR'), 'CPU', 22); setRing($('ramR'), 'RAM', 41); setTemp(34);
+renderApps(); applyScale(scale); applyModeClasses(); tickClock(); setInterval(tickClock, 15000);
+boot();
+
+// ganchos de teste (só abrindo o arquivo localmente)
+if (TEST) window.__orb = {
+  running(keys){ for (const [app, b] of buttons) b.classList.toggle('running', keys.includes(app.key)); },
+  get mode(){ return mode; }, get pads(){ return pads; }, get pos(){ return pos; },
+  seed(){ for (let i = 0; i < 35; i++){ setRing($('cpuR'), 'CPU', 12 + Math.round(Math.abs(Math.sin(i / 3)) * 40)); setRing($('ramR'), 'RAM', 44 + Math.round(Math.random() * 6)); setTemp(31 + Math.round(Math.abs(Math.sin(i / 5)) * 9)); } },
+  slow(f){ SLOW = f; },
+  get island(){ return island.state; },
+  dbg(){ return { moving:mover.moving, dragging:mover.dragging, mv:!!mv, sizing:!!sizing, size:mover.size, target:mover.target, now:mover.now, pending:pendingCss, cssPads }; }, shrink:() => shrinkWhenIdle(),
+  moveTo, setTier, get tier(){ return tier; }, async size(d, n = 14){ const g = gripEl.getBoundingClientRect(), B = parent.__B || { x:0, y:0 }; const x0 = B.x + g.left + 8, y0 = B.y + g.top + 8, a = growAxis(); sizing = { x:x0, y:y0, base:0, ax:a }; barEl.classList.add('sizing'); for (let i = 1; i <= n; i++){ sizeMove({ screenX:x0 + a.x * d * i / n, screenY:y0 + a.y * d * i / n }); await sleep(30); } }, endSize:() => endSizing(), setFan, setTemp, toggleCollapsed, toggleAutohide, setSize, setPeek,
+  /** arrasto em partes (pra fotografar no meio): begin → to(...) → end. Manda PointerEvents de verdade pro DOM. */
+  _el:null, _p:null,
+  _ev(type, p, buttons = 1){ const e = new PointerEvent(type, { bubbles:true, cancelable:true, composed:true, pointerId:99, pointerType:'mouse', isPrimary:true, button:type === 'pointermove' ? -1 : 0, buttons, screenX:p[0], screenY:p[1], clientX:p[0] - (parent.__B?.x || 0), clientY:p[1] - (parent.__B?.y || 0) }); return e; },
+  begin(p, grab = null){ this._el = grab ? document.querySelector(grab) : barEl; this._p = p; this._el.dispatchEvent(this._ev('pointerdown', p)); },
+  async to(p, n = 12, step = 16){
+    const from = this._p || p;
+    for (let i = 1; i <= n; i++){ const q = [from[0] + (p[0] - from[0]) * i / n, from[1] + (p[1] - from[1]) * i / n]; this._p = q; (this._el || document).dispatchEvent(this._ev('pointermove', q)); await sleep(step); }
+  },
+  end(){ const p = this._p; (this._el || document).dispatchEvent(this._ev('pointerup', p, 0)); return mover.settled(); },
+  /** arrasto sintético: pontos em coordenadas de tela; segura num item (seletor) */
+  async drag(points, { grab = null, step = 16 } = {}){
+    this.begin(points[0], grab);
+    for (const p of points.slice(1)){ this._p = p; this._el.dispatchEvent(this._ev('pointermove', p)); await sleep(step); }
+    await this.end();
+  },
+  get motor(){ return mover; }, gest, get grabEl(){ return $('statusEl'); },
+};
+</script>

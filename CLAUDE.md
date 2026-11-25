@@ -1,7 +1,7 @@
 # CLAUDE.md — entrada pra agentes
 
 **desklive:** um desktop vivo pro Windows 11 feito de artefatos do Claude instalados como apps de desktop transparentes (Órbita = barra de tarefas, Onda = player do Spotify, Eco = assistente).
-Este repo guarda **as regras e a receita** de como os apps são feitos (forma e interação por lado, números de motion, visual), **nunca o código-fonte**.
+Este repo guarda **as regras e a receita** de como os apps são feitos (forma e interação por lado, números de motion, visual). **Código-fonte só em [modelos/](modelos/README.md)**, como modelos limpos (sem nenhum dado pessoal); o resto da doc continua só receita, nunca código.
 Tudo em português do Brasil, informal mas claro. Leia só o nível que a tarefa pede (mapa abaixo).
 
 ## Regras inegociáveis (resumo; fonte: [regras-de-trabalho.md](regras/regras-de-trabalho.md))
@@ -24,6 +24,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 | **L3** | [referencias/](referencias/README.md) (transversal) e arquivos de detalhe dentro de `apps/<app>/` | constantes de mola, curvas, [motor](referencias/motor/README.md), shaders, fórmulas | números exatos; só abre quem vai mexer neles |
 | — | [templates/](templates/README.md), [CHANGELOG.md](CHANGELOG.md) | modelos de app e de refino, checklist; histórico do repo | ferramentas pra escrever |
 | **Guia** | [guia/](guia/README.md) | passo a passo em 7 arquivos pra outras pessoas fazerem o próprio app: janela, motor, forma por lado, hover, visual e motion, teste, doc | um caminho prático pelos níveis acima; aponta pros docs, não copia números |
+| **Código** | [modelos/](modelos/README.md) | o código dos três apps como modelos limpos (`*-src.html` + helpers + `build.ps1`), o motor e os helpers compartilhados | a única pasta com código; quem quer o app rodando monta daqui, a receita continua nos níveis acima |
 
 ## Mapa: o que ler pra cada tarefa
 
@@ -32,6 +33,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 | **Primeira vez no projeto** | [visao/](visao/README.md) → [glossário](visao/glossario.md) → [apps/](apps/README.md) |
 | **Criar um app novo** | [visao/](visao/README.md) → [regras](regras/regras-de-trabalho.md) → [padroes/](padroes/README.md) (todos) → [motion/](padroes/motion/README.md) → a [ilha do Eco](apps/eco/README.md) (o padrão mínimo) → [modelo](templates/novo-app.md) → [checklist](templates/checklist-novo-app.md) |
 | **Fazer o seu próprio app** (quem chega de fora) | [guia/](guia/README.md), nos passos 1 a 7, abrindo os links de cada passo |
+| **Começar um app a partir de um modelo** | [modelos/](modelos/README.md) → o README da pasta do app → a doc dele em [apps/](apps/README.md) |
 | **Refinar a Órbita** | [apps/orbita/](apps/orbita/README.md) → [refinos](apps/orbita/refinos.md) → o arquivo de [motion/](padroes/motion/README.md) do assunto |
 | **Refinar a Onda** | [apps/onda/](apps/onda/README.md) → [refinos](apps/onda/refinos.md) → [onda-e-cor](apps/onda/onda-e-cor.md) se for a onda ou a cor → motion do assunto |
 | **Refinar o Eco** | [apps/eco/](apps/eco/README.md) → [refinos](apps/eco/refinos.md) → [marca-webgl](apps/eco/marca-webgl.md) se for a marca → motion do assunto |
@@ -53,7 +55,8 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
   - é número exato transversal (mola, curva, motor) → `referencias/`;
   - shader ou fórmula de um app só → arquivo L3 na pasta do app (ex.: `marca-webgl.md`); se dois apps passarem a usar, sobe pra `referencias/<tema>/`;
   - regra nova ("isso é regra") → na memória do Claude; o dreamer traz pra `regras/`.
-- **Todo refino (R22):** atualize os números no doc certo **e** adicione uma entrada em `apps/<app>/refinos.md` ([modelo](templates/registro-de-refino.md)) **e** uma linha no [CHANGELOG.md](CHANGELOG.md). Só a receita, nunca código.
+- **Todo refino (R22):** atualize os números no doc certo **e** adicione uma entrada em `apps/<app>/refinos.md` ([modelo](templates/registro-de-refino.md)) **e** uma linha no [CHANGELOG.md](CHANGELOG.md). Nos docs, só a receita, nunca código.
+- **Modelos de código (`modelos/`):** pra atualizar um modelo, copie o fonte novo pra `modelos/<app>/`, **limpe de novo** (veja Segurança), confira que o `build.ps1` monta sem sobrar marcador, anote a versão no README da pasta e adicione uma linha no CHANGELOG. O HTML montado nunca entra no repo (`modelos/saida/` está no `.gitignore`).
 - **App novo:** `apps/<nome>/` (minúsculo, sem acento, sem espaço) com `README.md` do [modelo](templates/novo-app.md) e `refinos.md`; linha em [apps/README.md](apps/README.md) e neste mapa.
 - **Nomes:** arquivos em minúsculo, `kebab-case`, sem acento, nome do assunto (`sensor-de-borda-e-encaixe.md`). Pasta = `README.md` como índice.
 - **Arquivos pequenos:** um assunto por arquivo, alvo de até ~80 linhas. Passou disso, divida por assunto, deixe o índice da pasta apontando, e **não perca nenhum número**.
@@ -64,4 +67,4 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 
 ## Segurança
 
-O repo é **público** no GitHub. Nunca entram: tokens, chaves, client IDs, segredos do Spotify ou de qualquer API, e-mails, nomes de usuário, caminhos pessoais (`C:\Users\...`), nem código-fonte dos apps. Confira o diff antes de todo commit.
+O repo é **público** no GitHub. Nunca entram: tokens, chaves, client IDs, segredos do Spotify ou de qualquer API, e-mails, nomes de usuário, caminhos pessoais (`C:\Users\...`), links e IDs de artefato, AppIDs de apps instalados como artefato, nem código-fonte dos apps **fora de `modelos/`**. Em `modelos/`, o código entra só limpo: Client ID como `SEU_CLIENT_ID` (vem de um `config.json` ignorado), lista de apps só com apps do Windows, nada de músicas, preferências ou histórico de ninguém, exemplos genéricos. Antes de commitar em `modelos/`, procure (sem diferenciar maiúsculas) por nome de usuário, `C:\Users`, `@`, `claude.ai/artifact`, `ArtifactApp`, `token`, `refresh` e sequências de 32 caracteres hexadecimais, e explique cada resultado. Confira o diff antes de todo commit.

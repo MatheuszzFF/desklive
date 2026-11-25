@@ -1,0 +1,4 @@
+# HTMLs montados pelos build.ps1: nunca entram no repo
+saida/
+# o Client ID de cada pessoa fica só na máquina dela
+onda/config.json

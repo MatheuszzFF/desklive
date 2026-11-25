@@ -27,7 +27,9 @@
 | **ilha dinâmica** | a Órbita fina em cima: só a hora e três pontinhos, que abre a partir do meio com o mouse em cima | [degrau mínimo da Órbita](../apps/orbita/degrau-minimo.md) |
 | **ímã** | o puxão que encaixa o app na borda, no canto ou no meio da borda; só age ao soltar | [sensor de borda](../padroes/motion/sensor-de-borda-e-encaixe.md) |
 | **marca** | a identidade viva de um app (a do Eco é a forma líquida em WebGL) | [marca WebGL](../apps/eco/marca-webgl.md) |
+| **marcador** | comentário no `*-src.html` de um modelo (`/*MOTOR*/`, `/*HELPER*/''`…) que o `build.ps1` troca pelo motor, pelos helpers ou pelos ícones na **montagem** | [modelos](../modelos/README.md) |
 | **matriz de formas** | a tabela lugar × degrau × estado (repouso, prévia, aberto) que todo app preenche, cada célula com forma e interação próprias | [modelo de app](../templates/novo-app.md), [guia, passo 3](../guia/03-forma-por-lado.md) |
+| **modelo (código)** | o código-fonte limpo de um app em `modelos/<app>/`, pronto pra montar num HTML só e publicar; não confundir com os modelos de doc de `templates/` | [modelos](../modelos/README.md) |
 | **mola** | oscilador massa-mola (k, ζ) que move tudo; no CSS vira curva `linear()` | [motion](../padroes/motion/README.md), [molas](../referencias/motion/molas.md) |
 | **motor** | `motor.js`, o mesmo nos três apps: física da janela, embalo, gesto, commit | [referencias/motor](../referencias/motor/README.md) |
 | **ombros côncavos** | as curvas invertidas que ligam a forma à borda nas pontas | [fusão com a borda](../padroes/motion/fusao-com-a-borda.md) |

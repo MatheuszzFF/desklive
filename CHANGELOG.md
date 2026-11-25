@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Modelos: o código dos três apps, limpo
+- **Novo:** [modelos/](modelos/README.md), a única pasta com código: Órbita v28, Onda v19 e Eco v24 como `*-src.html` + helpers + `build.ps1` portátil (caminhos relativos, saída em `modelos/saida/`, ignorada), e em [compartilhado/](modelos/compartilhado/README.md) o motor v2.2, os helpers usados por mais de um app e as funções da montagem (os ícones são extraídos na máquina de quem monta). Sem dados pessoais: Client ID do Spotify como `SEU_CLIENT_ID` vindo de `onda/config.json` (ignorado), lista de apps só com apps do Windows, exemplos genéricos.
+- **Atualizado:** [CLAUDE.md](CLAUDE.md) (código só em `modelos/`, linha nos níveis e no mapa, como atualizar um modelo, o que procurar antes de commitar), [README](README.md), [guia](guia/README.md) (o que não tem aqui) e [glossário](visao/glossario.md) (marcador, modelo).
+
 ### Onda v19: remontada com o motor v2.2
 - **Atualizado:** [refinos da Onda](apps/onda/refinos.md) e o "Testado" da [Onda](apps/onda/README.md) (teto na troca de forma: 55 %; 16 arrastos em 57–1250 ms numa aba visível; zigue-zague com 2 trocas; freio sem batida na parede).
 
