@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Cliques dentro da área de arrasto (v16)
+- **Pedido:** conferir na Onda o bug achado na Órbita (captura do ponteiro no pressionar engolindo o clique dos botões).
+- **Onde:** tudo que fica dentro da área de arrasto: a capa (clique troca de degrau), o play sobre a capa, o nome em pé (clique abre a expandida).
+- **Antes → depois:** o gesto do motor segurava o ponteiro já no pressionar (no player), então o clique ia pro player e a capa, o nome em pé e o play da capa não respondiam (confirmado no simulador: clique na capa não trocava de degrau). Agora o gesto é criado **sem captura** e só segura o ponteiro quando vira arrasto (passou de 5 px). Os botões normais, a onda, as barras, a alça e a lista nunca entram no gesto, como antes.
+- **Por quê:** a mesma armadilha que prendeu a Órbita recolhida ([bugs evitados](../../referencias/motor/bugs-evitados.md)).
+- **Docs atualizados:** este registro e o [CHANGELOG](../../CHANGELOG.md).
+- **Testado:** 11 cliques reais no simulador (navegador do app, tela emulada de 1600 × 900), todos certos: play da capa, clique na capa (compacta → expandida), próxima e play nos controles, arrastar pela capa move a janela sem trocar de degrau, alça (compacta → grande), deslizar na coluna (progresso 18% → 73%, janela parada), próxima nos controles da coluna, clique no nome em pé, girar o vinil 90° (sem mover nem trocar de degrau), play nos controles do arco e clique no fio da base (pula pra 75%). **Não testado:** no app instalado.
+- **Regras:** R19, R22.
+
 ## 2026-11-25 — Arrasto sem trancos (motor v2.1, v15)
 - **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela).
 - **Onde:** o arrasto e o assentar, em todos os lados.

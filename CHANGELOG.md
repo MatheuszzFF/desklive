@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v16: cliques dentro da área de arrasto
+- **Atualizado:** [refinos da Onda](apps/onda/refinos.md) e [bugs evitados](referencias/motor/bugs-evitados.md) (a mesma correção da Órbita: captura só ao virar arrasto; capa, nome em pé e play da capa voltam a responder).
+
 ### Órbita v25: barra recolhida que não abria
 - **Atualizado:** [refinos da Órbita](apps/orbita/refinos.md) e [bugs evitados](referencias/motor/bugs-evitados.md) (capturar o ponteiro no pressionar engolia o clique dos botões; agora só ao virar arrasto).
 
