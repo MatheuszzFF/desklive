@@ -12,6 +12,10 @@ Este repositório é o livro de receitas: as regras e **como** cada app é feito
 | **Onda** | Player do Spotify, com capa, onda que reage ao som e controle pela Web API | [apps/onda/](apps/onda/README.md) |
 | **Eco** | Assistente (Claude Haiku 5.5) com uma forma líquida em WebGL | [apps/eco/](apps/eco/README.md) |
 
+## Fazer o seu próprio app
+
+Quer um app assim no seu desktop? O [guia](guia/README.md) é o passo a passo em 7 arquivos curtos: a janela transparente, o arrasto com física, uma forma e uma interação por lado, hover estável, visual e motion, testar sem mexer no PC e documentar. Cada passo aponta pros docs detalhados daqui.
+
 ## Como a doc é organizada
 
 Em níveis, do geral pro específico:

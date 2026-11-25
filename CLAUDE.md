@@ -23,6 +23,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 | **L2** | [apps/](apps/README.md) | uma pasta por app: `README.md` (visão geral), arquivos de detalhe, `refinos.md` | escala: app novo = pasta nova, sem mexer nas outras |
 | **L3** | [referencias/](referencias/README.md) (transversal) e arquivos de detalhe dentro de `apps/<app>/` | constantes de mola, curvas, [motor](referencias/motor/README.md), shaders, fórmulas | números exatos; só abre quem vai mexer neles |
 | — | [templates/](templates/README.md), [CHANGELOG.md](CHANGELOG.md) | modelos de app e de refino, checklist; histórico do repo | ferramentas pra escrever |
+| **Guia** | [guia/](guia/README.md) | passo a passo em 7 arquivos pra outras pessoas fazerem o próprio app: janela, motor, forma por lado, hover, visual e motion, teste, doc | um caminho prático pelos níveis acima; aponta pros docs, não copia números |
 
 ## Mapa: o que ler pra cada tarefa
 
@@ -30,6 +31,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 |---|---|
 | **Primeira vez no projeto** | [visao/](visao/README.md) → [glossário](visao/glossario.md) → [apps/](apps/README.md) |
 | **Criar um app novo** | [visao/](visao/README.md) → [regras](regras/regras-de-trabalho.md) → [padroes/](padroes/README.md) (todos) → [motion/](padroes/motion/README.md) → a [ilha do Eco](apps/eco/README.md) (o padrão mínimo) → [modelo](templates/novo-app.md) → [checklist](templates/checklist-novo-app.md) |
+| **Fazer o seu próprio app** (quem chega de fora) | [guia/](guia/README.md), nos passos 1 a 7, abrindo os links de cada passo |
 | **Refinar a Órbita** | [apps/orbita/](apps/orbita/README.md) → [refinos](apps/orbita/refinos.md) → o arquivo de [motion/](padroes/motion/README.md) do assunto |
 | **Refinar a Onda** | [apps/onda/](apps/onda/README.md) → [refinos](apps/onda/refinos.md) → [onda-e-cor](apps/onda/onda-e-cor.md) se for a onda ou a cor → motion do assunto |
 | **Refinar o Eco** | [apps/eco/](apps/eco/README.md) → [refinos](apps/eco/refinos.md) → [marca-webgl](apps/eco/marca-webgl.md) se for a marca → motion do assunto |
