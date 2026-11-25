@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v19: remontada com o motor v2.2
+- **Atualizado:** [refinos da Onda](apps/onda/refinos.md) e o "Testado" da [Onda](apps/onda/README.md) (teto na troca de forma: 55 %; 16 arrastos em 57–1250 ms numa aba visível; zigue-zague com 2 trocas; freio sem batida na parede).
+
 ### Eco v24: motor v2.2, amassado no meio do arrasto, união das trocas
 - **Atualizado:** [interação do Eco](apps/eco/interacao.md) (esticar e amassado somados numa matriz, direção suavizada), [formas e degraus do Eco](apps/eco/formas-e-degraus.md) (união antes + depois medida: 69 %) e [refinos do Eco](apps/eco/refinos.md).
 

@@ -6,6 +6,21 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Remontada com o motor v2.2 (v19)
+- **Pedido:** remontar com o motor v2.2 ([tamanho e borda](../../referencias/motor/tamanho-e-borda.md)) e conferir o teto na troca de forma, o amassado ao bater na parede, os 16 arrastos e o zigue-zague.
+- **Onde:** só a montagem; nenhum número da Onda mudou.
+- **Antes → depois:** motor v2.1 → v2.2 (escorregar na parede, trava por eixo, freio de aproximação, amassado ao bater). O `f.over` (levar a capa até a beira) não foi usado: a Onda já encosta a 16 px da borda pelo `G`.
+- **Por quê:** o motor novo resolve o "não arrasta pros lados" no grande e as batidas secas.
+- **Docs atualizados:** este registro, o "Testado" do [README](README.md) e o [CHANGELOG](../../CHANGELOG.md).
+- **Testado:**
+  - **troca de degrau** (mínima ↔ grande, solta e nas quatro bordas, 1920 × 1080): a janela mais alta, já com a união de antes + depois, ficou em **597 px (55 %)**, dentro dos 90 %;
+  - **16 arrastos** (4 degraus × esquerda, direita, cima e baixo), numa aba **visível** (1920 × 991): todos chegam a ≤ 1 px do pedido e assentam em **57–1250 ms**, com a janela dentro da tela;
+  - **zigue-zague** no limiar da borda direita: **2 trocas** (linha → coluna → linha);
+  - **parede:** arrastando a 8577 px/s contra a borda direita, o freio agiu (764 vezes) e a Onda chegou mansa, sem batida (`bump` 0) — é o esperado; quando houver batida forte, o `feel` da Onda já desenha o amassado (`--sx = 1 − bump × 0,05` na direção da borda).
+  - **Atenção pra quem testar:** com o painel do navegador escondido, o relógio de animação anda ~1 vez por segundo e o motor parece "assentando" por 10 s. Meça sempre numa aba visível.
+  - **Não testado:** no app instalado.
+- **Regras:** R7, R9, R19, R22.
+
 ## 2026-11-25 — Teto de tamanho, hover refinado e assentar estável (v18)
 - **Pedido:** "Refinar as interações e os efeitos de hover"; "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; movimentos "muito bem feitos, sem bugar", principalmente ao colar e descolar da borda; documentação que outros possam usar.
 - **Onde:** coluna grande e faixa grande (tamanho); hover e toque em todas as formas; o assentar perto das bordas.
