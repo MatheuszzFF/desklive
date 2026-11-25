@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Captura do ponteiro só ao virar arrasto (v21)
+- **Pedido:** conferir no Eco o bug achado na Órbita v24 (o gesto do motor v2.1 capturava o ponteiro já ao pressionar, e os botões dentro da área de arrasto não recebiam o clique).
+- **Onde:** o gesto da marca (solta) e da forma presa em repouso ou na prévia (ilha, espinha, barra, quarto).
+- **Antes → depois:** a captura acontecia no pressionar e agora acontece **só quando o gesto vira arrasto (4 px)**, como na Órbita e na Onda. O toque sem arrastar continua sendo tratado pelo próprio gesto (abre e fecha). No Eco, a marca e a forma não têm botões dentro, e as sugestões do arco, o campo, as abas do histórico e a alça são elementos à parte; então o bug não aparecia aqui, e a mudança é preventiva, pra seguir a regra.
+- **Por quê:** a regra de [bugs evitados](../../referencias/motor/bugs-evitados.md): em alvo de arrasto, nunca capturar no pressionar.
+- **Docs atualizados:** este registro.
+- **Testado:** no simulador, com eventos de ponteiro: o clique na marca solta abre e fecha; o clique na forma em repouso abre no topo, na lateral, embaixo e no canto; as sugestões ficam visíveis e clicáveis; a sugestão do arco é o próprio elemento no ponto do clique (fora da forma arrastável); pressionado sem mover não captura; o arrasto continua movendo a janela. Os 15 testes de estresse do motor passam (2 pulados por ter um monitor só). **Não testado:** clique físico no app instalado.
+- **Regras:** R19, R22.
+
 ## 2026-11-25 — Arrasto sem trancos e sem parede (motor v2.1, v20)
 - **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela; era o Eco).
 - **Onde:** o arrasto em qualquer lugar; a chegada nas bordas e nos cantos.

@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Eco v21: captura do ponteiro só ao virar arrasto
+- **Atualizado:** [refinos do Eco](apps/eco/refinos.md) (a mesma regra da Órbita e da Onda, preventiva: no Eco a marca e a forma não têm botões dentro, e todos os cliques foram conferidos).
+
 ### Onda v16: cliques dentro da área de arrasto
 - **Atualizado:** [refinos da Onda](apps/onda/refinos.md) e [bugs evitados](referencias/motor/bugs-evitados.md) (a mesma correção da Órbita: captura só ao virar arrasto; capa, nome em pé e play da capa voltam a responder).
 
