@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Arrasto sem trancos e sem parede (motor v2.1, v20)
+- **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela; era o Eco).
+- **Onde:** o arrasto em qualquer lugar; a chegada nas bordas e nos cantos.
+- **Antes → depois:** um `setBounds` por quadro, até 5 em voo (antes um de cada vez, ~15 por segundo no app). Empurrando contra a borda, a marca agora anda até **22 px** dentro da janela, com resistência `22·(1 − e^(−passou/22))`, e chega na beira da tela; antes parava 24 px antes. Ao soltar, esse deslocamento passa pra mola do `.rig` (k 260) e volta sem pulo. O repouso vivo da v19 não mudou.
+- **Por quê:** na gravação, a janela ficava parada em 43–63% dos quadros, com saltos de até 540 px, e a marca "batia" antes da borda de baixo.
+- **Docs atualizados:** [motor de movimento](../../referencias/motor/motor-de-movimento.md), [bugs evitados](../../referencias/motor/bugs-evitados.md).
+- **Testado:** 15 testes no simulador com ~60 ms de atraso, todos passando; janela parada no arrasto lento: 28% (v2 no mesmo teste: 100%); empurrado contra a borda de baixo, a marca chega em 1080 px. **Não testado:** no app instalado.
+- **Regras:** R7, R10, R19, R20.
+
 ## 2026-11-25 — Repouso vivo e único em cada lado (v19)
 - **Pedido:** "os tamanhos mínimos dos apps precisam ser trabalhados bem feito também, e também tem que ser único e interativo".
 - **Onde:** o repouso (fechado) de cada forma: ilha, espinha, barra, quarto de órbita e a pílula solta.

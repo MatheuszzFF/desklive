@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Motor v2.1: arrasto sem trancos (Órbita v24, Onda v15, Eco v20)
+- **Atualizado:** [motor de movimento](referencias/motor/motor-de-movimento.md) (envio com até 5 `setBounds` em voo, o porquê medido numa gravação da tela, o "passou da tela", a conferência com o Windows ao assentar, a espera do `resize` em 100 ms, o testado com ~60 ms de atraso), [bugs evitados](referencias/motor/bugs-evitados.md) (seção "achados no app instalado"), [motor](referencias/motor/README.md) e o `refinos.md` dos três apps.
+
 ### Eco v19: repouso vivo e único em cada lado
 - **Atualizado:** [apps/eco/README.md](apps/eco/README.md) (seção "Repouso": ilha que respira e incha, espinha com feixe de luz e marca que desliza, barra com cursor piscando, quarto de órbita com anel e satélite, solta que olha pro mouse, ponto de resposta nova; seção "Testado") e [apps/eco/refinos.md](apps/eco/refinos.md).
 

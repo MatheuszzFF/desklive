@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Arrasto sem trancos (motor v2.1, v15)
+- **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela).
+- **Onde:** o arrasto e o assentar, em todos os lados.
+- **Antes → depois:** um `setBounds` por quadro, até 5 em voo, em vez de esperar a volta do anterior (~50–70 ms no app). Ao assentar, a posição real é conferida com o Windows. A caixa `LR` continua indo junto com o CSS (um commit com CSS espera o anterior entrar). Nada das formas ou do degrau mínimo mudou.
+- **Por quê:** na gravação, a janela ficava parada em 43–63% dos quadros do arrasto, com saltos de 90–540 px.
+- **Docs atualizados:** [motor de movimento](../../referencias/motor/motor-de-movimento.md), [bugs evitados](../../referencias/motor/bugs-evitados.md).
+- **Testado:** 15 testes no simulador com ~60 ms de atraso, todos passando, sem nenhum quadro com o conteúdo fora do lugar; janela parada no arrasto lento: 38%. **Não testado:** no app instalado.
+- **Regras:** R7, R10, R19.
+
 ## 2026-11-25 — Mínimo único em cada borda e canto (v14)
 - **Pedido:** "os tamanhos minimos dos apps precisam ser trabalhados bem feito também, e também tem que ser único e interativo".
 - **Onde:** degrau mínimo na coluna (laterais), na faixa (topo), na prateleira (base) e no quarto de disco (cantos). A solta não mudou.

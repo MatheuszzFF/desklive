@@ -17,3 +17,11 @@
 | Passa do ponto ~45 px ao parar de repente | motor novo (achado no teste) | previsão do mouse longa demais (40 ms) | previsão de no máximo 1 quadro, que some em mais 1 |
 | Clique que vira arrasto e vice-versa | os três | limiares diferentes e o clique engolido com `setTimeout 0` | limiar por app + 2,5 px se segurou > 220 ms; o arrasto engole o clique por 400 ms (por tempo, não por timer) |
 | Ímã puxando sem arrasto | — | — | o encaixe só é calculado ao soltar ou por comando; parado, o motor não envia nada (teste: zero `setBounds` e zero deriva em 0,9 s parado) |
+
+## Achados no app instalado (gravação da tela, v2 → v2.1)
+
+| Bug | Onde aparecia | Causa | Como é evitado |
+|---|---|---|---|
+| Arrasto aos trancos ("trava frame"): janela parada em 43–63% dos quadros e saltos de 90–540 px | os três, no app instalado (o simulador com 4–12 ms de atraso não mostrava) | o `setBounds` real leva ~50–70 ms pra voltar e o motor só mandava o próximo depois da volta (mais 1 quadro de espera): ~15 movimentos por segundo | um `setBounds` por quadro sem esperar a volta, até 5 em voo; o simulador agora usa ~60 ms aplicados na ordem e mede a % de quadros com a janela parada (100% → 28–38%) |
+| "Bate numa parede" perto da borda | Eco (gravação: perto da borda de baixo) | a janela de 112 px tem 24 px de folga em volta da marca e o Windows não deixa a janela sair da tela: a marca parava 24 px antes da borda | o motor informa quanto o mouse passou da tela e o Eco leva a marca até a beira dentro da janela (até 22 px, com resistência); ao soltar, isso vira a mola do `.rig` |
+| Posição do motor ≠ real se a trava do Windows for diferente da do motor (ex.: na emenda) | — (prevenção) | o motor só imita a trava; não sabe se o host prende por monitor | ao assentar, o motor lê a posição real (`getBounds`) e corrige a lógica |

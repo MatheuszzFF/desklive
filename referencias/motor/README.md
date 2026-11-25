@@ -2,7 +2,7 @@
 
 > L3 · referência. **Toda doc do motor e do motor de arrasto mora nesta pasta.** Uma seção ou versão nova do motor (ex.: "Motor de movimento", v3) entra aqui como arquivo novo (`motor-v3.md`, `arrasto.md`…) e ganha uma linha na tabela no fim. As molas que ele usa estão em [referencias/motion/molas.md](../motion/molas.md); o que cada app faz com o que ele entrega está em [sentir-o-arrasto.md](../../padroes/motion/sentir-o-arrasto.md).
 
-Descreve o motor v2 final (25/11/2026), publicado na Órbita v22, na Onda v13 e no Eco v18. A seção completa (estados, molas, limiares, envio por quadro, commit de tamanho) está em [motor-de-movimento.md](motor-de-movimento.md); os bugs que ele evita, em [bugs-evitados.md](bugs-evitados.md).
+Descreve o motor v2.1 (25/11/2026), publicado na Órbita v24, na Onda v15 e no Eco v20 (o v2 foi a Órbita v22, a Onda v13 e o Eco v18). A seção completa (estados, molas, limiares, envio por quadro, commit de tamanho) está em [motor-de-movimento.md](motor-de-movimento.md); os bugs que ele evita, em [bugs-evitados.md](bugs-evitados.md).
 
 Um motor só, igual nos três apps, injetado no lugar do marcador `/*MOTOR*/` na hora de montar cada app. Ele cuida de três coisas:
 - **Física:** as [molas](../motion/molas.md). Arrastando, a janela persegue o mouse numa mola crítica (k 1500) com *feed-forward*: a velocidade do mouse entra no termo de amortecimento (`c·(v_mouse − v)`), então em velocidade constante não há atraso. O *feed-forward* é suavizado (fator 0,5). Entre dois eventos, o alvo é previsto por no máximo 1 quadro (17 ms), e a previsão some em mais 17 ms: com o mouse parado, a janela assenta no ponto exato, sem passar.

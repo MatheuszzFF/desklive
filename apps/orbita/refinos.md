@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Arrasto sem trancos (motor v2.1, v24)
+- **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela).
+- **Onde:** o arrasto e o assentar, em todos os lados.
+- **Antes → depois:** o motor mandava um `setBounds` só depois que o anterior voltava (~50–70 ms no app), e a janela andava ~15 vezes por segundo, aos saltos. Agora manda um por quadro, até 5 em voo. Ao assentar, confere a posição real com o Windows. Nada da forma, do degrau mínimo ou da interação da Órbita mudou.
+- **Por quê:** na gravação, a janela ficava parada em 43–63% dos quadros do arrasto, com saltos de 90–540 px.
+- **Docs atualizados:** [motor de movimento](../../referencias/motor/motor-de-movimento.md), [bugs evitados](../../referencias/motor/bugs-evitados.md), [motor](../../referencias/motor/README.md).
+- **Testado:** 15 testes no simulador com ~60 ms de atraso, todos passando; janela parada durante o arrasto lento: 36% (v2 no mesmo teste: 100%). **Não testado:** no app instalado.
+- **Regras:** R7, R10, R19.
+
 ## 2026-11-25 — Degrau mínimo vivo por lado (v23)
 - **Pedido:** "os tamanhos minimos dos apps precisam ser trabalhados bem feito também, e também tem que ser único e interativo".
 - **Onde:** o degrau fina, em cada lado e canto.
