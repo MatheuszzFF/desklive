@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Barra recolhida não abria (v25)
+- **Pedido:** "man n to conseguindo abrir a orbita n ta aparecendo" (só aparecia uma corcova escura embaixo, com um "‹" dentro).
+- **Onde:** o estado recolhido (setinha), em qualquer lado deitado ou de coluna; também protege o clique nos apps.
+- **Antes → depois:** o gesto do motor v2.1 segurava o ponteiro já no pressionar, e o clique no "‹" ia pra caixa da barra; agora a Órbita só segura o ponteiro quando o gesto vira arrasto (limiar continua 6 px). Caminhos pra abrir a barra recolhida: clique no "‹", **toque em qualquer ponto da barra recolhida** e **clique duplo** nela. Um toque já tratado não alterna de novo no clique que chega até 500 ms depois.
+- **Por quê:** a barra ficava presa recolhida, sem saída; o estado recolhido fica salvo, então ela reabria assim.
+- **Docs atualizados:** [bugs evitados](../../referencias/motor/bugs-evitados.md) (o bug e a regra pra todo app).
+- **Testado:** no simulador de mesa, com cliques reais dentro do navegador embutido (não o mouse do PC): na v24, clicar no "‹" (confirmado por `elementFromPoint` que o clique caía no botão) não abria; na v25, o mesmo clique abre. O arrasto continua funcionando e termina limpo. **Não testado:** o app instalado e o clique nos apps nele.
+- **Regras:** R19, R22.
+
 ## 2026-11-25 — Arrasto sem trancos (motor v2.1, v24)
 - **Pedido:** "muito travado e sem liberdade… fica batendo numa parede e às vezes fica travando frame" (com uma gravação da tela).
 - **Onde:** o arrasto e o assentar, em todos os lados.
