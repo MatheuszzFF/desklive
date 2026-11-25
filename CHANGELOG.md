@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v18: teto de tamanho, hover refinado e assentar estável
+- **Novo:** [apps/onda/formas-e-degraus.md](apps/onda/formas-e-degraus.md) e [apps/onda/interacao.md](apps/onda/interacao.md) (o README da Onda virou índice + resumo, com ordem de leitura pra quem quer reproduzir).
+- **Atualizado:** [refinos da Onda](apps/onda/refinos.md) (coluna e faixa grandes dentro do teto, efeitos de hover e toque, corte da janela contra o destino) e [bugs evitados](referencias/motor/bugs-evitados.md).
+
 ### Eco v22: seleção só no conteúdo, camadas, sem sobra de espaço e hover estável
 - **Atualizado:** [Eco](apps/eco/README.md) (tamanhos do grande pelo conteúdo, prévia da espinha de 230 px, hover pela geometria), [refinos do Eco](apps/eco/refinos.md), [hover e balões](padroes/hover-e-baloes.md) (dentro/fora pela geometria, relógio da prévia que conta da chegada, exceção de seleção pro conteúdo, sem sobra de área vazia medindo na largura de destino) e [bugs evitados](referencias/motor/bugs-evitados.md) (prévia que não abria com o mouse andando, "clique passa" piscando, grande com área vazia).
 

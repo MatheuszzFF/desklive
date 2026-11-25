@@ -6,6 +6,19 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Teto de tamanho, hover refinado e assentar estável (v18)
+- **Pedido:** "Refinar as interações e os efeitos de hover"; "quando aumenta o tamanho, a área que ele cobre da tela fica alta demais, e por isso não dá pra arrastar ele pros lados"; movimentos "muito bem feitos, sem bugar", principalmente ao colar e descolar da borda; documentação que outros possam usar.
+- **Onde:** coluna grande e faixa grande (tamanho); hover e toque em todas as formas; o assentar perto das bordas.
+- **Antes → depois:**
+  - coluna grande: capa de 210 e fila de 200 (614 de altura, janela ~66 % da tela) → capa de 150 e fila de 156 (498; janela 274 × 594, 55 %);
+  - faixa grande: 1160 de largura (janela ~65 %) → capa de 130, onda de 440, fila de 220 × 140 (1044; janela 1108 × 212, 58 %);
+  - hover: capa cresce 3,5 %, botões 7 %, barras com brilho × 1,18, bolinha da onda 1,4 ×, contorno do corpo fundido 7,5 % → 14,5 %; pressionar: capa 96,5 %, botões 90 %;
+  - corte da janela na tela: contra a posição atual (mudava a cada quadro e o motor ficava "assentando" pra sempre na coluna da direita) → contra o destino.
+- **Por quê:** janela alta demais nos degraus grandes; o assentar travado era um bug real achado no teste.
+- **Docs atualizados:** README reorganizado em índice + [formas e degraus](formas-e-degraus.md) + [interação](interacao.md); [bugs evitados](../../referencias/motor/bugs-evitados.md).
+- **Testado** (simulador a 1920 × 1080): 20 casos de degrau × lugar assentando em 0,8–1,9 s dentro do teto; 16 arrastos (4 degraus × 4 direções) chegando exatos; zigue-zague no limiar da borda direita com 2 trocas de forma; prints da coluna grande e da faixa grande. **Não testado:** no app instalado; montado com o `motor.js` atual (o motor novo ainda não).
+- **Regras:** R7, R9, R19, R20, R22, R23.
+
 ## 2026-11-25 — Quarto de disco proporcional, pega clara e hover estável (v17)
 - **Pedido:** "o comportamento de hover [ta] bem bugado ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele" (vídeo da Onda no canto de cima à direita).
 - **Onde:** quarto de disco em todos os degraus; clique na capa; hover e "clique passa" em todas as formas; a janela no meio das trocas.
