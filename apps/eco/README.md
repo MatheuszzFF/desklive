@@ -40,6 +40,16 @@ A marca muda de escala com o estado: 0,55 a 0,6 em repouso, 0,62 a 0,7 na prévi
 - **Quarto de órbita (cantos), arco que gira:** as três sugestões saem do canto num arco de raio `ORBIT = 124` (levemente oval, × 1,4 na vertical), nos ângulos 46° ± 28°. O arco **gira até o ângulo do mouse**, limitado a 40–52° pra caber na tela, e a sugestão mais perto (a menos de 120 px) cresce 8 % e esquenta a borda.
 - **Solta:** clique na marca abre a pílula, que cresce pro lado de dentro da tela. Na metade de cima, a conversa **desce**, com a mais nova perto do campo e o sumiço na ponta de baixo.
 
+### Repouso (tamanho mínimo): vivo e único em cada lado
+A janela em repouso tem **36 px de folga** em volta da forma. Nessa folga o Eco sente o mouse chegando antes da prévia abrir: `--near = clamp(1 − distância até a forma / 36, 0, 1)`. Tudo anda nas molas de sempre (`--sp2`, .45 s pro inchar).
+- **Ilha (topo):** respira na largura (escala 1 → **1,05** a cada **5,6 s**). Com o mouse chegando, **incha pra baixo até 18 %** (`1 + near × 0,18`, presa no topo) e se inclina pra ele (o ímã de cima).
+- **Espinha (laterais):** um **feixe de luz** de 48 px (laranja a 20 %) desce pela espinha a cada **4,6 s**. Com o mouse chegando, a **marca desliza até a altura dele** (sempre a 22 px das pontas) e a espinha **estufa pra fora até 30 %**, presa na borda.
+- **Barra (embaixo):** um **cursor de 2 × 13 px pisca** (1,1 s) no fim do traço, como um campo esperando. O traço se estica até o mouse e a barra **estica até 14 %** a partir do ponto do mouse.
+- **Quarto de órbita (cantos):** um **anel de raio 70 px** em volta da quina, com um **satélite de 6 px** que varre **±40°** em volta da diagonal pra dentro da tela (6 s, vai e volta). Com o mouse chegando, o satélite **vai até o ângulo dele** (.35 s), o anel cresce 8 % e o quarto 15 %.
+- **Solta, fechada:** a marca **olha pro mouse**: anda até **6 px** na direção dele, a partir de 14 px de distância do centro e com o máximo a 48 px.
+- **Resposta nova com o Eco fechado:** um **ponto quente de 7 px** pulsa (1,8 s) na forma de qualquer lado: à direita na ilha e na barra, embaixo na espinha, na ponta de dentro do quarto. Some ao abrir.
+- Com o mouse longe (ou fora da janela), tudo volta: `--near` 0, a marca da espinha ao centro, o satélite de volta à varredura.
+
 ### Degraus e alça
 - Três degraus: **só a marca** (fechado), **médio** (pílula com a conversa) e **grande** (painel com o histórico de conversas).
 - A alça é um canto curvo de 15 px (solta, embaixo e nos cantos) ou uma barrinha de 32 × 4 px no lado de dentro (topo e laterais), e cresce pra 46 px com hover.
@@ -54,7 +64,10 @@ A marca muda de escala com o estado: 0,55 a 0,6 em repouso, 0,62 a 0,7 na prévi
 
 ## Testado
 
-Ainda não registrado neste doc. O teste é no simulador `eco-sim.html` (localhost, gancho `window.__eco`), nunca no mouse do PC (R19). O próximo refino preenche esta seção: o que foi conferido por print (cada lado e canto, em repouso, com o mouse em cima e aberto) e o que ficou "não testado" no app instalado.
+O teste é no simulador `eco-sim.html` (localhost, gancho `window.__eco`, com relógio de 60 Hz), nunca no mouse do PC (R19). O mouse é simulado pelo gancho `pointer(x, y)`.
+- **Conferido por print (v19, repouso):** topo, as duas laterais e os quatro cantos parados; com o mouse chegando, no topo (inchou, `--near` 0,39), na lateral esquerda (marca desceu até o mouse, `--near` 0,72), embaixo (barra esticou, traço em 1,0) e no canto de baixo à esquerda (satélite foi pra −24°); a solta olhando pro mouse (4,5 / −4,0 px); o ponto de resposta nova na ilha. Nenhum erro no console.
+- **Conferido antes (v15 a v17):** prévia e aberto de cada lado e canto, as transições quadro a quadro, a espinha se desenrolando e o arco girando.
+- **Não testado:** o app instalado (janela transparente de verdade, mouse real, 60 fps, dois monitores e DPI misto) e o ponto de resposta nova com uma resposta real do Claude.
 
 ## Arquivos desta pasta
 

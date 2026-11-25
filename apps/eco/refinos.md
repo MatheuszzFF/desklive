@@ -6,6 +6,15 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Repouso vivo e único em cada lado (v19)
+- **Pedido:** "os tamanhos mínimos dos apps precisam ser trabalhados bem feito também, e também tem que ser único e interativo".
+- **Onde:** o repouso (fechado) de cada forma: ilha, espinha, barra, quarto de órbita e a pílula solta.
+- **Antes → depois:** o repouso era a forma parada (só a marca viva). Agora cada lado sente o mouse na folga de 36 px da janela (`--near` 0 a 1) e tem vida própria parado. Ilha: respira (1 → 1,05 em 5,6 s) e incha até 18 % pra baixo. Espinha: feixe de luz de 48 px a cada 4,6 s, a marca desliza até a altura do mouse e a espinha estufa até 30 %. Barra: cursor de 2 × 13 px piscando a 1,1 s no fim do traço, barra estica até 14 % no ponto do mouse. Quarto: anel de 70 px com satélite de 6 px varrendo ±40° (6 s), que vai até o ângulo do mouse em .35 s; anel +8 %, quarto +15 %. Solta: a marca olha pro mouse até 6 px. Novo em todos: ponto quente de 7 px pulsando (1,8 s) quando chega resposta com o Eco fechado.
+- **Por quê:** o mínimo não pode ser a versão encolhida e pobre (R20): ele também é único e interativo, no nível da ilha.
+- **Docs atualizados:** [README.md](README.md) (seção "Repouso" e "Testado").
+- **Testado:** prints no simulador de todos os lados e cantos em repouso, e do mouse chegando no topo, na lateral, embaixo, no canto e na solta; sem erros. **Não testado:** app instalado, mouse real, resposta real do Claude acendendo o ponto. O motor de arrasto não foi tocado.
+- **Regras:** R20, R19, R9, R22.
+
 ## 2026-11-25 — Motor de movimento único (v18)
 - **Pedido:** refino state of the art do movimento: arrastar e soltar fluido e sem bugs, igual nos três apps.
 - **Onde:** arrasto, soltar, fundir e descolar de bordas e cantos, a janela crescendo e encolhendo com a forma presa.

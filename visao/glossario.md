@@ -4,6 +4,7 @@
 
 | Termo | O que é | Onde |
 |---|---|---|
+| **acordar por proximidade** | no degrau mínimo, os ícones reagem à distância do mouse numa curva de sino (crescem, ganham cor ou nascem de um ponto) antes de ele chegar | [degrau mínimo da Órbita](../apps/orbita/degrau-minimo.md) |
 | **alça** | o controle discreto que, puxado, troca o degrau de tamanho | apps/*/README.md, "Degraus e alça" |
 | **barramento** | a pasta `~/.orbita`, por onde os apps trocam estado e comandos em arquivos | [interação entre apps](../padroes/interacao-entre-apps.md), [arquitetura](../padroes/arquitetura.md) |
 | **commit atômico** | tamanho + deslocamento + CSS da janela aplicados juntos, só quando chega o `resize` | [janela sem tremer](../padroes/motion/janela-sem-tremer.md) |
@@ -16,6 +17,7 @@
 | **fusão / fundir** | o app encostado deixa de ser objeto solto e vira parte da borda da tela | [fusão com a borda](../padroes/motion/fusao-com-a-borda.md) |
 | **helper** | processo PowerShell longo que faz o que a página não pode (foco, mídia, Spotify, medidor) | [arquitetura](../padroes/arquitetura.md) |
 | **ilha** | a forma fundida à borda (a da Órbita é um `<svg>`; a do topo do Eco é o padrão mínimo de qualidade) | [apps/eco](../apps/eco/README.md), [apps/orbita](../apps/orbita/README.md) |
+| **ilha dinâmica** | a Órbita fina em cima: só a hora e três pontinhos, que abre a partir do meio com o mouse em cima | [degrau mínimo da Órbita](../apps/orbita/degrau-minimo.md) |
 | **marca** | a identidade viva de um app (a do Eco é a forma líquida em WebGL) | [marca WebGL](../apps/eco/marca-webgl.md) |
 | **mola** | oscilador massa-mola (k, ζ) que move tudo; no CSS vira curva `linear()` | [motion](../padroes/motion/README.md), [molas](../referencias/motion/molas.md) |
 | **motor** | `motor.js`, o mesmo nos três apps: física da janela, embalo, gesto, commit | [referencias/motor](../referencias/motor/README.md) |

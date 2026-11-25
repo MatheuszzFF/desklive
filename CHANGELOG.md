@@ -4,6 +4,13 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Eco v19: repouso vivo e único em cada lado
+- **Atualizado:** [apps/eco/README.md](apps/eco/README.md) (seção "Repouso": ilha que respira e incha, espinha com feixe de luz e marca que desliza, barra com cursor piscando, quarto de órbita com anel e satélite, solta que olha pro mouse, ponto de resposta nova; seção "Testado") e [apps/eco/refinos.md](apps/eco/refinos.md).
+
+### Órbita v23: degrau mínimo vivo por lado
+- **Novo:** [apps/orbita/degrau-minimo.md](apps/orbita/degrau-minimo.md) (doca dormindo, coluna de pontos, ilha dinâmica, núcleo respirando, pílula em onda; fórmula da proximidade).
+- **Atualizado:** [README da Órbita](apps/orbita/README.md) (degraus, Testado, arquivos), [refinos](apps/orbita/refinos.md), [glossário](visao/glossario.md) (acordar por proximidade, ilha dinâmica).
+
 ### Onda v14: mínimo único em cada borda e canto
 - **Atualizado:** [apps/onda/README.md](apps/onda/README.md) (tira que esconde a capa atrás da borda, pílula do topo, capa-bolha da base, quarto de vinil; seção "Testado") e [apps/onda/refinos.md](apps/onda/refinos.md).
 

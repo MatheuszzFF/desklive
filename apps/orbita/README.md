@@ -49,18 +49,21 @@ Cada arco ocupa os 90° do quarto, com os apps em `90° × (j + 0,5) / n`. Fecha
 - Ao assentar numa borda, usa a mola firme com micro-amassado contra ela. O "sentir" da Órbita: inclina até ±3° (× 0,35), estica até 5 % por eixo e levanta 2 % ao pegar ([sentir o arrasto](../../padroes/motion/sentir-o-arrasto.md)).
 
 ### Degraus de tamanho
-- **fina** (só os ícones; é o tamanho mínimo), **normal** e **larga** (anéis com número, rótulo e **mini gráfico**; a música tocando; a data completa; na coluna, a lista com o **nome** dos apps em botões de 184 px).
+- **fina** (o tamanho mínimo; **uma forma viva por lado**: doca dormindo embaixo, coluna de pontos de cor nas laterais, ilha dinâmica em cima, só o núcleo respirando nos cantos, pílula que pula em onda solta → [degrau mínimo](degrau-minimo.md)), **normal** e **larga** (anéis com número, rótulo e **mini gráfico**; a música tocando; a data completa; na coluna, a lista com o **nome** dos apps em botões de 184 px).
 - **Alça:** um traço de 3 × 18 px na ponta da barra (embaixo na coluna, na diagonal do núcleo no canto, apontando pra dentro). Puxando, a barra **estica elástica** na direção da alça: `1 + sinal × (1 − e^(−1,4·p)) × 4,5 %`. A cada **52 px** troca de degrau, com o mesmo morph da troca de lado e o lado da borda parado. Nas pontas (já no maior ou no menor), cede só 35 %. Clique duplo volta pra normal. Três pontinhos mostram o degrau atual.
 - **Zoom** (separado dos degraus): 0,85 / 1 / 1,15 / 1,3, entre 0,7 e 1,5. `Ctrl` + rodinha muda 5 % por clique.
 - **Recolher** (setinha): esconde apps, separador e status, com o FLIP ancorado no próprio botão.
 
 ## Testado
 
-Ainda não registrado neste doc. O teste é no simulador `orbita-sim.html` (localhost, gancho `window.__orb`), nunca no mouse do PC (R19). O próximo refino preenche esta seção: o que foi conferido por print (cada lado, canto e degrau) e o que ficou "não testado" no app instalado.
+O teste é no simulador de mesa (`sim.html?app=orbita`, localhost, gancho da Órbita), nunca no mouse do PC (R19). Os eventos de mouse são disparados dentro da página.
+- **Conferido por print (degrau mínimo, 2026-11-25):** doca dormindo em repouso e acordando; coluna de pontos em repouso e virando ícones; ilha dinâmica fechada, aberta e fechando de novo; núcleo do canto respirando (dois quadros); pílula solta, com a onda de pulos conferida por código (atrasos de 0 a 0,28 s).
+- **Não testado:** o app instalado (velocidade real das molas, proximidade com o mouse de verdade) e dois monitores no degrau mínimo.
 
 ## Arquivos desta pasta
 
 | Arquivo | O que tem |
 |---|---|
 | [visual.md](visual.md) | anéis e medidores (raios, cores, mini gráfico) e o visual (tokens, fontes, halos, ícones) |
+| [degrau-minimo.md](degrau-minimo.md) | a forma e a interação da fina em cada lado e canto, e a fórmula da proximidade |
 | [refinos.md](refinos.md) | registro de cada refino, com data e números |
