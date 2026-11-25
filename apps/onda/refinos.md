@@ -6,6 +6,20 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Mínimo único em cada borda e canto (v14)
+- **Pedido:** "os tamanhos minimos dos apps precisam ser trabalhados bem feito também, e também tem que ser único e interativo".
+- **Onde:** degrau mínimo na coluna (laterais), na faixa (topo), na prateleira (base) e no quarto de disco (cantos). A solta não mudou.
+- **Antes → depois:**
+  - coluna: capa de 64 + barras de 52 × 80 → tira de barras de 26 × 176 sem capa; a capa mora atrás da borda e desliza pra fora com o mouse (a tira desce pra 26 × 150 embaixo dela);
+  - topo: capa de 40 + onda de 150 → pílula com capa-bolinha de 30 + horizonte de 170 × 20; com o mouse, o nome desce (200 × 40);
+  - base: equalizador de 200 × 26 + capa de 44 → fio de 240 × 18 + capa-bolha redonda de 40 boiando acima e subindo até 7 px no ritmo; com o mouse, o nome do lado (196 × 40);
+  - canto: capa redonda de 60 + anel (R 140, anel 114) → quarto de vinil de 152 com centro no canto da tela, com sulcos e reflexo fixo (R 110, anel 92); girar anda na música.
+  - Peças atrás da borda contam pro tamanho da janela só até a beira da tela.
+- **Por quê:** o mínimo era uma versão encolhida e igual em todo lado; agora cada lugar tem forma e gesto próprios (R20).
+- **Docs atualizados:** [README](README.md) (tabela de arranjos, interação do mínimo, raios do disco, "Testado").
+- **Testado:** prints no simulador do mínimo em repouso e com o mouse na direita, no topo e na base, e do quarto de vinil em dois cantos. **Não testado:** no app instalado.
+- **Regras:** R9, R19, R20, R22.
+
 ## 2026-11-25 — Motor de movimento único (v13)
 - **Pedido:** refino state of the art do movimento: arrastar e soltar fluido e sem bugs, igual nos três apps.
 - **Onde:** arrasto, soltar, encaixe nas bordas e cantos, a caixa da janela (`LR`) mudando de tamanho.

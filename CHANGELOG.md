@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v14: mínimo único em cada borda e canto
+- **Atualizado:** [apps/onda/README.md](apps/onda/README.md) (tira que esconde a capa atrás da borda, pílula do topo, capa-bolha da base, quarto de vinil; seção "Testado") e [apps/onda/refinos.md](apps/onda/refinos.md).
+
 ### Motor de movimento único (Órbita v22, Onda v13, Eco v18)
 - **Novo:** [referencias/motor/motor-de-movimento.md](referencias/motor/motor-de-movimento.md) (máquina de estados, molas, limiares, 1 `setBounds` por quadro, commit de tamanho) e [referencias/motor/bugs-evitados.md](referencias/motor/bugs-evitados.md).
 - **Atualizado:** [motor](referencias/motor/README.md) (sem o "em revisão"; *feed-forward* com previsão de 1 quadro em vez do decaimento de 50 ms), [janela sem tremer](padroes/motion/janela-sem-tremer.md) (trava da tela só arrastando), índice de [motion](padroes/motion/README.md), e o `refinos.md` dos três apps.

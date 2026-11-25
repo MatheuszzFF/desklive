@@ -26,18 +26,24 @@ A linguagem de movimento comum está em [padroes/motion](../../padroes/motion/RE
 | Forma | mínima | compacta | expandida | grande |
 |---|---|---|---|---|
 | **Solta** | capa + onda (112 px) | linha: capa, texto de 236 px e onda embaixo | capa de 146, texto, controles, onda de 416 × 40 | capa de 200, texto, controles, fila de 220 × 200, onda de 690 × 52 |
-| **Coluna** (laterais) | barras de 52 × 80 | nome em pé (20 × 176), barras de 36 × 176, controles empilhados | capa de 150, texto, barras de 102 × 140 + controles | capa de 210, texto, barras, controles, fila |
-| **Faixa** (topo) | capa de 40 + onda de 150 | capa de 48, texto, onda de 320 × 24 (o horizonte), controles à direita | capa de 120, onda de 500 × 32 | capa de 150, onda de 520 × 40, fila à direita |
-| **Prateleira** (base) | equalizador de 200 × 26 + capa de 44 | equalizador de 380 × 40, capa de 64 elevada | equalizador de 560 × 62, capa de 140 | equalizador de 780 × 80, capa de 180, fila |
-| **Quarto de disco** (cantos) | capa redonda de 60 + anel de progresso | capa-vinil de 92, arco com R 226 | capa de 130, R 362 | capa de 170, R 448 |
+| **Coluna** (laterais) | tira de barras de 26 × 176 colada na borda, sem capa; com o mouse a capa desliza de trás da borda e a tira desce pra 26 × 150 embaixo dela | nome em pé (20 × 176), barras de 36 × 176, controles empilhados | capa de 150, texto, barras de 102 × 140 + controles | capa de 210, texto, barras, controles, fila |
+| **Faixa** (topo) | pílula pendurada: capa-bolinha de 30 + horizonte de 170 × 20; com o mouse o nome desce de dentro dela (200 × 40) | capa de 48, texto, onda de 320 × 24 (o horizonte), controles à direita | capa de 120, onda de 500 × 32 | capa de 150, onda de 520 × 40, fila à direita |
+| **Prateleira** (base) | fio de equalizador de 240 × 18 rente à borda + capa-bolha redonda de 40 boiando acima, subindo até 7 px no ritmo; com o mouse o nome aparece do lado (196 × 40) | equalizador de 380 × 40, capa de 64 elevada | equalizador de 560 × 62, capa de 140 | equalizador de 780 × 80, capa de 180, fila |
+| **Quarto de disco** (cantos) | quarto de vinil: disco de 152 com o centro no canto da tela (só um quarto aparece, com sulcos e reflexo fixo), girando com a música; anel de progresso em R 92 | capa-vinil de 92, arco com R 226 | capa de 130, R 362 | capa de 170, R 448 |
 
-O progresso (`prog`) é uma linha de 3 px **na junção com a borda**, correndo a partir da capa. Raios do disco por degrau (`DISC`): R 140 / 226 / 362 / 448; anel da onda 114 / 158 / 304 / 384; controles ao longo do arco em 198 / 338 / 422, nos ângulos 18°, 45° e 72°.
+O progresso (`prog`) é uma linha de 3 px **na junção com a borda**, correndo a partir da capa. Raios do disco por degrau (`DISC`): R 110 / 226 / 362 / 448; anel da onda 92 / 158 / 304 / 384; controles ao longo do arco em 198 / 338 / 422, nos ângulos 18°, 45° e 72°.
 
 ### Interação própria de cada forma
 - **Quarto de disco, vinil:** a capa fica redonda (raio = metade), com um furinho de 14 % no meio, e **gira em 9 s por volta** enquanto toca. Arrastar a capa **gira o disco** (o gesto aqui é girar, não mover a janela): o ângulo do mouse em volta do centro vira tempo, **1 volta = 30 s** (horário avança, anti-horário volta). Só conta depois de 0,12 rad, pra não confundir com clique. Com o mouse em cima, o vinil cresce 5 %.
 - **Coluna, agulha:** passar o mouse mostra uma agulha branca de 2 px atravessando as barras, com brilho de 10 px na cor da capa e o tempo escrito ao lado. Deslizar ajusta o progresso.
 - **Prateleira, equalizador que sobe com o toque:** as barras sobem como uma onda embaixo do mouse, com acréscimo gaussiano `profundidade × 0,75 × e^(−((u − u_mouse)/0,07)²)`. Clicar ou arrastar pula na música.
 - **Faixa, horizonte:** a rodinha anda ±5 s (com um aviso no lugar do artista e o comando real só depois de 280 ms parado). Com o mouse na onda, o horizonte se agita: a amplitude ganha +0,35.
+- **Mínimo, cada borda do seu jeito** (o mouse em cima troca o arranjo pela versão "-h", com a mesma demora de 420 ms pra voltar):
+  - **coluna:** em repouso, só a tira de barras respirando com o som, colada na borda; a capa mora **atrás da borda** (fora da tela, sem opacidade). Com o mouse, ela desliza de trás da borda pra dentro e a tira desce 76 px. Deslizar na tira ajusta o progresso (agulha com o tempo).
+  - **topo:** pílula com a capa-bolinha e o horizonte; com o mouse, o nome e o artista descem de dentro dela. A rodinha anda ±5 s.
+  - **base:** a capa-bolha boia em cima do fio de equalizador, subindo `nível × 7 px` no ritmo; o fio sobe embaixo do mouse e clicar nele pula na música. Com o mouse, o nome aparece ao lado da bolha.
+  - **canto:** quarto de vinil com o centro no canto da tela; girar o vinil com o mouse anda na música (1 volta = 30 s), como no disco grande.
+  - **Peça atrás da borda:** a capa escondida da coluna e o vinil do canto contam pro tamanho da janela **só até a beira da tela**, pra janela nunca tentar sair dela (o Windows prenderia e o conteúdo pularia).
 - **Capa (qualquer forma):** clique alterna os degraus (mínima → compacta → expandida ⇄ compacta; grande → expandida). No compacto, o play/pausa aparece sobre a capa (30 px, vidro com `blur(8px)`).
 
 ### Degraus e alça
@@ -47,7 +53,9 @@ O progresso (`prog`) é uma linha de 3 px **na junção com a borda**, correndo 
 
 ## Testado
 
-Ainda não registrado neste doc. O teste é no simulador `onda-sim.html` (localhost, gancho `window.__onda`), nunca no mouse do PC (R19). O próximo refino preenche esta seção: o que foi conferido por print (cada lado, canto e degrau) e o que ficou "não testado" no app instalado.
+O teste é no simulador `onda-sim.html` (localhost, gancho `window.__onda`, janela presa dentro da tela como no app real), nunca no mouse do PC (R19).
+- **Conferido por print (v14):** o mínimo em repouso e com o mouse na coluna (direita), no topo e na base, e o quarto de vinil nos cantos de cima à esquerda e de baixo à direita (janela de 140 × 140 dentro da tela). Degraus maiores: coluna, faixa, prateleira e disco (v11 e v12), as 32 combinações de degrau × borda/canto encostando a 4–16 px da borda (v10), girar o vinil 90° sem mover a janela e deslizar na coluna (v12).
+- **Não testado:** tudo no app instalado (60 fps reais, se a capa escondida atrás da borda aparece certinha deslizando, Spotify de verdade na fila), monitores com DPI misto.
 
 ## Arquivos desta pasta
 
