@@ -2,7 +2,7 @@
 
 > L3 · referência. **O que é:** como o app Claude (o "host") cria a janela dos nossos apps e o que cada chamada de janela faz de verdade no Windows, com custos, atrasos e armadilhas. **Quando ler:** antes de mexer em hover, "clique passa", tamanho da janela, movimento ou no envio do [motor](../motor/README.md); e quando algo "só acontece no app instalado".
 
-Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6.28899.2, Windows), as typings do `desktop` (contrato 0.2.99), o código do Electron e do Chromium e a documentação da Microsoft. Nada foi medido no app instalado ainda. O que falta medir está marcado **(medir)** e é respondido pela [sonda](tempo-e-medicao.md#sonda-de-diagnóstico).
+Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6.28899.2, Windows), as typings do `desktop` (contrato 0.2.99), o código do Electron e do Chromium e a documentação da Microsoft. Depois a sonda rodou no app instalado: os números estão em [medicoes.md](medicoes.md) e corrigem alguns itens daqui (o atraso de 50–70 ms não existe). O que falta medir está marcado **(medir)** e é respondido pela [sonda](tempo-e-medicao.md#sonda-de-diagnóstico).
 
 ## Legenda de confiança
 
@@ -22,6 +22,7 @@ Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6
 | [hover-e-clique-passa.md](hover-e-clique-passa.md) | como o "clique passa" e o `forward` funcionam no Windows, a corrida do clique, captura do ponteiro, diálogos do host, receita robusta |
 | [mover-e-redimensionar.md](mover-e-redimensionar.md) | a trava real do host (um monitor, área útil, arredonda), a emenda dos monitores, mover × redimensionar, estratégias comparadas, DPI |
 | [tempo-e-medicao.md](tempo-e-medicao.md) | rAF e vsync, throttling, tabela de atrasos, como medir no app instalado, a sonda, movimento reduzido |
+| [medicoes.md](medicoes.md) | **números medidos no app instalado** pela sonda (vale mais que o inferido): tempo, redimensionar pela esquerda, trava, hover |
 | [receitas-recomendadas.md](receitas-recomendadas.md) | o que mudar no motor e nos apps, em ordem, com por quê, ganho e risco |
 
 ## Os achados que mais mudam o trabalho
