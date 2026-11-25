@@ -16,6 +16,7 @@ Um desktop vivo pro Windows 11, feito de artefatos do Claude instalados como app
 - [padroes/layout-posicao-e-tamanho.md](padroes/layout-posicao-e-tamanho.md): todo app se transforma conforme o lado, o canto e o tamanho, com forma e interação únicas.
 - [padroes/interacao-entre-apps.md](padroes/interacao-entre-apps.md): os apps conversam pelo barramento `~/.orbita`.
 - [padroes/design.md](padroes/design.md): transparente, minimalista, motion vivo, nada genérico.
+- [padroes/motion.md](padroes/motion.md): como o motion é feito (molas e constantes, ombros côncavos, descolar líquido, sensor de borda, troca de forma, janela sem tremer). Cada app tem uma seção "Como é feito" no próprio doc.
 - [arquitetura.md](arquitetura.md): como os apps funcionam por dentro.
 
 As regras são mantidas pelo **dreamer**, uma tarefa diária que lê as conversas e transforma o feedback em regras. A fonte de verdade fica na memória do Claude; este repositório recebe uma cópia.
