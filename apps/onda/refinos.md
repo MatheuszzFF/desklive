@@ -6,6 +6,21 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Quarto de disco proporcional, pega clara e hover estável (v17)
+- **Pedido:** "o comportamento de hover [ta] bem bugado ... quando aumento tamanho, o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele" (vídeo da Onda no canto de cima à direita).
+- **Onde:** quarto de disco em todos os degraus; clique na capa; hover e "clique passa" em todas as formas; a janela no meio das trocas.
+- **Antes → depois:**
+  - disco: vinil de 92 / 130 / 170 longe do canto, corpo R 226 / 362 / 448 e controles a 198 / 338 / 422 (quase tudo vazio) → vinil com centro no canto (raio 104 / 150 / 196), onda a 120 / 172 / 220, controles a 150 / 210 / 262, corpo R 180 / 248 / 302;
+  - pega: área de mover = retângulo inteiro com mão → círculo do raio R, com aro de 12 px e pontinhos; seta circular no vinil;
+  - clique na capa: trocava de degrau (e um giro curto também) → toca ou pausa; degrau só pela alça ou menu;
+  - hover: entrava na hora e o "clique passa" ligava a cada fresta → entra em 80 ms, sai em 420 ms, "clique passa" só depois de 160 ms fora;
+  - janela: podia pedir mais que a tela quando o vinil saía do canto (1412 × 608 presa "andando") → caixa cortada na tela a cada quadro;
+  - nome sobre o vinil num rótulo de vidro; nada selecionável.
+- **Por quê:** sobra de espaço, mão em área vazia, pulo de forma ao encostar na capa e hover piscando.
+- **Docs atualizados:** [README](README.md), [hover e balões](../../padroes/hover-e-baloes.md), [bugs evitados](../../referencias/motor/bugs-evitados.md).
+- **Testado** (simulador, navegador do app, tela de 1600 × 900, cliques e hover reais): prints do quarto de disco compacto, expandido e grande; clique no vinil pausa sem trocar de degrau; girar 27° sem mover; aro é área de pegar e o canto vazio do retângulo deixa o clique passar; arrastar pelo aro solta a Onda e ela assenta (786 × 384, motor parado); hover na tira mínima: exatamente 2 trocas (entrar e sair), sem piscar. **Não testado:** no app instalado.
+- **Regras:** R9, R19, R20, R22, R23.
+
 ## 2026-11-25 — Cliques dentro da área de arrasto (v16)
 - **Pedido:** conferir na Onda o bug achado na Órbita (captura do ponteiro no pressionar engolindo o clique dos botões).
 - **Onde:** tudo que fica dentro da área de arrasto: a capa (clique troca de degrau), o play sobre a capa, o nome em pé (clique abre a expandida).

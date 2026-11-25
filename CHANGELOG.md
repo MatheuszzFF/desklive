@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v17: quarto de disco proporcional, pega clara e hover estável
+- **Atualizado:** [Onda](apps/onda/README.md) (raios do disco, aro de pega, rótulo, hover e clique), [refinos da Onda](apps/onda/refinos.md), [hover e balões](padroes/hover-e-baloes.md) (gesto e pega separados; janela cortada na tela também no meio da troca) e [bugs evitados](referencias/motor/bugs-evitados.md).
+
 ### Órbita v26: balão por cima, hover estável, leque justo
 - **Novo:** [padroes/hover-e-baloes.md](padroes/hover-e-baloes.md) (regra geral: balão único por cima de tudo, histerese de hover, "clique passa" com atraso, nada selecionável, botão dentro de arrasto, janela que cabe na tela).
 - **Atualizado:** [refinos da Órbita](apps/orbita/refinos.md), [README da Órbita](apps/orbita/README.md) (medidas do leque), [bugs evitados](referencias/motor/bugs-evitados.md) (balão por baixo, barra longe da borda, "clique passa" piscando), índice de [padroes](padroes/README.md).

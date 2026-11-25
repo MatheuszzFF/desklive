@@ -18,6 +18,9 @@
 - **Nada é selecionável:** `user-select: none` na raiz do app inteiro (relógio, números, nomes). É um app, não uma página.
 - **Botão dentro de área de arrasto:** nunca segurar o ponteiro (`setPointerCapture`) já no pressionar. Com a captura, o Chromium entrega o clique pro elemento que capturou, e o botão não recebe nada. Segurar só quando o gesto vira arrasto; o toque sem arrastar também é tratado pelo próprio gesto.
 - **Sempre uma saída óbvia** de qualquer estado recolhido ou mínimo: clique no botão, clique em qualquer ponto da forma recolhida e clique duplo.
+- **Gesto e pega separados:** quando arrastar uma peça faz outra coisa (ex.: girar o vinil da Onda anda na música), a área de **mover** fica visível e com textura de pegar (o aro do quarto de disco, com pontinhos) e o cursor diz o que cada lugar faz: seta circular onde gira, mão **só** onde pega. A área de pegar tem o formato da forma (no quarto de disco, um círculo), nunca o retângulo em volta, e o vazio deixa o clique passar.
+- **Nenhum toque troca de forma por acidente:** clique ou giro curto na capa nunca troca de degrau (na Onda, clicar na capa toca ou pausa).
 
 ## Janela
 - A janela **no destino nunca passa da tela**. O Windows empurra pra dentro uma janela que passa da tela, e o motor adota essa posição. Se a margem extra de uma troca de forma sobrar pra fora numa borda, a barra fica longe dela. Antes de assentar, corte a margem que sobraria fora da tela ([janela sem tremer](motion/janela-sem-tremer.md)).
+- **Também no meio de uma troca de forma:** a caixa que o app pede pra janela é cortada na tela **a cada quadro**. Senão uma peça que ainda está saindo de trás da borda (a mola dela ainda está lá fora) faz a janela pedir mais que a tela: o Windows prende, a janela anda sozinha e o motor não assenta (Onda: vinil saindo do canto, janela de 1412 × 608 presa "andando").
