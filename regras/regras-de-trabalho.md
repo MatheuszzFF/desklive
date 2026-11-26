@@ -184,6 +184,12 @@
 - **Exemplo:** "não podem ter widths ou heights que mudam sem alguma transição suave. se QUALQUER coisa piscar, a experiencia é arruinada".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** máxima
 
+### R26 — Todo trabalho técnico de movimento, tamanho e hover vai pra base privada
+- **Regra:** todo trabalho técnico de movimento, tamanho ou hover é registrado na base privada `desktop-tecnico` (`~\OneDrive\Documentos\Claude\desktop-tecnico\`, fora do repo: uma entrada no `diario.md` e o arquivo do assunto) e na memória, além do repo público desklive. Toda sessão delegada recebe isso no resumo.
+- **Por quê:** ele quer dominar por completo como os apps se movem e mudam de tamanho no desktop, com o registro técnico de tudo que for feito, do jeito que foi feito.
+- **Exemplo:** "tudo que for sendo feito, seja documentado na sua memoria e docs ... sobre como esta sendo feito tecnicamente para a gente dominar completamente a movimentação e resizing de apps no ... desktop".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+
 ## Segurança e permissões
 
 ### R17 — Não desligar proteções por ele
