@@ -67,7 +67,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.2';
+const VERSAO = '0.3';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -97,6 +97,24 @@ async function ps(script, tempo){
   if (!podePC) throw new Error('sem permissão pra mexer no PC (abra a Mesa pelo app instalado e libere o acesso total)');
   const r = await desktop.childProcess.exec('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + encodePs(script), { timeout:tempo || 15000 });
   return ((r.stdout || '').trim() || (r.stderr || '').trim()).slice(0, 800);
+}
+
+/* ajudante: um PowerShell que fica aberto e responde por linhas ("id comando argumento" -> "id resultado"),
+   o mesmo protocolo dos helpers dos outros apps. Devolve a função de perguntar; sem acesso ao PC, responde null. */
+function ajudante(codigo){
+  let proc = null, n = 0, buf = ''; const pend = new Map();
+  function liga(){
+    proc = desktop.childProcess.spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encodePs(codigo)]); buf = '';
+    proc.stdout.on('data', c => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0){ const l = buf.slice(0, i).replace(/^﻿/, '').trim(); buf = buf.slice(i + 1); const sp = l.indexOf(' '), id = sp < 0 ? l : l.slice(0, sp), r = pend.get(id); if (r){ pend.delete(id); r(sp < 0 ? '' : l.slice(sp + 1)); } } });
+    const morreu = () => { proc = null; for (const r of pend.values()) r(null); pend.clear(); };
+    proc.on('exit', morreu); proc.on('error', morreu);
+  }
+  return (cmd, tempo = 8000) => {
+    if (!podePC || !desktop?.childProcess) return Promise.resolve(null);
+    try { if (!proc) liga(); } catch { return Promise.resolve(null); }
+    const id = 'r' + (++n);
+    return new Promise(res => { pend.set(id, res); proc.stdin.write(id + ' ' + cmd + '\n').catch(() => { pend.delete(id); res(null); }); setTimeout(() => { if (pend.has(id)){ pend.delete(id); res(null); } }, tempo); });
+  };
 }
 
 /* ---------- widgets ----------
@@ -155,7 +173,7 @@ function abre(id, onde){
     id, corpo:W.corpo,
     ler:(d = {}) => le('mesa-w-' + id, d), salvar:v => grava('mesa-w-' + id, v),
     emitir:(tipo, dado) => bus.emit(id + ':' + tipo, dado), ouvir:(tipo, fn) => bus.on(tipo, fn),
-    lugar:() => lugar(W), podePC:() => podePC, ps, host:() => desktop,
+    lugar:() => lugar(W), podePC:() => podePC, ps, ajudante, host:() => desktop,
     avisar:texto => bus.emit('mesa:aviso', { id, texto }),      // o morador fala isso em voz alta
   };
   ABERTOS.set(id, W); camada.appendChild(el); frente(W); pinta(W);
@@ -260,8 +278,12 @@ function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R
 /* ---------- clique passa: fora do que se vê, o mouse vai pra área de trabalho de verdade ----------
    Desliga na hora quando o mouse volta pra um .alvo; só liga 140 ms depois de sair (não pisca nas frestas);
    com o botão pressionado nunca liga. */
-let passa = null, tPassa = 0, apertado = false;
-function setPassa(on){ if (!desktop?.window) return; if (prefs.fundo === 'mesa') on = false; if (on === passa) return; passa = on; desktop.window.setIgnoreMouseEvents(on, { forward:true }).catch(() => {}); }
+let passa = null, tPassa = 0, apertado = false, trava = 0;
+// as janelinhas do próprio app do Claude (liberar o Claude, permissões, "nova versão") não são da página: o mouse em
+// cima delas não chega aqui. Enquanto uma estiver aberta, ou por alguns segundos a pedido, a janela segura os cliques.
+function seguraCliques(ms){ trava = performance.now() + ms; setPassa(false); setTimeout(() => { if (performance.now() >= trava && !apertado) setPassa(true); }, ms + 60); }
+async function dialogo(fn){ seguraCliques(10 * 60000); try { return await fn(); } finally { trava = 0; } }
+function setPassa(on){ if (!desktop?.window) return; if (prefs.fundo === 'mesa' || performance.now() < trava) on = false; if (on === passa) return; passa = on; desktop.window.setIgnoreMouseEvents(on, { forward:true }).catch(() => {}); }
 document.addEventListener('pointerdown', () => { apertado = true; }, true);
 document.addEventListener('pointerup', () => { apertado = false; }, true);
 document.addEventListener('pointermove', e => {
@@ -272,7 +294,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -291,7 +313,9 @@ function menuItens(){
     { type:'separator' },
     { label:'Fundo de mesa (cobre a área de trabalho)', type:'checkbox', checked:prefs.fundo === 'mesa', click:() => fundo(prefs.fundo === 'mesa' ? 'transparente' : 'mesa') },
     ...(telas.length > 1 ? [{ label:'Levar pro outro monitor', click:() => ocupa((monitor + 1) % telas.length) }] : []),
-    { label:'Permissões…', click:() => desktop.permissions.manage().catch(() => {}) },
+    { label:'Segurar os cliques por 20 s (pra clicar num aviso do app)', click:() => seguraCliques(20000) },
+    { label:'Recarregar a Mesa', click:() => location.reload() },
+    { label:'Permissões…', click:() => dialogo(() => desktop.permissions.manage()).catch(() => {}) },
     { type:'separator' },
     { label:`Mesa ${VERSAO} · escala ${escala.toFixed(2)} · ${innerWidth}×${innerHeight}`, enabled:false },
   ];
@@ -318,7 +342,7 @@ async function entra(perms){
   R.classList.add('app');
   await ocupa(prefs.monitor || 0);
   if (perms['menu-bar'] === 'granted') desktop.tray.set({ icon:Mesa.icone?.(32) || '', iconIsTemplate:false, toolTip:'Mesa', menu:menuItens() }).catch(() => {});
-  if (perms.shortcuts === 'granted') desktop.globalShortcut.register(SHORTCUT, () => { desktop.window.show().catch(() => {}); bus.emit('mesa:atalho'); }).catch(() => {});
+  if (perms.shortcuts === 'granted') desktop.globalShortcut.register(SHORTCUT, () => { desktop.window.show().catch(() => {}); seguraCliques(12000); bus.emit('mesa:atalho'); }).catch(() => {});
   document.addEventListener('contextmenu', e => { if (e.target.closest('textarea,input') || !e.target.closest('.alvo')) return; e.preventDefault(); desktop.Menu.popup(menuItens()).catch(() => {}); });
   bus.emit('mesa:pronta', { app:true });
 }
@@ -340,7 +364,7 @@ async function boot(){
     bus.emit('mesa:pronta', { app:false }); return;
   }
   let perms = await desktop.permissions.state().catch(() => null);
-  const pede = async () => { const r = await desktop.permissions.request(['overlay', 'full-access', 'menu-bar', 'shortcuts']).catch(() => null); if (r) perms = Object.assign({}, perms, r); };
+  const pede = async () => { const r = await dialogo(() => desktop.permissions.request(['overlay', 'full-access', 'menu-bar', 'shortcuts'])).catch(() => null); if (r) perms = Object.assign({}, perms, r); };
   if (perms?.overlay === 'granted'){ if (['full-access', 'menu-bar', 'shortcuts'].some(k => perms[k] === 'prompt')) await pede(); diz(''); entra(perms); }
   else diz('Falta um passo: deixar a Mesa flutuar por cima das janelas e mexer nos seus apps.', 'Ativar a Mesa', async () => { await pede(); if (perms?.overlay === 'granted'){ diz(''); entra(perms); } });
 }

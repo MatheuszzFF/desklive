@@ -8,6 +8,8 @@ param([string]$Saida = (Join-Path $PSScriptRoot '..\saida'))
 $html = Read-Texto (Join-Path $PSScriptRoot 'mesa-src.html')
 $widgets = Get-ChildItem (Join-Path $PSScriptRoot 'widgets') -Filter *.js | Sort-Object Name | ForEach-Object { "/* ===== widgets/$($_.Name) ===== */`n" + (Read-Texto $_.FullName) }
 $html = Set-Marcador $html '/*WIDGETS*/' ($widgets -join "`n")
+# helpers em PowerShell dos outros modelos: o marcador PS:pasta/arquivo.ps1 seguido de '' vira o arquivo como string JS
+foreach ($m in [regex]::Matches($html, "/\*PS:([^*]+)\*/''")) { $html = $html.Replace($m.Value, (Get-JsString (Join-Path (Join-Path $PSScriptRoot '..') $m.Groups[1].Value))) }
 $png = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'arte\dengas-atlas.png')))
 $html = Set-Marcador $html "/*ATLAS_PNG*/''" ("'data:image/png;base64," + $png + "'")       # a arte do morador, embutida
 $html = Set-Marcador $html '/*ATLAS*/{}' (Read-Texto (Join-Path $PSScriptRoot 'arte\dengas-atlas.json'))

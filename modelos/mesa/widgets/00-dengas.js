@@ -290,7 +290,15 @@ async function pergunta(texto){
   const opts = { model:MODELO, modelTier:'quick', cache:false, signal:c.signal, onText:({ text }) => mostra(text) };
   if (comFerramentas) opts.tools = ferramentas(atos);
   try {
-    const r = await sample([{ role:'user', content:regras() }, ...turnos], opts);
+    // a primeira pergunta abre a janelinha de liberar o Claude: a Mesa segura os cliques até você responder
+    const perms = await window.claude?.use?.('permissions')?.catch?.(() => null);
+    if (perms && await perms.state('sample').catch(() => 'granted') === 'prompt'){
+      ele.textContent = 'Aprova o Claude na janelinha que abriu…';
+      const p = await Mesa.dialogo(() => perms.request(['sample']));
+      if (p?.sample !== 'granted') throw { code:'not_granted' };
+      ele.textContent = 'Pensando…';
+    }
+    const r = await Mesa.dialogo(() => sample([{ role:'user', content:regras() }, ...turnos], opts));
     mostra(r.text); turnos.push({ role:'assistant', content:r.text });
     mem.usos.push(texto.slice(0, 80)); while (mem.usos.length > 24) mem.usos.shift(); guardaMem();
   } catch (e) {
