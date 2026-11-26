@@ -289,8 +289,10 @@ function msg(cls, texto){ const el = document.createElement('div'); el.className
 
 const mem = Object.assign({ notas:'', usos:[] }, Mesa.le('mesa-dengas-mem', {}));
 const guardaMem = () => Mesa.grava('mesa-dengas-mem', mem);
+// a Mesa como o Dengas vê: sem os comandos que leem fora do Board
+function verMesa(){ const e = Mesa.estado(); for (const l of [e.abertos, e.apps]) for (const q of l || []) if (Array.isArray(q.comandos)) q.comandos = q.comandos.filter(n => !FORA_LER.has(q.id + '.' + n)); return e; }
 function regras(){
-  const e = Mesa.estado(), agora = new Date();
+  const e = verMesa(), agora = new Date();
   return [
     'Você é o Dengas, um rato de estimação gordinho, preto em cima, branco no meio e preto embaixo, de cachecol coral. Você mora na Mesa: o quadro que cobre a área de trabalho do seu dono, onde ficam os widgets dele. Você é carinhoso e é o assistente esperto da casa.',
     'Fale sempre em português do Brasil, informal, curto e com graça de bichinho inteligente e guloso (no máximo umas 4 linhas), em texto simples: sem títulos, sem tabelas, sem negrito. Nunca diga que é uma IA; você é o Dengas.',
@@ -350,7 +352,7 @@ function ferramentas(atos){
   const ids = Mesa.defs().map(d => d.id);
   const l = [
     { name:'mesa_estado', description:'Lê a Mesa inteira agora: tamanho da tela, widgets abertos (posição, tamanho, borda encostada e o estado de cada um) e os widgets disponíveis que estão fechados.',
-      execute:() => Mesa.estado() },
+      execute:() => verMesa() },
     { name:'mesa_widget', description:'Mexe num widget da Mesa. acao: abrir, fechar, mover (x, y em px e/ou borda), redimensionar (w, h em px), frente. borda encosta o widget: l, r, t, b, tl, tr, bl, br ou centro.',
       inputSchema:{ type:'object', properties:{ acao:{ type:'string', enum:['abrir','fechar','mover','redimensionar','frente'] }, id:{ type:'string' }, x:{ type:'number' }, y:{ type:'number' }, w:{ type:'number' }, h:{ type:'number' }, borda:{ type:'string', enum:['l','r','t','b','tl','tr','bl','br','centro'] } }, required:['acao','id'] },
       async execute({ acao, id, x, y, w, h, borda }){
