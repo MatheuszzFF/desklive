@@ -2671,6 +2671,8 @@ reaplicarPerfis();
 CP.quer = true; bomba();
 montarBandeja(); montarAtalhos();
 document.body.classList.add('pronta');
+// sem acesso total o Board fica sem disco e sem PowerShell (e as peças que dependem disso também): diz na tela o porquê
+if (!perms || perms['full-access'] !== 'granted' || !desktop.childProcess?.exec || !FS) aviso('Sem acesso total ao PC: estado "' + (perms ? perms['full-access'] : 'desconhecido') + '"' + (desktop.childProcess?.exec ? '' : ', sem PowerShell') + (FS ? '' : ', sem disco') + '. Libere em Permissões e reabra o Board.', 15000);
 batimento(); lerCaixaArquivo(); iniciarRelay(); medirHz(); Telas.lerWindows("abrir");
 log(`Pronto (Board ${INST}). ${telas.length} monitor(es), dpr ${devicePixelRatio}, entrada ${'onpointerrawupdate' in window ? 'rawupdate' : 'pointermove'}.`, 'mut');
 if (SIM) window.__board = { B, pecas, ENT, CP, area:() => area, statsLaco, quadro:() => quadros, rodando:() => rodando, peers, fantasmas, geo:() => geo, minha:() => minha, erros, POSES, Telas, PASSE, CANAL, aceitas, telasM:() => telasM, limites, alvoPara, EF, MOLAS };
