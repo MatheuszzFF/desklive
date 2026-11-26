@@ -2,6 +2,11 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.15: o Dengas lê a página do navegador (WhatsApp Web)
+- **Pedido do dono:** ler as mensagens do WhatsApp. Não há conector oficial; o dono aceitou ler pelo WhatsApp Web no navegador da Mesa, sabendo da porta local.
+- **O que:** o Edge da Mesa abre com `--remote-debugging-port` (porta sorteada a cada abertura, só em 127.0.0.1) e o ajudante ganha `le`: pega o texto da página por `Runtime.evaluate` e devolve título, endereço e até 7 mil letras. Comando `video_ler_tela` (com `espera`). Só leitura: não clica, não abre conversa, não envia.
+- **Testado:** leitura de uma página simples neste PC (`janela_teste.js`). **Não testado:** WhatsApp Web de verdade e o fluxo no app.
+
 ## 2026-11-26 · Mesa 0.14: o Dengas envia e-mail
 - **Pedido do dono:** "Dengas pode" enviar e responder. Entram `send_message`, `reply` e `forward` do Gmail na publicação; a regra manda enviar só quando ele pedir pra enviar, senão rascunho, e dizer pra quem foi.
 - **Não testado:** nenhuma chamada real.

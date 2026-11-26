@@ -17,12 +17,25 @@ const JANELA_PS = [
   "  $p = $l.Split(' '); $id = $p[0]; $r = 'ok'",
   "  try { switch ($p[1]) {",
   "    'abre' {",
-  "      Fecha; Start-Sleep -Milliseconds 400; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
-  "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--hide-crash-restore-bubble','--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
+  "      Fecha; Start-Sleep -Milliseconds 400; $script:porta = Get-Random -Minimum 49200 -Maximum 65000; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
+  "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--hide-crash-restore-bubble', ('--remote-debugging-port=' + $script:porta),'--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
   "      for ($i = 0; $i -lt 60 -and $script:h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $script:proc.Refresh(); if ($script:proc.HasExited) { break }; $script:h = $script:proc.MainWindowHandle }",
   "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); $script:tam = ''; Poe $p[3] $p[4] $p[5] $p[6] }",
   "    }",
   "    'move' { Poe $p[2] $p[3] $p[4] $p[5] }",
+  // lê o texto da página aberta: fala com o próprio Edge da Mesa pela porta de depuração (só neste PC, porta sorteada a cada abertura)
+  "    'le' {",
+  "      $alvo = @(Invoke-RestMethod -Uri ('http://127.0.0.1:' + $script:porta + '/json') -TimeoutSec 5) | ForEach-Object { $_ } | Where-Object { $_.type -eq 'page' -and $_.url -notlike 'devtools*' } | Select-Object -First 1",
+  "      if (-not $alvo) { $r = 'sem_pagina' } else {",
+  "        $ws = New-Object Net.WebSockets.ClientWebSocket; $ct = [Threading.CancellationToken]::None; [void]$ws.ConnectAsync([uri]$alvo.webSocketDebuggerUrl, $ct).Wait(5000)",
+  "        $js = '(function(){var t=document.body?document.body.innerText:String();return JSON.stringify({titulo:document.title,endereco:location.href,texto:t.slice(0,7000)})})()'",
+  "        $m = [Text.Encoding]::UTF8.GetBytes((@{ id = 1; method = 'Runtime.evaluate'; params = @{ expression = $js; returnByValue = $true } } | ConvertTo-Json -Compress -Depth 5))",
+  "        [void]$ws.SendAsync((New-Object 'ArraySegment[byte]' (,$m)), 'Text', $true, $ct).Wait(5000)",
+  "        $buf = New-Object byte[] 65536; $ms = New-Object IO.MemoryStream; do { $t = $ws.ReceiveAsync((New-Object 'ArraySegment[byte]' (,$buf)), $ct); [void]$t.Wait(8000); $ms.Write($buf, 0, $t.Result.Count) } while (-not $t.Result.EndOfMessage)",
+  "        $ws.Dispose(); $v = ([Text.Encoding]::UTF8.GetString($ms.ToArray()) | ConvertFrom-Json).result.result.value",
+  "        $r = 'b64:' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$v))",
+  "      }",
+  "    }",
   "    'fecha' { Fecha }",
   "    'viva' { if (-not $script:proc -or $script:proc.HasExited) { $r = 'nao' } else { $r = 'sim' } }",
   "  } } catch { $r = 'erro ' + $_.Exception.Message }",
@@ -77,6 +90,12 @@ Mesa.define({
       await abreUrl('https://www.youtube.com/watch?v=' + id, titulo, q);
       return { tocando:titulo || id };
     }
+    async function leTela(espera){
+      if (!aberta) throw new Error('não tem página aberta no navegador da Mesa: abra com abrir_site antes');
+      const e = Math.max(0, Math.min(15, Number(espera) || 0)); if (e) await new Promise(r => setTimeout(r, e * 1000));
+      const r = String(await pede('le', 20000) || ''); if (!r.startsWith('b64:')) throw new Error('não consegui ler a página (' + (r || 'sem resposta') + ')');
+      try { return JSON.parse(decodeURIComponent(escape(atob(r.slice(4))))); } catch { throw new Error('a página devolveu algo que não deu pra ler'); }
+    }
     async function fechaJanela(){ aberta = false; await pede('fecha'); furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = 'Fechado. Peça outro vídeo ou site.'; }
     // a janela acompanha o furo: confere a posição várias vezes por segundo e só manda quando mudou
     const tic = setInterval(() => { if (!aberta) return; const r = ret(); if (r !== ultimo){ ultimo = r; pede('move ' + r); } }, 60);
@@ -91,6 +110,8 @@ Mesa.define({
         { nome:'abrir_site', descricao:'Abre qualquer site (endereço https completo) dentro do widget, como um navegador preso à Mesa.',
           esquema:{ type:'object', properties:{ endereco:{ type:'string' } }, required:['endereco'] },
           roda({ endereco }){ const u = String(endereco || '').trim(); if (!/^https:\/\/[^\s'"<>]+$/i.test(u)) throw new Error('precisa ser um endereço https completo'); return abreUrl(u, '', u); } },
+        { nome:'ler_tela', descricao:'Lê o texto da página que está aberta no navegador da Mesa (título, endereço e até 7 mil letras do que aparece nela), com as contas do dono logadas. espera: segundos pra aguardar a página carregar antes de ler (0 a 15). Só leitura: não clica nem digita.',
+          esquema:{ type:'object', properties:{ espera:{ type:'number' } } }, roda:({ espera } = {}) => leTela(espera) },
         { nome:'fechar_janela', descricao:'Fecha o vídeo ou site que está aberto no widget (o widget continua na Mesa).', roda:() => fechaJanela().then(() => 'fechado') },
       ],
       aoFechar(){ clearInterval(tic); clearInterval(vigia); pede('fecha'); },
