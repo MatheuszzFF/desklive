@@ -436,6 +436,30 @@ function aviso(t, ms = 3200){ const d = document.createElement('div'); d.classNa
 const erros = [];
 addEventListener('error', e => { erros.push(String(e.message).slice(0, 200)); log('erro: ' + e.message, 'bad'); socorro('erro'); });
 addEventListener('unhandledrejection', e => { erros.push(msg(e.reason)); log('erro: ' + msg(e.reason), 'bad'); socorro('erro'); });
+/* diário em disco, pra investigar travada depois: ~/.orbita/logs/board-AAAA-MM-DD.log, uma linha JSON por evento
+   ({ t, b:instância, f:fonte, n:nível, m:texto, d:dados }), gravado em lote a cada 2 s, guarda 7 dias.
+   Entra tudo que passa pelo log() do Board, os erros, um pulso a cada 30 s (quadros, quadros longos, memória,
+   peças) e as travadas da página (o relógio de 1 s que chegou atrasado). Peças e opcionais escrevem com Board.diario(). */
+const DIARIO = (() => {
+  if (SIM || !FS?.appendFile) return { put(){}, flush(){} };
+  const PASTA = BUS + '/logs'; let fila = [], escrevendo = false; const pronto = FS.mkdir(PASTA, { recursive:true }).catch(() => {});
+  const arq = () => { const d = new Date(); return PASTA + '/board-' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.log'; };
+  function put(fonte, nivel, texto, dados){
+    const l = { t:new Date().toISOString(), b:INST, f:String(fonte || 'board'), n:String(nivel || 'info'), m:String(texto ?? '').slice(0, 600) };
+    if (dados !== undefined) try { l.d = JSON.parse(JSON.stringify(dados, (k, v) => typeof v === 'string' && v.length > 400 ? v.slice(0, 400) + '…' : v)); } catch { l.d = String(dados).slice(0, 400); }
+    fila.push(JSON.stringify(l)); if (fila.length > 600) fila.splice(0, fila.length - 600);
+    if (l.n === 'erro') setTimeout(flush, 0);
+  }
+  async function flush(){ if (escrevendo || !fila.length) return; escrevendo = true; const lote = fila.join('\n') + '\n'; fila = []; try { await pronto; await FS.appendFile(arq(), lote, 'utf8'); } catch {} escrevendo = false; }
+  setInterval(flush, 2000);
+  setTimeout(async () => { try { const lim = Date.now() - 7 * 864e5; for (const e of await FS.readdir(PASTA)){ const m = /^board-(\d{4}-\d{2}-\d{2})\.log$/.exec(e.name); if (m && Date.parse(m[1]) < lim) await FS.rm(PASTA + '/' + e.name).catch(() => {}); } } catch {} }, 20000);
+  addEventListener('pagehide', () => { put('board', 'info', 'fechando'); flush(); });
+  return { put, flush };
+})();
+ouvintesLog.add((s, cls) => DIARIO.put('board', cls === 'bad' ? 'erro' : 'info', s));
+{ // relógio de 1 s: se chegar mais de 1,5 s atrasado, a página ficou parada (travada do JS, da GPU ou do PC)
+  let ult = Date.now(); setInterval(() => { const n = Date.now(), atraso = n - ult - 1000; ult = n; if (atraso > 1500) DIARIO.put('board', 'aviso', 'página parada ' + (atraso / 1000).toFixed(1) + ' s', { visivel:document.visibilityState }); }, 1000);
+}
 
 /* ============================================================================
    3. molas nomeadas e perfis por estado (o motor afinável)
@@ -2027,7 +2051,16 @@ const B = {
   iniciarTrace, pararTrace, get trace(){ return TRACE.on; }, aviso, log, Telas, canalPara, papelDoApp, diagTelas, CANAL, desktop, FS, get posInfo(){ return posInfo; }, vigiar, get vigias(){ return vigias; },
   canais:{ CX, CY, CW, CH, CS, CROT, CO, CR0, CR1, CR2, CR3, CSX, CSY, CKX, CF }, salvarEstado,
 };
+B.diario = (fonte, nivel, texto, dados) => DIARIO.put(fonte, nivel, texto, dados);
 window.Board = B;
+DIARIO.put('board', 'info', 'abriu', { versao:B.versao, titulo:document.title, sim:!!SIM, ua:navigator.userAgent.slice(0, 120) });
+{ // pulso a cada 30 s
+  let q0 = quadros, longos = 0, maior = 0, tq = performance.now();
+  try { new PerformanceObserver(l => { for (const e of l.getEntries()){ longos++; maior = Math.max(maior, Math.round(e.duration)); } }).observe({ type:'long-animation-frame', buffered:false }); } catch {}
+  setInterval(() => { const m = performance.memory, dt = (performance.now() - tq) / 1000;
+    DIARIO.put('board', 'pulso', '', { fps:Math.round((quadros - q0) / dt), rodando, longos, maiorMs:maior, memMB:m ? Math.round(m.usedJSHeapSize / 1048576) : null, visivel:document.visibilityState, pecas:[...pecas.keys()].slice(0, 20), erros:erros.length });
+    q0 = quadros; tq = performance.now(); longos = 0; maior = 0; }, 30000);
+}
 
 /* ============================================================================
    14b. API ABERTA: o quadro é vazio, mas qualquer cliente vê e mexe em tudo

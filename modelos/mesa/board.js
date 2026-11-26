@@ -41,8 +41,12 @@ const bus = {
 function encodePs(s){ let bin = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); bin += String.fromCharCode(c & 255, c >> 8); } return btoa(bin); }
 async function ps(script, tempo){
   if (!podePCm()) throw new Error('sem permissão pra mexer no PC (abra o Board pelo app instalado e libere o acesso total)');
-  const r = await desktop.childProcess.exec('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + encodePs(script), { timeout:tempo || 15000 });
-  return ((r.stdout || '').trim() || (r.stderr || '').trim()).slice(0, 800);
+  const t0 = performance.now(), dl = (n, m, d) => window.Board?.diario?.('ps', n, m, d);
+  try {
+    const r = await desktop.childProcess.exec('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + encodePs(script), { timeout:tempo || 15000 });
+    dl(r.stderr && !r.stdout ? 'aviso' : 'info', String(script).slice(0, 160), { ms:Math.round(performance.now() - t0), saida:String(r.stdout || r.stderr || '').slice(0, 160) });
+    return ((r.stdout || '').trim() || (r.stderr || '').trim()).slice(0, 800);
+  } catch (e) { dl('erro', String(script).slice(0, 160), { ms:Math.round(performance.now() - t0), erro:String(e?.message || e).slice(0, 200) }); throw e; }
 }
 function ajudante(codigo){
   let proc = null, n = 0, buf = ''; const pend = new Map();
