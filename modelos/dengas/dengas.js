@@ -84,9 +84,9 @@ function superficieAbaixo(x, y){ let m = null; for (const s of superficies()) if
 function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y), bolinha:D.bolinha, baixo:D.baixo }); }
 const R_BOLA = 32, MARGEM = R_BOLA + 6;
 // onde a bolinha fica: grudada no lado (e no canto, se for canto), sempre inteira na tela
-function lugarBola(b){ const A = area(); return { x:b.lado === 'l' ? MARGEM : A.w - MARGEM, y:b.vert === 't' ? MARGEM : b.vert === 'b' ? A.h - MARGEM : clamp(b.y, MARGEM, A.h - MARGEM) }; }
-function virarBola(b){ D.bolinha = b; raiz.classList.add('bolinha'); raiz.classList.remove('sentado', 'no-chao'); D.pose = 'pe'; D.alvo = null; D.modo = 'parado'; trocou(); guardaLugar(); }
-function desvirarBola(){ if (!D.bolinha) return; D.bolinha = null; raiz.classList.remove('bolinha'); trocou(); }
+function lugarBola(b){ if (b.espia) return lugarEspia(b); /* encaixe.js */ const A = area(); return { x:b.lado === 'l' ? MARGEM : A.w - MARGEM, y:b.vert === 't' ? MARGEM : b.vert === 'b' ? A.h - MARGEM : clamp(b.y, MARGEM, A.h - MARGEM) }; }
+function virarBola(b){ D.bolinha = b; classesEncaixe(b); /* encaixe.js */ raiz.classList.remove('sentado', 'no-chao'); D.pose = 'pe'; D.alvo = null; D.modo = 'parado'; trocou(); guardaLugar(); }
+function desvirarBola(){ if (!D.bolinha) return; D.bolinha = null; classesEncaixe(null); /* encaixe.js */ trocou(); }
 function trocou(){ raiz.classList.remove('troca'); void raiz.offsetWidth; raiz.classList.add('troca'); clipes = []; atual = null; chave = ''; }
 const RASTRO = { arrasto:null, andou:null };
 Mesa.diagFonte('dengas', () => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, alvo:D.alvo, area:area(), chao:chao(), limites:{ x:[30, area().w - 30], y:[110, chao()] }, mouse:D.mouse, ...RASTRO }));
@@ -106,6 +106,7 @@ const calmo = a => [clip(a, { ritmo:.6 }), clip(a, { segura:rnd(1800, 5200) })];
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
+  if (D.bolinha?.espia) return clipesEspia(fala);   // encaixe.js: espiando da lateral
   if (D.bolinha){ if (fala) return [clip('r_falando')]; if (D.pensando) return [clip('pensando')]; const r = Math.random(); return r < .7 ? [clip('r_piscando', { ritmo:.7 }), clip('r_piscando', { segura:rnd(2000, 5000) })] : [clip(r < .9 ? 'r_olhando' : 'r_feliz', { ritmo:.8 })]; }
   if (D.modo === 'andando') return [clip(nomeCorre())];
   if (D.pego || D.modo === 'caindo') return [clip('parado')];
@@ -164,7 +165,7 @@ function desenha(now){
   g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 384, 384);
   if (!atlas.naturalWidth) return;
   if (/^correndo_|_lado$|^t_quatro_/.test(atual.a) && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
-  if (D.bolinha) g.drawImage(atlas, c * CEL + 22, m.l * CEL + 24, 52, 52, 0, 0, 384, 384);   // enquadra a cabeça e o cachecol no disco
+  if (D.bolinha && !D.bolinha.espia) g.drawImage(atlas, c * CEL + 22, m.l * CEL + 24, 52, 52, 0, 0, 384, 384);   // enquadra a cabeça e o cachecol no disco
   else g.drawImage(atlas, c * CEL, m.l * CEL, CEL, CEL, 0, 0, 384, 384);
 }
 
@@ -202,7 +203,7 @@ function passo(now){
       if (!D.bolinha && !D.baixo && !D.dorme && !D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(50000, 120000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
     }
   }
-  if (D.bolinha){ D.x = clamp(D.x, MARGEM, A.w - MARGEM); D.y = clamp(D.y, MARGEM, A.h - MARGEM); } else { D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao()); }
+  if (D.bolinha){ const mg = D.bolinha.espia ? 0 : MARGEM; D.x = clamp(D.x, mg, A.w - mg); D.y = clamp(D.y, MARGEM, A.h - MARGEM); }   // espiando: os pés na própria beira else { D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao()); }
   raiz.style.transform = `translate3d(${D.x.toFixed(1)}px,${D.y.toFixed(1)}px,0)`;
   raiz.classList.toggle('no-chao', !D.bolinha && Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
   desenha(now); if (D.aberto) poePainel(); if (falaEl.classList.contains('viva')) poeFala();
@@ -233,8 +234,8 @@ function larga(){
     RASTRO.arrasto = { soltou:[Math.round(D.x), Math.round(D.y)], cursor:[Math.round(cx), Math.round(g0.py ?? D.y)], projetado:[Math.round(px), Math.round(py)], embalo:[Math.round(vx), Math.round(vy)], zona:Math.round(ZL), lado, vert, area:A, quando:new Date().toISOString() };
     Mesa.diagnostico('dengas solto');
     D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null;
-    // a bolinha é só dos cantos (lado + cima/baixo); na lateral ele tem outra forma (ainda a definir) e por enquanto fica inteiro
-    if (lado && vert){ virarBola({ lado, vert, y:py }); D.sentaEm = null; return; }
+    // canto (lado + cima/baixo): a bolinha; só a lateral: espiando da borda (encaixe.js)
+    if (lado){ virarBola(vert ? { lado, vert, y:py } : { lado, vert:null, y:D.y, espia:true }); D.sentaEm = null; return; }
   }
   guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
 }
@@ -243,7 +244,7 @@ hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ 
 
 /* ---------- balão ---------- */
 let tFala = 0, tLetra = 0;
-function poeFala(){ const A = area(), w = falaEl.offsetWidth, h = falaEl.offsetHeight, topo = D.y - (D.bolinha ? 38 : D.pose === 'sentado' ? 104 : 124); falaEl.style.transform = `translate3d(${clamp(D.x - w / 2, 8, A.w - w - 8)}px,${Math.max(8, topo - h - 12)}px,0)`; }
+function poeFala(){ const A = area(), w = falaEl.offsetWidth, h = falaEl.offsetHeight, topo = D.y - (D.bolinha ? (D.bolinha.espia ? 116 : 38) : D.pose === 'sentado' ? 104 : 124); falaEl.style.transform = `translate3d(${clamp(D.x - w / 2, 8, A.w - w - 8)}px,${Math.max(8, topo - h - 12)}px,0)`; }
 function fala(texto){
   texto = String(texto || '').trim().slice(0, 220); if (!texto) return;
   clearTimeout(tFala); clearInterval(tLetra); let n = 0; falaEl.textContent = ''; falaEl.classList.add('viva'); poeFala();
@@ -259,7 +260,7 @@ bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs(
 
 /* ---------- conversa ---------- */
 function poePainel(){
-  const A = area(), w = painel.offsetWidth, h = painel.offsetHeight, alto = D.bolinha ? 36 : D.pose === 'sentado' ? 100 : 122;
+  const A = area(), w = painel.offsetWidth, h = painel.offsetHeight, alto = D.bolinha ? (D.bolinha.espia ? 112 : 36) : D.pose === 'sentado' ? 100 : 122;
   const dir = D.x < A.w / 2, cima = D.y - alto - h - 10 >= 8 || D.y > A.h / 2;
   painel.classList.toggle('desce', !cima);
   const x = clamp(dir ? D.x + 52 : D.x - 52 - w, 12, A.w - w - 12);
@@ -549,7 +550,8 @@ Mesa.icone = tam => {
   if (atlas.naturalWidth) q.drawImage(atlas, 24, 18, 48, 48, 20 * k, 22 * k, 216 * k, 216 * k);
   return c.toDataURL('image/png');
 };
+/*JS:dengas/encaixe.js*/   // onde e como ele gruda na beira (bolinha nos cantos, espiando nas laterais): arquivo próprio
 Mesa.dengas = { fala, pergunta, abre, fecha, vai, virarBola, desvirarBola, estado:() => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, em:D.em, aberto:D.aberto, bolinha:D.bolinha }) };
-if (D.bolinha?.vert) virarBola(D.bolinha); else D.bolinha = null;   // bolinha salva na lateral (versão anterior) volta a ser o ratinho
+if (D.bolinha?.vert || D.bolinha?.espia) virarBola(D.bolinha); else D.bolinha = null;   // bolinha salva na lateral (versão anterior) volta a ser o ratinho
 bus.on('mesa:pronta', () => setTimeout(() => fala(sorteia(['Cheguei! Clica em mim pra gente conversar.', 'Oi! Tô por aqui, é só chamar.', 'Mesa pronta. O que vamos fazer?'])), 1400));
 }
