@@ -2,6 +2,10 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.12: o Dengas cria documentos (Claude Docs)
+- **O que:** ferramenta `documento` (título + Markdown). O Dengas só prepara o rascunho; aparece um botão na conversa e o documento nasce no clique do dono (regra do conector: criar só em gesto de quem vê, uma vez por clique). Confere antes os limites (título de 200, texto abaixo de 32 KB, sem imagem, nota de rodapé ou fórmula). O Claude Docs fica fora da ferramenta `conector` genérica: de uma página ele só aceita a criação.
+- **Não testado:** a criação de verdade (só no app).
+
 ## 2026-11-26 · Mesa 0.11: conectores do Claude
 - **O que:** o Dengas ganha a ferramenta `conector` (descrever / chamar), que usa os conectores da conta do dono pela capacidade `mcp` do artefato. A lista vem de `listTools()` e entra nas instruções; os erros viram frase pelo código. A página só alcança o que está declarado na publicação (`capabilities.mcp.servers`); hoje só o Spotify, o único ligado na conta.
 - **Não testado:** nenhuma chamada real foi feita (só dá no app). Gmail, Agenda e Drive dependem do dono ligar os conectores em claude.ai.

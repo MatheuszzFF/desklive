@@ -266,14 +266,15 @@ foreach($m in [regex]::Matches($h,'(?s)class="result__a" href="([^"]+)"[^>]*>(.*
 }
 // conectores do Claude do dono (Spotify, e Gmail/Agenda/Drive quando ele ligar): a página só alcança os que estão
 // declarados na publicação do artefato; a lista vem pronta de listTools e o app pede a permissão no primeiro uso.
-let mcp = null, conectores = [], conectoresEm = 0;
+let mcp = null, conectores = [], conectoresEm = 0, temDocs = false;
 async function carregaConectores(){
   if (performance.now() - conectoresEm < 60000 && conectoresEm) return;
   try {
     mcp = mcp || await Promise.race([window.claude?.use?.('mcp'), new Promise(r => setTimeout(() => r(null), 4000))]);
     if (!mcp) return;
     const r = await mcp.listTools();
-    conectores = (r.servers || []).filter(v => v.kind !== 'artifact' && v.tools?.length).map(v => ({ servidor:v.server, estado:v.authStatus, ferramentas:v.tools.map(t => ({ nome:t.name, o_que_faz:String(t.description || '').slice(0, 140) })) }));
+    temDocs = (r.servers || []).some(v => v.server === 'Claude Docs');
+    conectores = (r.servers || []).filter(v => v.kind !== 'artifact' && v.server !== 'Claude Docs' && v.tools?.length).map(v => ({ servidor:v.server, estado:v.authStatus, ferramentas:v.tools.map(t => ({ nome:t.name, o_que_faz:String(t.description || '').slice(0, 140) })) }));
     conectoresEm = performance.now();
   } catch (e) { console.warn('mesa: conectores', e); }
 }
@@ -323,6 +324,33 @@ function ferramentas(atos){
           const p = r.payload !== undefined ? r.payload : (r.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
           return (typeof p === 'string' ? p : JSON.stringify(p)).slice(0, 6000) || 'feito';
         } catch (e) { throw new Error(ERRO_MCP[e?.code] || (e?.code === 'tool_error' ? 'o conector respondeu com erro: ' + String(e.message || '').slice(0, 300) : 'não deu agora (' + (e?.code || 'erro') + '): ' + String(e?.message || '').slice(0, 200))); }
+      } }] : []),
+    ...(temDocs ? [{ name:'documento', description:'Prepara um documento novo no Claude Docs do dono (texto pra guardar, compartilhar ou imprimir: relatório, plano, lista, resumo). titulo: até 200 letras, uma linha. markdown: o texto inteiro em Markdown (títulos, listas, tabelas; sem imagens, notas de rodapé nem fórmulas), até 30 mil letras. Você só prepara: aparece um botão na conversa e o documento é criado quando o dono clicar. Avise ele disso em uma frase.',
+      inputSchema:{ type:'object', properties:{ titulo:{ type:'string' }, markdown:{ type:'string' } }, required:['titulo','markdown'] },
+      execute({ titulo, markdown }){
+        const nome = String(titulo || '').replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ').trim().slice(0, 200), md = String(markdown || '');
+        if (!nome) throw new Error('falta o título'); if (!md.trim()) throw new Error('falta o texto');
+        if (new TextEncoder().encode(md).length >= 32000) throw new Error('texto grande demais: passe de 32 KB, encurte');
+        if (/!\[[^\]]*\]\(|\[\^[^\]]+\]|\$\$/.test(md)) throw new Error('tire imagens, notas de rodapé e fórmulas do texto');
+        const linha = msg('ele', ''), bot = document.createElement('button'); bot.type = 'button'; bot.className = 'dg-ato'; bot.style.cssText = 'cursor:pointer;pointer-events:auto;font:inherit;padding:6px 12px';
+        bot.textContent = 'Criar documento: ' + nome.slice(0, 60); linha.appendChild(bot); msgsEl.scrollTop = msgsEl.scrollHeight;
+        const diz = t => { const p = document.createElement('div'); p.textContent = t; linha.appendChild(p); msgsEl.scrollTop = msgsEl.scrollHeight; };
+        bot.addEventListener('click', async () => {
+          bot.disabled = true; bot.textContent = 'Criando…';
+          try {
+            const r = await Mesa.dialogo(() => mcp.callTool('Claude Docs', 'batch', { container:{ kind:'project', create:{ name:nome, doc:{ markdown:md } } }, batch:[] }));
+            const u = r?.payload?.url; bot.textContent = 'Documento criado: ' + nome.slice(0, 60);
+            if (typeof u === 'string' && /^https:\/\/[^\s'"<>]+$/.test(u)){ const a = document.createElement('button'); a.type = 'button'; a.className = 'dg-ato'; a.style.cssText = bot.style.cssText; a.textContent = 'Abrir o documento'; linha.appendChild(a);
+              a.addEventListener('click', () => { if (Mesa.podePC()) Mesa.ps("Start-Process -FilePath '" + u.replace(/'/g, "''") + "'"); else window.open(u, '_blank', 'noopener'); }); }
+          } catch (e) {
+            const sc = e?.result?.structuredContent;
+            if (e?.code === 'approval_required'){ bot.disabled = false; bot.textContent = 'Criar documento: ' + nome.slice(0, 60); diz('Criar o documento precisa da sua aprovação: o Claude pergunta quando você clica.'); }
+            else if (e?.code === 'tool_error' && sc && sc.created === false){ bot.textContent = 'Não criado'; diz('Nada foi criado (' + String(sc.reason || 'motivo não informado') + ').'); }
+            else if (['tool_error', 'server_unavailable', 'upstream_error'].includes(e?.code)){ bot.disabled = false; bot.textContent = 'Tentar criar de novo'; diz('Não tive confirmação: o documento pode ter sido criado. Confere no Claude Docs antes de tentar de novo.'); }
+            else { bot.textContent = 'Não criado'; diz(ERRO_MCP[e?.code] ? 'Não deu: ' + ERRO_MCP[e.code] + '.' : 'Não deu pra criar agora [' + (e?.code || 'erro') + '].'); }
+          }
+        });
+        nota('✎ rascunho: ' + nome.slice(0, 30)); return 'Rascunho pronto. NÃO foi criado ainda: o dono precisa clicar no botão "Criar documento" que apareceu na conversa.';
       } }] : []),
     { name:'widget_criar', description:'Cria na hora um widget novo na Mesa, ou troca um que você criou (mesmo id). html: o miolo do widget, um documento pequeno com <style> e <script> se precisar. Devolve o id e o nome. As regras de como escrever o html estão nas instruções.',
       inputSchema:{ type:'object', properties:{ id:{ type:'string' }, nome:{ type:'string' }, descricao:{ type:'string' }, html:{ type:'string' }, w:{ type:'number' }, h:{ type:'number' } }, required:['id','nome','html'] },
