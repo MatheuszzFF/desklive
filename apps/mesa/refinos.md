@@ -2,6 +2,14 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-25 · Mesa 0.5: a Mesa é uma casca
+- **O que:** **widgets soltos**. Um widget solto é só dado (`nome`, `descricao`, `html`, `w`, `h`), guardado no aparelho (`mesa-soltos`), que roda isolado num iframe com `sandbox="allow-scripts"` (sem acesso à página nem ao PC) e fala com a casca por mensagens, pelo objeto `mesa` que a ponte põe dentro dele: `registrar({ estado, comandos })`, `estado()`, `pedir("<id>_<comando>", args)`, `ouvir`, `emitir`, `avisar`, `salvar`, `ler`. Criar, trocar e apagar acontecem na hora, sem remontar (`Mesa.criaSolto`, `Mesa.removeSolto`). Limites: id de 2 a 25 caracteres, html de 20 a 60.000, até 12 comandos por widget, estado relido a cada 2,5 s.
+- **Visões:** arranjos com nome (widgets abertos e onde, apps hospedados, aparência e fundo): `Mesa.visao('salvar' | 'abrir' | 'apagar' | 'listar', nome)`.
+- **Morador:** ferramentas `widget_criar`, `widget_fonte`, `widget_remover`, `mesa_visao`, `mesa_app`. Uma **mistura** é um widget criado por ele que chama os comandos dos outros com `mesa.pedir`.
+- **Por quê:** cada app tem de ser uma peça solta e independente que o morador tira, põe, cria e combina em tempo real.
+- **Testado:** no navegador: um widget criado em tempo real (contador) registrou o comando, respondeu ao comando, publicou o estado e escreveu nas Notas por `mesa.pedir`; salvar e abrir uma visão reabriu um widget fechado; console sem erro. **Não testado:** o Claude escrevendo um widget de verdade, e tudo no app instalado.
+- **Ainda não:** os widgets de fábrica (Relógio, Notas, Estante) continuam montados junto com a casca; o passo seguinte é virarem soltos também.
+
 ## 2026-11-25 · Mesa 0.4
 - **O que:** a Onda e a Órbita entram **originais**, como **hóspedes**: o HTML montado de cada app roda num iframe e recebe uma "janela de mentira" no lugar do host (`setBounds` move e redimensiona o iframe; as telas são a própria Mesa, em coordenadas de tela; arquivos, processos e menu passam direto pro host real; bandeja, ícone e atalho global são ignorados). O "clique passa" do app vira `pointer-events` no iframe, e a Mesa repassa o movimento do mouse pra ele acordar. Saem os widgets reescritos da 0.3. Montagem: marcador `APP:nome` (monta o app e embute) e a opção `-SemToqueDeTecla`.
 - **Comandos do morador:** Onda pelo canal de arquivos dela (`~/.orbita`: `controlar`, `escolher`, `listar`); Órbita não tem canal, então `abrir_app` e `procurar_app` por fora.

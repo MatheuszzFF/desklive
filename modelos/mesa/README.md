@@ -1,6 +1,6 @@
 # Modelo: Mesa
 
-> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.4** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
+> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.5** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
 
 ## Arquivos
 
@@ -45,6 +45,20 @@ Mesa.define({
 - **`estado` e `comandos` são o contrato com o morador:** todo comando de widget aberto vira uma ferramenta do Claude com o nome `<id>_<nome>`, sem código a mais.
 - **`api`:** `ler()`/`salvar()` (guardado por widget), `emitir(tipo, dado)` e `ouvir(tipo, fn)` (barramento), `avisar(texto)` (o morador fala), `podePC()` e `ps(script)` (PowerShell, só no app com acesso total), `lugar()`.
 - **Moldura, arrasto, encaixe e alça são da Mesa:** o widget só cuida do miolo.
+
+## Widget solto (criado em tempo real)
+
+Além dos widgets de fábrica, a casca aceita widgets criados com ela rodando: `Mesa.criaSolto({ id, nome, descricao, html, w, h })`. O `html` é o miolo do widget; dentro dele existe o objeto `mesa`:
+
+```html
+<button id="b">Anotar a hora</button>
+<script>
+  document.getElementById('b').onclick = () => mesa.pedir('notas_escrever', { texto: new Date().toLocaleTimeString() });
+  mesa.registrar({ estado: () => ({ pronto: true }), comandos: [{ nome: 'anotar', descricao: 'anota a hora nas Notas', roda: () => mesa.pedir('notas_escrever', { texto: 'agora' }) }] });
+</script>
+```
+
+O widget solto roda isolado (iframe com sandbox): não enxerga a página, nem o PC, nem a rede da casca; só fala pelo `mesa`. É o caminho que o morador usa pra inventar widgets e misturas.
 
 ## Bom saber
 

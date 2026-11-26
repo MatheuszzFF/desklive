@@ -68,7 +68,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.4';
+const VERSAO = '0.5';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -317,12 +317,97 @@ function repassa(e){
 }
 addEventListener('resize', () => { for (const H of HOSP.values()){ H.o = origem(); poeHospede(H); H.f.contentWindow?.dispatchEvent(new Event('resize')); } });
 
+
+/* ---------- widgets soltos: a Mesa é a casca, o widget é uma peça independente ----------
+   Um widget solto é só dado: { nome, descricao, html, w, h }, guardado no aparelho. Ele roda isolado num iframe
+   (sandbox, sem acesso à página nem ao PC) e fala com a casca por mensagens, através do objeto `mesa` que a ponte
+   põe dentro dele: mesa.registrar({ estado, comandos }), mesa.estado(), mesa.pedir('widget_comando', args),
+   mesa.ouvir(tipo, fn), mesa.emitir(tipo, dado), mesa.avisar(texto), mesa.salvar(v), mesa.ler().
+   Criar, trocar e remover acontecem na hora, sem remontar a Mesa: é assim que o morador inventa widgets. */
+const SOLTOS = le('mesa-soltos', {});
+const PONTE = '<script>(function(){var n=0,pend={},ouv={},reg={};'
+  + 'function manda(t,d){parent.postMessage(Object.assign({mesa:1,t:t},d||{}),"*")}'
+  + 'function pede(t,d){return new Promise(function(ok,no){var id=++n;pend[id]=[ok,no];manda(t,Object.assign({id:id},d||{}))})}'
+  + 'addEventListener("message",function(e){var m=e.data;if(!m||!m.mesa)return;'
+  + 'if(m.t==="res"){var p=pend[m.id];if(p){delete pend[m.id];m.erro?p[1](new Error(m.erro)):p[0](m.v)}}'
+  + 'else if(m.t==="evento"){(ouv[m.tipo]||[]).forEach(function(f){try{f(m.dado)}catch(x){}})}'
+  + 'else if(m.t==="estado"){var v;try{v=reg.estado?reg.estado():undefined}catch(x){}manda("resp",{id:m.id,v:v})}'
+  + 'else if(m.t==="comando"){Promise.resolve().then(function(){var c=(reg.comandos||[]).filter(function(q){return q.nome===m.nome})[0];if(!c)throw new Error("comando desconhecido");return c.roda(m.args||{})})'
+  + '.then(function(v){manda("resp",{id:m.id,v:v===undefined?"feito":v})},function(x){manda("resp",{id:m.id,erro:String(x&&x.message||x)})})}});'
+  + 'window.mesa={registrar:function(o){reg=o||{};manda("registro",{comandos:(reg.comandos||[]).map(function(c){return{nome:c.nome,descricao:c.descricao,esquema:c.esquema}})})},'
+  + 'estado:function(){return pede("mesa_estado")},pedir:function(cmd,args){return pede("pedir",{cmd:cmd,args:args})},'
+  + 'ouvir:function(tipo,f){(ouv[tipo]=ouv[tipo]||[]).push(f);manda("ouvir",{tipo:tipo})},emitir:function(tipo,dado){manda("emitir",{tipo:tipo,dado:dado})},'
+  + 'avisar:function(t){manda("avisar",{texto:t})},salvar:function(v){manda("salvar",{v:v})},ler:function(){return pede("ler")}};})();<' + '/script>';
+const BASE_SOLTO = '<meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;color:#f4f5f8;font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color-scheme:light;overflow:hidden}*{box-sizing:border-box}button,input,textarea{font:inherit;color:inherit}:root{--coral:#d97757;--pessego:#f0a98a;--muted:rgba(244,245,248,.62);--line:rgba(255,255,255,.09)}</style>';
+function defineSolto(id){
+  const d = SOLTOS[id]; if (!d) return;
+  define({ id, nome:d.nome, descricao:d.descricao || 'widget criado na Mesa', w:d.w || 320, h:d.h || 220, minW:140, minH:90, solto:true,
+    icone:'<path d="M12 3l2.6 5.6 6 .7-4.4 4.1 1.2 6-5.4-3-5.4 3 1.2-6L3.4 9.3l6-.7z"/>',
+    monta(corpo, api){
+      const f = document.createElement('iframe'); f.setAttribute('sandbox', 'allow-scripts'); f.title = d.nome;
+      f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;color-scheme:light';
+      const inst = { comandos:[], estado:() => ultimo }, pend = new Map(), solta = []; let n = 0, ultimo;
+      const fala = m => f.contentWindow?.postMessage({ mesa:1, ...m }, '*');
+      const pergunta = (m, tempo = 15000) => new Promise((ok, no) => { const k = 's' + (++n); pend.set(k, [ok, no]); fala({ ...m, id:k }); setTimeout(() => { if (pend.has(k)){ pend.delete(k); no(new Error('o widget não respondeu')); } }, tempo); });
+      const ouve = async e => {
+        if (e.source !== f.contentWindow) return; const m = e.data; if (!m || !m.mesa) return;
+        const devolve = (v, erro) => fala({ t:'res', id:m.id, v, erro });
+        if (m.t === 'resp'){ const p = pend.get(m.id); if (p){ pend.delete(m.id); m.erro ? p[1](new Error(m.erro)) : p[0](m.v); } }
+        else if (m.t === 'registro') inst.comandos = (m.comandos || []).slice(0, 12).map(c => ({ nome:String(c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 30), descricao:String(c.descricao || '').slice(0, 300), esquema:c.esquema, roda:args => pergunta({ t:'comando', nome:c.nome, args }) }));
+        else if (m.t === 'mesa_estado') devolve(estado());
+        else if (m.t === 'pedir'){ const c = comandos().find(q => q.widget + '_' + q.nome === m.cmd); if (!c) return devolve(undefined, 'comando desconhecido: ' + m.cmd); try { devolve(await c.roda(m.args || {})); } catch (x) { devolve(undefined, String(x.message || x)); } }
+        else if (m.t === 'ouvir') solta.push(bus.on(String(m.tipo), dado => fala({ t:'evento', tipo:m.tipo, dado })));
+        else if (m.t === 'emitir') api.emitir(String(m.tipo), m.dado);
+        else if (m.t === 'avisar') api.avisar(String(m.texto || '').slice(0, 220));
+        else if (m.t === 'salvar') api.salvar(m.v);
+        else if (m.t === 'ler') devolve(api.ler(null));
+      };
+      addEventListener('message', ouve);
+      const tic = setInterval(() => pergunta({ t:'estado' }, 4000).then(v => { ultimo = v; }).catch(() => {}), 2500);
+      f.srcdoc = BASE_SOLTO + PONTE + d.html; corpo.appendChild(f);
+      inst.aoFechar = () => { removeEventListener('message', ouve); clearInterval(tic); solta.forEach(q => q()); };
+      return inst;
+    } });
+}
+/** cria ou troca um widget solto na hora (se já estava aberto, reabre no mesmo lugar) */
+function criaSolto(o){
+  const id = String(o.id || '').toLowerCase();
+  if (!/^[a-z][a-z0-9_]{1,24}$/.test(id)) throw new Error('id inválido: use letras minúsculas, números e _ (2 a 25 caracteres, começando por letra)');
+  if (DEFS.has(id) && !DEFS.get(id).solto) throw new Error('já existe um widget fixo com o id "' + id + '"');
+  if (HDEFS.has(id)) throw new Error('já existe um app com o id "' + id + '"');
+  const html = String(o.html || ''); if (html.length < 20 || html.length > 60000) throw new Error('o html do widget precisa ter entre 20 e 60.000 caracteres');
+  const aberto = ABERTOS.has(id); if (aberto) fecha(id);
+  SOLTOS[id] = { nome:String(o.nome || id).slice(0, 40), descricao:String(o.descricao || '').slice(0, 200), html, w:clamp(+o.w || SOLTOS[id]?.w || 320, 140, 1600), h:clamp(+o.h || SOLTOS[id]?.h || 220, 90, 1200) };
+  grava('mesa-soltos', SOLTOS); DEFS.delete(id); defineSolto(id);
+  setTimeout(() => { try { abre(id); toca(id); } catch (e) { console.warn(e); } }, aberto ? 280 : 0);
+  return { id, nome:SOLTOS[id].nome };
+}
+function removeSolto(id){ if (!SOLTOS[id]) throw new Error('não existe widget solto "' + id + '"'); fecha(id); delete SOLTOS[id]; delete prefs.widgets[id]; grava('mesa-soltos', SOLTOS); DEFS.delete(id); salva(); return true; }
+const fonteSolto = id => SOLTOS[id] ? { id, ...SOLTOS[id] } : null;
+
+/* ---------- visões: arranjos da mesa com nome (o que está aberto, onde, e a aparência) ---------- */
+function visao(acao, nome){
+  const V = prefs.visoes ||= {}; nome = String(nome || '').trim().slice(0, 40);
+  if (acao === 'listar') return Object.keys(V);
+  if (!nome) throw new Error('diga o nome da visão');
+  if (acao === 'salvar'){ V[nome] = { widgets:Object.fromEntries([...ABERTOS.values()].map(W => [W.id, { x:Math.round(W.tx), y:Math.round(W.ty), w:Math.round(W.w), h:Math.round(W.h) }])), apps:[...HOSP.keys()], aparencia:prefs.aparencia || null, fundo:prefs.fundo }; salva(); return 'visão "' + nome + '" guardada'; }
+  if (acao === 'apagar'){ if (!V[nome]) throw new Error('não existe a visão "' + nome + '"'); delete V[nome]; salva(); return 'apagada'; }
+  const v = V[nome]; if (!v) throw new Error('não existe a visão "' + nome + '"; tem: ' + (Object.keys(V).join(', ') || 'nenhuma'));
+  for (const id of [...ABERTOS.keys()]) if (!v.widgets[id]) fecha(id);
+  for (const [id, l] of Object.entries(v.widgets)) if (DEFS.has(id)){ abre(id); move(id, l); }
+  for (const id of [...HOSP.keys()]) if (!(v.apps || []).includes(id)) fechaHospede(id);
+  for (const id of v.apps || []) if (HDEFS.has(id)) abreHospede(id);
+  if (v.aparencia) aparencia(v.aparencia); if (v.fundo) fundo(v.fundo);
+  return 'visão "' + nome + '" aberta';
+}
+
 /* o que o morador (e qualquer widget) enxerga da mesa inteira */
 function estado(){
   return { tela:area(), fundo:prefs.fundo,
     abertos:[...ABERTOS.values()].map(W => { let e; try { e = W.inst.estado?.(); } catch { e = undefined; } return { id:W.id, nome:W.def.nome, ...lugar(W), estado:e }; }),
     apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch { e = undefined; } return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e }; }),
-    fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })) };
+    fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })),
+    criados_pelo_morador:Object.keys(SOLTOS), visoes:Object.keys(prefs.visoes || {}) };
 }
 function comandos(){
   const l = [];
@@ -360,7 +445,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado && ![...HOSP.values()].some(H => !H.ignora)) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -414,6 +499,7 @@ async function entra(perms){
   bus.emit('mesa:pronta', { app:true });
 }
 function arruma(){   // abre o que estava aberto da última vez (ou o conjunto de partida)
+  for (const id of Object.keys(SOLTOS)) { try { defineSolto(id); } catch (e) { console.warn(e); } }
   R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); if (prefs.aparencia) aparencia({});
   const lista = Array.isArray(prefs.abertos) ? prefs.abertos : [...DEFS.values()].filter(d => d.deSaida).map(d => d.id);
   for (const id of lista) if (DEFS.has(id)) { try { abre(id); } catch (e) { console.warn(e); } }
