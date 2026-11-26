@@ -8,7 +8,7 @@ Um arquivo por mês (`AAAA-MM.md`), dias em ordem e, dentro do dia, a entrada ma
 
 | Arquivo | Período |
 |---|---|
-| [2026-11.md](2026-11.md) | novembro de 2026: janela do tamanho do conteúdo, motor v2 → v2.2, pesquisa do host, sonda, Onda v20 (motor-piloto) e o vídeo, R25, Onda v21, proposta do Board, Board v1 |
+| [2026-11.md](2026-11.md) | novembro de 2026: janela do tamanho do conteúdo, motor v2 → v2.2, pesquisa do host, sonda, Onda v20 (motor-piloto) e o vídeo, R25, Onda v21, proposta do Board, Board v1, Board v2 |
 
 ## Como registrar
 

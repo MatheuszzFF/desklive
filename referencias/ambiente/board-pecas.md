@@ -5,9 +5,9 @@
 ## Uma peça = um `Board.registrar` a mais
 
 ```
-Board.registrar({ id, nome, passavel, persistir, noMenu, oculta, essencial, inicial:{ forma, rx, ry },
+Board.registrar({ id, nome, passavel, persistir, noMenu, oculta, essencial, versaoEstado, inicial:{ forma, rx, ry, fixo, pos(area) },
   criar(ctx) → { el, fundo, caixa(area), tamanho(forma, degrau, area), raios(forma, degrau),
-                 formaArrasto, pega(alvo), mapearPega(fx, fy, P), clique(e, P),
+                 formaArrasto, arrastoMantemDegrau, pega(alvo), mapearPega(fx, fy, P), clique(e, P),
                  onForma, onDegrau, onSize, onHover, onFase, onArea, onMostrar,
                  estado(), restaurar(dados), menu(), ativar(), destruir() } })
 ```
@@ -17,7 +17,10 @@ Board.registrar({ id, nome, passavel, persistir, noMenu, oculta, essencial, inic
 - **Âncora:** cada forma tem o ponto que fica parado quando o tamanho muda (topo `(.5, 0)`, esquerda `(0, .5)`, canto `c-br` `(1, 1)`, solta pelo terço da tela). Por isso "abrir" sempre cresce pra dentro, e posição e tamanho usam a mesma mola.
 - **`ctx.ancorar(el, ax, ay)`:** prende uma camada interna a um ponto da forma (o shell move só por `transform`). A Sonda usa isso pra cada vista (cápsula, ilha, coluna, canto, painel).
 - **`estado()` / `restaurar()`:** o que viaja junto quando a peça troca de Board (a Sonda leva os resultados e o fim do log).
-- **`ativar()` / `destruir()`:** a mesma peça nasce como **fantasma** no Board vizinho; só vira de verdade (e liga ouvintes, timers) na adoção.
+- **`ativar()` / `destruir()`:** a mesma peça nasce como **fantasma** no Board vizinho; só vira de verdade (e liga ouvintes, timers, peças de teste) na adoção.
+- **`arrastoMantemDegrau`:** a peça aberta continua aberta no arrasto (a Sonda é arrastada como o painel inteiro, como na sonda original); o alvo de encaixe e a prévia usam esse tamanho.
+- **`versaoEstado`:** subiu a versão, o estado salvo antigo é ignorado e a peça nasce do jeito novo (`inicial.pos`, `inicial.fixo`).
+- **Tudo que muda de tamanho dentro da peça anima:** a Sonda usa "altura viva" (ResizeObserver congela a altura antiga antes do quadro pintar e uma mola leva à nova; o embrulho medido é `display:flow-root`, senão a margem dos filhos escapa da medida), crossfade nos textos que mudam (contadores vivos trocam no lugar, com dígitos tabulares) e rolagem do log com mola.
 
 ## Camadas (z), todas filhas do `body`
 
@@ -33,7 +36,8 @@ Nenhum balão mora dentro de uma peça: `transform`, `filter` e `will-change` da
 
 ## Clique-passa: só a peça existe
 
-- **Desliga** só com o cursor **dentro da forma real** (retângulo com os 4 raios; o canto arredondado de fora não conta). Halo de até 8 px só chegando rápido (> 500 px/s, na direção da peça).
+- **Desliga** só com o cursor **dentro da forma real** (retângulo com os 4 raios; o canto arredondado de fora não conta; os ombros de 16 px também não, o clique passa ali). Halo de até 8 px só chegando rápido (> 500 px/s, na direção da peça).
+- **Hover macio:** a margem de saída cresce de 0 a 10 px em ~90 ms (histerese sem degrau) e o hover acende pelo motor (escala 1,006 e um fio de sombra), entrando e saindo.
 - **Religa na hora** ao sair da forma (sem atraso; o hover visual tem a sua própria histerese de 160 ms). Um clique que caiu no Board fora de peça religa na hora.
 - **Nunca preso:** vigia de 200 ms relê o cursor enquanto desligado; religa em `blur`, erro e `pointercancel`; botão "preso" sem evento por 600 ms é solto.
 - **Foco:** o Board só pede foco com clique numa peça (nada de `show()` sozinho).

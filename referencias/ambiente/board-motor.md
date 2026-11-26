@@ -1,58 +1,66 @@
 # Board: o motor de motion
 
-> L3 · referência. Índice: [ambiente](README.md) · peças em [board-pecas](board-pecas.md). **O que é:** o laço central do Board v1 (canais, molas por estado, passo fixo, entrada, ganchos, afinação) e os números do simulador. **Quando ler:** antes de afinar qualquer movimento dentro do Board.
+> L3 · referência. Índice: [ambiente](README.md) · peças em [board-pecas](board-pecas.md) · telas em [board-telas](board-telas.md) · conexão em [board-conexao](board-conexao.md). **O que é:** o laço central do Board (canais, molas por estado, passo fixo, entrada, contatos, ganchos, afinação) e os números do simulador. **Quando ler:** antes de afinar qualquer movimento dentro do Board.
 
-## Canais e molas
+## Canais e molas (v2, finais)
 
-- **Canais por peça (15):** `x y w h` · `s` escala · `rot` · `o` opacidade · `r0..r3` raios · `sx sy kx` deformação simétrica `[[sx,kx],[kx,sy]]` · `f` fusão (ombros).
-- **Física:** passo fixo de **240 Hz** com subpassos (até 30 por quadro), render **interpolado** entre os dois últimos passos: igual a 60, 120 ou 144 Hz. Câmera lenta global 0,1–1×.
-- **Mola por canal e por estado:** `PERFIS[estado][grupo] = nome`, grupos `pos tam escala rot opac raio deform fusao`. Estados: `arrastando`, `soltando`, `encaixando`, `trocando`, `assentado`. `k = 0` = **direto** (segue na hora, subpixel).
+- **16 canais por peça:** `x y w h` · `s` escala · `rot` · `o` opacidade · `r0..r3` raios · `sx sy kx` deformação `[[sx,kx],[kx,sy]]` · `f` fusão (ombros) · `l` levantar (sombra).
+- **Passo fixo de 240 Hz**, até 30 subpassos, render interpolado no vsync de cada monitor; câmera lenta global 0,1–1×. **Mola por canal e por estado:** `PERFIS[estado][grupo]`; estados `arrastando`, `soltando`, `encaixando`, `trocando`, `assentado` e `saltando` (pílula). `k = 0` = direto (subpixel).
 
 | Mola | k | ζ | Onde |
 |---|---|---|---|
-| direto | 0 | — | posição arrastando (padrão) |
-| cola | 1600 | 1 | posição arrastando (opção, um fio de atraso) |
-| encaixe | 320 | 0,78 | soltar num alvo (posição e tamanho) |
+| direto | 0 | — | posição no arrasto |
+| cola | 1600 | 1 | opção de arrasto com um fio de atraso |
+| encaixe | 320 | 0,78 | soltar num alvo |
 | assentar | 240 | 0,9 | soltar solto, com o embalo (0,16 s da velocidade) |
-| forma | 300 | 0,8 | troca de forma ou degrau |
-| raio | 380 | 0,92 | raios e fusão |
-| levantar | 520 | 0,62 | escala 1,012 e inclinação (0,0005°·px/s, máx. 2,2°) |
-| deforma | 700 | 0,5 | estica na direção da velocidade (1/40000 por px/s, máx. 3,5 %) |
-| surgir | 200 | 0,95 | opacidade, entrar e sair |
+| forma | 300 | 0,8 | troca de forma, degrau, abrir e recolher |
+| raio | 380 | 0,92 | raios e fusão (ombros recolhem ao descolar) |
+| levantar | 520 | **0,72** | escala, sombra e inclinação (v1: 0,62, quicava demais) |
+| deforma | 700 | 0,5 | estica, amassa e volta |
+| surgir | 200 | 0,95 | peças nascendo e sumindo (escala 0,94 ↔ 1 e opacidade) |
+| salto | 230 | 0,8 | a pílula pulando de lugar, com um estalo na escala |
+| secao | 260 | 0,92 | alturas internas (seções, aviso, listas) |
+| rolar | 300 | 1 | rolagem do log |
 
-- **CSS nunca move peça:** posição, tamanho e forma são só do motor (`matrix(...)` com 3 casas, sem arredondar; opacidade; o recorte). CSS fica com o cosmético de dentro (crossfade das vistas, ping do sonar).
-- **Zero alocação nossa por quadro:** canais em `Float64Array`, alvo do ímã e limites em objetos reaproveitados, estilos só escritos quando mudam.
-- **Dorme parado:** sem nada se mexendo, o laço para (sem rAF); acorda com entrada, mola ou animação. `will-change` só nas peças em movimento, sai 300 ms depois de assentar.
+| Efeito | Valor |
+|---|---|
+| levantar no arrasto | escala 1,012 e sombra (canal `l` 0 → 1); perto da guia a sombra baixa (`1 − 1,8 × ímã`): ela "pousa" antes de encaixar |
+| inclinar | 0,00035°·px/s da velocidade + 0,00002°·px/s² da aceleração, máx. 2° |
+| esticar | 1/40000 por px/s na direção do movimento, máx. 3,5 % |
+| descolar | estirão de 0,55/s na escala, pra fora da borda (líquido) |
+| amassar | contato com a parede: 0,32 × 3,6 por px de penetração, na direção do contato |
+| hover | escala 1,006 e sombra 0,22 pelo motor; margem de saída 0 → 10 px em ~90 ms |
 
 ## Entrada e ponto pego
 
-- `pointerrawupdate` quando existe, senão `pointermove` + `getCoalescedEvents()`; anel de 128 amostras com o `timeStamp` do evento.
-- **Velocidade:** regressão linear das amostras dos últimos 64 ms; aceleração suavizada. **Previsão** de 1 quadro (`v × dt`), máx. 32 px, some em 60 ms sem amostra nova.
-- **Ponto pego em pixels:** migra do ponto original pro ponto mapeado junto com o tamanho (nunca empurra a peça pra fora da tela); a escala, a inclinação e a deformação giram nele.
-- **Ímã:** `k = 0,5 · smoothstep(1 − d/zona)`, suavizado a 14/s, puxando o lado da peça pro lado do alvo. Zonas: borda 72, canto 120 (ganha da borda: pontuação `d·0,35 − 30`), degrau 100, emenda 44 e canto da emenda 60, **só abaixo de 260 px/s**.
+- `pointerrawupdate` quando existe, senão `pointermove` + `getCoalescedEvents()`; anel de 128 amostras com o `timeStamp` do evento; velocidade por regressão de 64 ms; previsão de 1 quadro (máx. 32 px, some em 60 ms sem amostra).
+- **Ponto pego em pixels** (migra junto com o tamanho); a escala, a inclinação e a deformação giram nele. Parado, o pivô é a **âncora** (o lado fundido fica no lugar quando a peça amassa ou cresce).
+- **Ímã:** `0,5 · smoothstep(1 − d/zona)`, suavizado a 14/s e **no máximo 6 px por quadro** (trocar de alvo nunca dá degrau). Zonas: borda 72, canto 120 (`d·0,35 − 30`), degrau 100, emenda 44 e canto da emenda 60, só abaixo de 260 px/s; o degrau na ponta de uma emenda aberta segue a regra da emenda.
 
-## Ganchos e afinação
+## Contatos e limites
 
-- **Fases** (`Board.on` ou `onFase`): `pegou`, `arrastando` (todo quadro), `perto` (alvo novo), `encaixou`, `soltou`, `assentou`, `trocouForma`, `adotada`.
-- **Camadas somadas:** `ctx.camada(nome, fn(t, P, soma))` soma deltas por canal sem brigar com a física; `ctx.animar(fn)` mantém o laço acordado. `Board.entrada` dá velocidade e aceleração.
-- **Afinação** (Ctrl+Alt+Shift+B, menu ou botão da Sonda): sliders de cada mola, câmera lenta, prever, levantar, inclinar, esticar; overlay de vetores, alvos e formas; **registro** por quadro em `~/.orbita/board-trace.json` (até 30 s: posição, alvo, velocidade, erro do ponto pego, ímã, forma, fases e amostras de entrada).
+- **Limite do arrasto:** projeção na união de retângulos (meu monitor, monitores com Board e a faixa de cada emenda aberta, só do tamanho da emenda) — ver [board-telas](board-telas.md). Se a projeção saltaria (troca de região no degrau), a peça desliza **no máximo 10 px por quadro além do cursor**.
+- **Elástico (rubber-band)** contra a parede no arrasto: cede `d·(1 − 1/(x/d + 1))` com d = 36 px; a velocidade sai multiplicada pela derivada `1/(x/d + 1)²` (contínua ao soltar) e volta com mola.
+- **Parede macia** fora do arrasto: mola dura k 16000, ζ 0,34 contra a borda da tela (com o tamanho **atual** da peça). Quique curto e proporcional à velocidade, sem salto de velocidade, com o micro-amassado.
+- **Peças não se sobrepõem:** se encostam (folga de 8 px), a de baixo (ou a não arrastada) desliza pra fora em 35 % por quadro, pela mola dela; fundida numa borda, só desliza ao longo dela; canto não é empurrado.
+- **CSS nunca move peça:** posição, tamanho e forma só pelo motor; a translação é arredondada no pixel físico do monitor. CSS só no cosmético de dentro.
 
-## Números (simulador, 25/11/2026)
+## Ganchos, afinação, desempenho
 
-Dois Boards em iframes, monitor 1 1920 × 1032 úteis + monitor 2 1707 × 912 (2560 × 1440 a 1,5), 200 px mais alto; relógio por `setTimeout(16)` (aba encoberta), disco imitado em memória. **(sim)**: nada aqui substitui o app instalado.
+- Fases: `pegou`, `arrastando`, `perto`, `encaixou`, `soltou`, `assentou`, `trocouForma`, `adotada`. Camadas somadas: `ctx.camada`. `Board.entrada` dá velocidade e aceleração.
+- **Afinação** (Ctrl+Alt+Shift+B ou menu): molas, câmera lenta, prever, levantar, inclinar (vel. e acel.), esticar, amassar, escorrer; overlay; registro `~/.orbita/board-trace.json` (posição, alvo, velocidade, erro do ponto pego, ímã, forma, degrau, opacidade, escala, deformação, fusão, levantar, rotação, fases, entrada); **Telas e conexão**.
+- Laço **dorme** parado; acorda com entrada, mola, animação, oferta de passe ou sinal pendente. Um erro num quadro é registrado e o laço continua (nunca congela).
+
+## Números (simulador, 26/11/2026; relógio por MessageChannel, sem estrangulamento)
 
 | Medida | Resultado |
 |---|---|
-| erro do ponto pego (fora do ímã e da parede) | **0 px** em 5 arrastos (n 45–68 quadros cada) |
-| tremida com o mouse parado no arrasto | 0 / 0,0002 px em 60 quadros |
-| entrada → quadro que a desenha | p50 16,7 ms (é o relógio do simulador; no host, evento → rAF) |
-| JS do laço, 5 peças (arrasto + onda + WebGL + órbita) | p50 0,1 · p95 0,2–0,3 · máx. 0,4–1,2 ms |
-| parado | o laço dorme: 0 quadros em 1,5 s |
-| emenda: devagar (~190 px/s) / rápido (~2400 px/s) | gruda (forma `right`) / atravessa, adotada 51 ms depois de soltar |
-| barramento (memória) | p50 14 ms, p95 18 |
-| área visível somada nos dois Boards ao cruzar | nunca abaixo de 100 % (122 amostras); rasgo entre as cópias 22–41 px |
-| monitor 2 some | a Sonda passa pro Board 1 em 1,3–2,8 s, o Board 2 se esconde, 1 cópia |
-| cliques fora das peças | 3/3 na área de trabalho, 0 eventos no Board |
-| cliques em cada parte da Sonda | 8/8 no alvo certo |
+| erro do ponto pego fora do ímã e da parede | **0 px** (todos os arrastos) |
+| saltos no arrasto (peça andando > 16 px além do cursor num quadro) | **0** nas 4 bordas, 4 cantos e degrau do monitor 2; maior excesso 0,5–3,3 px (10 px só no deslize limitado pela quina do degrau) |
+| observador de layout (caixa mudando > 1 px num quadro sem animação) | **0** em 5030 quadros: seções, botões, testes (inclusive 20 cliques na pílula), arrasto, emenda |
+| câmera lenta 0,25×: encaixar, descolar, pular, recolher, abrir, peças nascendo e sumindo | 0 quedas de opacidade; maior passo de escala 0,003–0,005; fora do arrasto, maior passo 25 px/quadro (mola de 720 px) |
+| batida na parede (0,35×) | entra 4,2 px, volta com um quique; velocidade −3743 → +189 → 0 px/s, contínua; amassa 0,5 % |
+| elástico (0,35×) | cede 33,7 px e volta; velocidade em sino, maior passo 64 px/s por amostra |
+| JS do laço, 5 peças (Sonda arrastada + onda + WebGL + órbita + cartão) | p50 0,2 · p95 0,3 · máx. 0,8 ms; parado o laço dorme |
 
-**Falta medir no app instalado:** CPU e GPU parado e animando (seção 5 da Sonda), o rAF de verdade, a latência do disco no passe, `pointerrawupdate` no host, DPI 1,5 real (os iframes do simulador têm o mesmo dpr) e o vídeo quadro a quadro (R25).
+**Falta no app instalado:** CPU e GPU (seção 5 da Sonda), o rAF de verdade, `pointerrawupdate` no host, vídeo quadro a quadro (R25).

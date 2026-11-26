@@ -51,6 +51,21 @@ Situação: **resolvido** (provado no app ou no simulador), **em implementação
 33. **Quadro velho no arrasto** (13,77 s, quadro 414): o conteúdo sobe 157 px por 1 quadro e volta, na troca de cima pra baixo do expandido: a janela cresceu pra cima e o Windows mostrou o conteúdo velho preso no canto novo. O v20 nem contava esse caso no arrasto. → Dois passos (mover, depois redimensionar com o canto parado; ou o inverso se não couber). Commits com quadro velho possível 59 → 3 no simulador. **Resolvido (v21.1)** no que cabe na tela.
 34. **Borda e meio pela âncora** (achado no teste): chegando devagar no canto da emenda, a forma alternou topo → disco → coluna → disco → coluna. → Distância até a borda pelo ponto pego. 5 → 2 trocas. **Resolvido (v21.1).**
 
+## 26/11/2026 — Board v1 → v2
+
+35. **Board: nada era desenhado** (simulador). O cache do render começava em `NaN` e `|a − NaN| > ε` é sempre falso. → Sentinela numérica. **Resolvido.**
+36. **Ponto pego empurrava a peça pra fora do topo** (10–40 px) ao encolher o painel no arrasto: o ponto pego interpolava a **fração**. → Interpola o deslocamento em pixels. **Resolvido** (erro 0 px).
+37. **Clique comido logo depois de sair da peça:** o clique-passa religava 60 ms depois de sair. → Religa na hora; o hover visual tem a própria histerese. **Resolvido.**
+38. **Peça sumindo por quadros na emenda:** o Board vizinho lia a caixa a cada 250 ms e o fantasma nascia tarde. → Aviso 600 px antes, leitura parada a 120 ms, fantasma desenhado no mesmo tick. **Resolvido** (área visível nunca abaixo de 100 %).
+39. **"Buga nas extremidades do segundo monitor"** (app instalado, área útil 1032 ao lado de 1080). O limite do arrasto escolhia o monitor pelo **centro** da peça e prendia num monitor por vez (salto de até 48 px ao cruzar o centro ou y 1032); os alvos de borda não olhavam o comprimento do segmento (a borda de 48 px embaixo da emenda mandava a peça pra fora); o monitor 2 não tinha alvos enquanto o Board 1 segurava o arrasto. → União de regiões + projeção + deslize de no máximo 10 px por quadro, segmentos curtos ignorados, alvos em todos os monitores com Board, geometria no espaço físico de cada Board. **Resolvido no simulador** (0 saltos); falta o app instalado.
+40. **Todo arrasto daria erro** (achado pela revisão antes de publicar): os cantos não guardavam os lados (`sh`, `sv`) e `avisoEmenda` não existia; e um erro dentro do quadro congelava o laço pra sempre. → Corrigido, e o laço agora registra o erro e continua. **Resolvido.**
+41. **Leitura pela metade no barramento por arquivo:** medido no PC dele, 32 de 487 leituras (6,6 %) com escrita direta. → tmp + rename (0 em 400), com 3 tentativas porque o rename falha às vezes com o arquivo aberto (2 em 400). **Resolvido.**
+42. **Duas Sondas depois de um passe:** quem passou a peça a recriava do próprio estado salvo antes do batimento do outro listar a peça. → Peça cedida não renasce por 6 s nem enquanto o outro estiver vivo. **Resolvido** (no máximo 1 dono em 1604 amostras).
+43. **Oferta de passe parada:** o laço dormia com a oferta pendente (nada reenviava). → Fica acordado enquanto há oferta ou sinal. **Resolvido.**
+44. **Painel subindo 122 px por quadro ao abrir na borda de baixo:** a parede macia usava o tamanho **alvo**, então a peça ancorada embaixo parecia "dentro da parede". → Tamanho atual. **Resolvido.**
+45. **Seção pulando 6 px ao terminar de abrir:** a margem do primeiro parágrafo colapsava pra fora do embrulho medido, a mola mirava 6 px a menos e o `auto` pulava. → Embrulho `display:flow-root`. **Resolvido** (observador: 0).
+46. **Simulador lento sem motivo:** com a janela do Claude atrás de outras, o navegador estrangula `setTimeout` (~4 por segundo) mesmo com a aba "visível". → Relógio do simulador por MessageChannel. **Resolvido** (só simulador).
+
 ## Lições que valem pra tudo
 
 - Medir no app instalado antes de "corrigir" uma causa suposta (12, 24).
@@ -58,3 +73,6 @@ Situação: **resolvido** (provado no app ou no simulador), **em implementação
 - Tudo que é "1 quadro" só aparece em vídeo a 60 fps ou no registro; o simulador mente pra cima.
 - Quem captura o ponteiro trata o `lostpointercapture` como fim (14, 29).
 - Toda decisão que depende de onde o app está (zona, lado, monitor) usa um ponto que **não** se mexe com a própria decisão; senão ela vira laço (31).
+- Limite ou zona decidido por um ponto (centro) que troca de região vira salto: projete na união das regiões e limite o deslize (39).
+- Entre processos, posição vai em pixel físico e tempo vai absoluto (`timeOrigin + now`); escrita vai por tmp + rename (39, 41).
+- Quem entrega uma coisa não pode recriá-la do próprio cache até o outro confirmar que a tem (42).

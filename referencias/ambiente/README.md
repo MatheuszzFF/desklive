@@ -30,6 +30,8 @@ Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6
 | [receitas-recomendadas.md](receitas-recomendadas.md) | o que mudar no motor e nos apps, em ordem, com por quê, ganho e risco |
 | [board.md](board.md) | **v1 publicado (só simulador):** o que existe, e o conceito: o Board (uma janela transparente em tela cheia por monitor, apps como peças movidas por `transform`), o que as typings permitem (uma janela por app), N monitores com emendas, cantos e degraus, guias de encaixe, passe entre Boards, riscos, a sonda e o fundo no Wallpaper Engine |
 | [board-pecas.md](board-pecas.md) | a API de peça do Board (registrar, formas, degraus, âncora, recorte, ombros), as camadas z, o clique-passa só na forma real e como pôr a Onda dentro |
+| [board-telas.md](board-telas.md) | o serviço Telas: o que vem do host, do Windows (PowerShell) e do vsync medido, o casamento por tamanho físico e escala, os espaços de coordenada, a assinatura comum e a leitura real do PC |
+| [board-conexao.md](board-conexao.md) | a conexão entre Boards: canais medidos (arquivo, rename, pipe, BroadcastChannel), o relay de named pipes, o protocolo do passe à prova de falhas, a linha do tempo comum e as provas de estresse |
 | [board-motor.md](board-motor.md) | o motor de motion do Board: 15 canais, molas por canal e por estado, passo fixo de 240 Hz, entrada com regressão e previsão, ganchos, afinação e os números do simulador |
 
 ## Os achados que mais mudam o trabalho

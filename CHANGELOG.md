@@ -2,6 +2,11 @@
 
 Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app ganha uma linha aqui e a entrada completa em `apps/<app>/refinos.md` ([modelo](templates/registro-de-refino.md)).
 
+## 2026-11-26
+
+### Board v2: Sonda original, motion fino, monitor 2, Telas e conexão
+- **Novo:** [board-telas](referencias/ambiente/board-telas.md) (host + Windows + vsync medido, espaços de coordenada, leitura real do PC) e [board-conexao](referencias/ambiente/board-conexao.md) (canais medidos, relay de pipes, protocolo do passe, linha do tempo comum, provas). **Atualizado:** [board](referencias/ambiente/board.md), [board-pecas](referencias/ambiente/board-pecas.md), [board-motor](referencias/ambiente/board-motor.md) (molas finais, contatos, números), [bugs e lições](referencias/motor/bugs-e-licoes.md) (35–46), [índice do ambiente](referencias/ambiente/README.md), [glossário](visao/glossario.md), mapa do [CLAUDE.md](CLAUDE.md), [diário](diario/2026-11.md).
+
 ## 2026-11-25
 
 ### Board v1: o app, com a Sonda como primeira peça
