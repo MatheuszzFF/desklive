@@ -18,6 +18,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 ### Onda v21.1: tremida quadro a quadro, emenda como borda, dois passos
 - **Atualizado:** [janela sem tremer](padroes/motion/janela-sem-tremer.md) (técnica 6: dois passos), [sensor de borda](padroes/motion/sensor-de-borda-e-encaixe.md) (a emenda é borda), [motor-piloto](referencias/motor/motor-piloto.md) (histerese do monitor, portal junto do commit), [como medir](referencias/ambiente/como-medir.md) (maior bloco, detector de vai e volta, fps real), [bugs e lições](referencias/motor/bugs-e-licoes.md) (26, 27, 33, 34), [diário](diario/2026-11.md), [refinos da Onda](apps/onda/refinos.md) e o Testado da [Onda](apps/onda/README.md).
 
+### Mesa 0.1: o quadro dos widgets (piloto)
+- **Novo:** [modelos/mesa/](modelos/mesa/README.md) (quadro, widgets Relógio, Notas e Música, o morador Dengas e a arte dele) e [apps/mesa/](apps/mesa/README.md) com a receita e os números. Linha nova em [apps/](apps/README.md), [modelos/](modelos/README.md) e no mapa do [CLAUDE.md](CLAUDE.md).
+
 ### Board: palco em tela cheia por monitor (proposta + sonda)
 - **Novo:** [board](referencias/ambiente/board.md) (conceito, uma janela por app nas typings, N monitores com emendas, cantos e degraus, guias de encaixe, passe entre Boards, riscos, a sonda, fundo no Wallpaper Engine com fontes). **Atualizado:** [índice do ambiente](referencias/ambiente/README.md), mapa do [CLAUDE.md](CLAUDE.md), [glossário](visao/glossario.md), [diário](diario/2026-11.md).
 
