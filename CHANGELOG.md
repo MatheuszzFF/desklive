@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Mesa 0.1: o quadro dos widgets (piloto)
+- **Novo:** [modelos/mesa/](modelos/mesa/README.md) (quadro, widgets Relógio, Notas e Música, o morador Dengas e a arte dele) e [apps/mesa/](apps/mesa/README.md) com a receita e os números. Linha nova em [apps/](apps/README.md), [modelos/](modelos/README.md) e no mapa do [CLAUDE.md](CLAUDE.md).
+
 ### Modelos: o código dos três apps, limpo
 - **Novo:** [modelos/](modelos/README.md), a única pasta com código: Órbita v28, Onda v19 e Eco v24 como `*-src.html` + helpers + `build.ps1` portátil (caminhos relativos, saída em `modelos/saida/`, ignorada), e em [compartilhado/](modelos/compartilhado/README.md) o motor v2.2, os helpers usados por mais de um app e as funções da montagem (os ícones são extraídos na máquina de quem monta). Sem dados pessoais: Client ID do Spotify como `SEU_CLIENT_ID` vindo de `onda/config.json` (ignorado), lista de apps só com apps do Windows, exemplos genéricos.
 - **Atualizado:** [CLAUDE.md](CLAUDE.md) (código só em `modelos/`, linha nos níveis e no mapa, como atualizar um modelo, o que procurar antes de commitar), [README](README.md), [guia](guia/README.md) (o que não tem aqui) e [glossário](visao/glossario.md) (marcador, modelo).
