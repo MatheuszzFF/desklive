@@ -15,7 +15,8 @@ const grava = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const quadro = fn => { let feito = false; const roda = t => { if (feito) return; feito = true; fn(t || performance.now()); }; requestAnimationFrame(roda); setTimeout(roda, 40); };
 const area = () => ({ w:MB.area.w, h:MB.area.h });
 const desktop = MB.desktop;
-const podePCm = () => !!desktop?.childProcess?.exec && (MB.simulado || MB.perms?.['full-access'] === 'granted');
+// acesso total: o estado lido na abertura fica velho (numa versão nova ele vem "prompt" e o host pergunta na chamada); só um "não" tira
+const podePCm = () => !!desktop?.childProcess?.exec && MB.perms?.['full-access'] !== 'denied';
 let sampleFn = null;
 Promise.resolve(window.claude?.use?.('sample')).then(s => { sampleFn = s || null; bus.emit('mesa:claude', !!s); }).catch(() => {});
 

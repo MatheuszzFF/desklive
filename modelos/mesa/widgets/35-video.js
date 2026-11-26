@@ -6,10 +6,12 @@
 {
 const JANELA_PS = [
   "$ErrorActionPreference = 'SilentlyContinue'",
-  "Add-Type -Namespace M -Name W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware(); [DllImport(\"user32.dll\")] public static extern int GetWindowLong(System.IntPtr h, int i); [DllImport(\"user32.dll\")] public static extern int SetWindowLong(System.IntPtr h, int i, int v); [DllImport(\"user32.dll\")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr a, int x, int y, int w, int t, uint f); [DllImport(\"user32.dll\")] public static extern uint GetDpiForWindow(System.IntPtr h); [DllImport(\"user32.dll\")] public static extern int SetWindowRgn(System.IntPtr h, System.IntPtr r, bool d); [DllImport(\"gdi32.dll\")] public static extern System.IntPtr CreateRectRgn(int a, int b, int c, int d);'",
-  "[void][M.W]::SetProcessDPIAware(); $proc = $null; $h = [IntPtr]::Zero",
+  "Add-Type -Namespace M -Name W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware(); [DllImport(\"user32.dll\")] public static extern int GetWindowLong(System.IntPtr h, int i); [DllImport(\"user32.dll\")] public static extern int SetWindowLong(System.IntPtr h, int i, int v); [DllImport(\"user32.dll\")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr a, int x, int y, int w, int t, uint f); [DllImport(\"user32.dll\")] public static extern uint GetDpiForWindow(System.IntPtr h); [DllImport(\"user32.dll\")] public static extern int SetWindowRgn(System.IntPtr h, System.IntPtr r, bool d); [DllImport(\"gdi32.dll\")] public static extern System.IntPtr CreateRectRgn(int a, int b, int c, int d); [DllImport(\"user32.dll\", CharSet=System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string c, string t);'",
+  "[void][M.W]::SetProcessDPIAware(); $proc = $null; $h = [IntPtr]::Zero; $dono = ''",
+  // o Edge fica no topo das janelas normais (HWND_NOTOPMOST), sempre ABAIXO do Board/Mesa, que são "sempre por cima": o Board desenha por cima dele e o furo mostra o site
+  "function Acima { return [IntPtr](-2) }",
   // o Edge desenha a própria barra de título por dentro da janela: a janela sobe a altura da barra e é recortada (SetWindowRgn), então só o site aparece no furo
-  "function Poe($x, $y, $w, $t) { if ($script:h -ne [IntPtr]::Zero) { $d = [M.W]::GetDpiForWindow($script:h); if ($d -lt 96) { $d = 96 }; $b = [int][Math]::Round(33 * $d / 96); $q = [int]$w; $a = [int]$t; [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$x, ([int]$y - $b), $q, ($a + $b), 0x0010); if ($script:tam -ne \"$q $a\") { $script:tam = \"$q $a\"; [void][M.W]::SetWindowRgn($script:h, [M.W]::CreateRectRgn(1, $b, $q - 1, $a + $b - 1), $true) } } }",
+  "function Poe($x, $y, $w, $t) { if ($script:h -ne [IntPtr]::Zero) { $d = [M.W]::GetDpiForWindow($script:h); if ($d -lt 96) { $d = 96 }; $b = [int][Math]::Round(33 * $d / 96); $q = [int]$w; $a = [int]$t; [void][M.W]::SetWindowPos($script:h, (Acima), [int]$x, ([int]$y - $b), $q, ($a + $b), 0x0010); if ($script:tam -ne \"$q $a\") { $script:tam = \"$q $a\"; [void][M.W]::SetWindowRgn($script:h, [M.W]::CreateRectRgn(1, $b, $q - 1, $a + $b - 1), $true) } } }",
   // fecha tudo que for do perfil da Mesa (inclusive janela órfã de uma Mesa anterior); sem isso o Edge novo só "entrega" o endereço pro velho e some
   "function Fecha { try { Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | Where-Object { $_.CommandLine -like '*.mesa\\edge*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } } catch {}; $script:proc = $null; $script:h = [IntPtr]::Zero }",
   "[Console]::Out.WriteLine('ready'); [Console]::Out.Flush()",
@@ -17,10 +19,10 @@ const JANELA_PS = [
   "  $p = $l.Split(' '); $id = $p[0]; $r = 'ok'",
   "  try { switch ($p[1]) {",
   "    'abre' {",
-  "      Fecha; Start-Sleep -Milliseconds 400; $script:porta = Get-Random -Minimum 49200 -Maximum 65000; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
+  "      Fecha; Start-Sleep -Milliseconds 400; $script:porta = Get-Random -Minimum 49200 -Maximum 65000; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); if ($p[7]) { $script:dono = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[7])) }; $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
   "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--hide-crash-restore-bubble', ('--remote-debugging-port=' + $script:porta),'--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
   "      for ($i = 0; $i -lt 60 -and $script:h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $script:proc.Refresh(); if ($script:proc.HasExited) { break }; $script:h = $script:proc.MainWindowHandle }",
-  "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); $script:tam = ''; Poe $p[3] $p[4] $p[5] $p[6] }",
+  "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); $e = [M.W]::GetWindowLong($script:h, -20); [void][M.W]::SetWindowLong($script:h, -20, (($e -bor 0x80) -band (-bnot 0x40000))); $script:tam = ''; Poe $p[3] $p[4] $p[5] $p[6] }",
   "    }",
   "    'move' { Poe $p[2] $p[3] $p[4] $p[5] }",
   // lê o texto da página aberta: fala com o próprio Edge da Mesa pela porta de depuração (só neste PC, porta sorteada a cada abertura)
@@ -64,14 +66,18 @@ Mesa.define({
     const furo = corpo.querySelector('.vd-furo'), campo = corpo.querySelector('input'), bot = corpo.querySelector('.m-bot');
     const pede = api.ajudante(JANELA_PS);
     let atual = api.ler({}).atual || null, aberta = false, ultimo = '', problema = '';
+    // a janela fica embaixo da do Board: reordena de vez em quando (outra janela pode ter vindo pra frente)
+    const reordena = setInterval(() => { if (aberta) pede('move ' + ret()); }, 1500);
     // onde o furo está na tela, em pixels físicos (a janela do Edge é posta nessas coordenadas)
-    const ret = () => { const r = furo.getBoundingClientRect(), k = devicePixelRatio || 1; return [Math.round(((window.screenX || 0) + r.left) * k), Math.round(((window.screenY || 0) + r.top) * k), Math.round(r.width * k), Math.round(r.height * k)].join(' '); };
+    const ret = () => { const r = furo.getBoundingClientRect(), B = window.Board;
+      if (B?.Telas && B.minha){ const s = B.minha.scaleFactor || 1, [fx, fy] = B.Telas.dipParaFis(r.left + B.area.x, r.top + B.area.y, B.minha); return [Math.round(fx), Math.round(fy), Math.round(r.width * s), Math.round(r.height * s)].join(' '); }
+      const k = devicePixelRatio || 1; return [Math.round(((window.screenX || 0) + r.left) * k), Math.round(((window.screenY || 0) + r.top) * k), Math.round(r.width * k), Math.round(r.height * k)].join(' '); };
     const diz = t => { problema = t; furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = t; };
     async function abreUrl(url, titulo, busca){
       if (!api.podePC()) throw new Error('só no app instalado, com o acesso total liberado');
       atual = { url, titulo:titulo || '', busca:busca || '' }; api.salvar({ atual }); problema = '';
       furo.textContent = 'Abrindo…';
-      const r = await pede('abre ' + b64(url) + ' ' + ret(), 20000);
+      const r = await pede('abre ' + b64(url) + ' ' + ret() + ' ' + b64(document.title || 'Mesa'), 20000);
       if (r !== 'ok'){ aberta = false; diz(r === 'sem_janela' ? 'A janela do Edge não apareceu. O Microsoft Edge está instalado?' : 'Não consegui abrir a janela (' + (r || 'sem resposta') + ').'); throw new Error(problema); }
       aberta = true; ultimo = ret(); furo.textContent = ''; furo.classList.remove('vazio'); furo.classList.add('furo'); api.emitir('abriu', atual);
       return { aberto:titulo || url };
@@ -140,7 +146,7 @@ Mesa.define({
         { nome:'voltar', descricao:'Volta pra página anterior do navegador da Mesa.', async roda(){ await naPagina(VOLTA); return depois(1300); } },
         { nome:'fechar_janela', descricao:'Fecha o vídeo ou site que está aberto no widget (o widget continua na Mesa).', roda:() => fechaJanela().then(() => 'fechado') },
       ],
-      aoFechar(){ clearInterval(tic); clearInterval(vigia); pede('fecha'); },
+      aoFechar(){ clearInterval(tic); clearInterval(vigia); clearInterval(reordena); pede('fecha'); },
     };
   },
 });
