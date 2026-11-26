@@ -2,6 +2,12 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-25 · Mesa 0.4
+- **O que:** a Onda e a Órbita entram **originais**, como **hóspedes**: o HTML montado de cada app roda num iframe e recebe uma "janela de mentira" no lugar do host (`setBounds` move e redimensiona o iframe; as telas são a própria Mesa, em coordenadas de tela; arquivos, processos e menu passam direto pro host real; bandeja, ícone e atalho global são ignorados). O "clique passa" do app vira `pointer-events` no iframe, e a Mesa repassa o movimento do mouse pra ele acordar. Saem os widgets reescritos da 0.3. Montagem: marcador `APP:nome` (monta o app e embute) e a opção `-SemToqueDeTecla`.
+- **Comandos do morador:** Onda pelo canal de arquivos dela (`~/.orbita`: `controlar`, `escolher`, `listar`); Órbita não tem canal, então `abrir_app` e `procurar_app` por fora.
+- **Por quê:** trazer os apps sem mudar uma linha e continuar atualizando pelo repo.
+- **Testado:** no navegador: os dois apps sobem dentro da Mesa (a Órbita encosta embaixo como doca, a Onda aparece solta), sem erro no console; com o mouse em cima, o iframe passa de `pointer-events: none` pra `auto`. **Não testado:** tudo no app instalado (arrastar os hóspedes, música e apps de verdade, mais de um hóspede com o clique-passa da Mesa).
+
 ## 2026-11-25 · Mesa 0.3
 - **O que:** a **Onda** e a **Órbita** entram como widgets. Onda (`30-onda.js`): capa, cores da onda tiradas da capa, a onda de 3 camadas como barra de tempo (clique ou arraste pula), controles, e pela Web API do Spotify (se já conectado pela Onda) buscar e tocar e ler a fila; usa `onda/musica-helper.ps1`. Órbita (`40-orbita.js`): favoritos com o ícone de verdade (64 px, guardado), pontinho de aberto, busca nos apps instalados e anéis de CPU, RAM e placa a cada 2,5 s; usa `compartilhado/orbita-helper.ps1` só pra ler (`tick`, `apps`, `icon`), nunca `focus`, `key` ou `combo`. Núcleo: `ajudante(codigo)` (PowerShell persistente, protocolo de linhas) e o marcador `PS:` na montagem.
 - **Cliques nos avisos do app:** as janelinhas do próprio app do Claude (liberar o Claude, permissões, "nova versão") ficavam sem clique, porque o mouse em cima delas não chega na página e a janela deixava o clique passar. Agora a Mesa segura os cliques enquanto pede uma permissão ou espera o Claude, por 12 s depois do atalho, e por 20 s pelo menu; o menu ganhou "Recarregar a Mesa".

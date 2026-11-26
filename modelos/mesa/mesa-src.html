@@ -58,6 +58,7 @@ html.previa #fundo{opacity:1}
 .m-bot:focus-visible,.w-x:focus-visible{outline:2px solid var(--pessego);outline-offset:2px}
 .m-fraco{color:var(--muted);font-size:12.5px;line-height:1.45}
 
+.hosp{position:absolute;border:0;background:transparent;color-scheme:light;z-index:4000;pointer-events:none}
 #aviso{position:fixed;left:50%;top:18px;translate:-50% 0;max-width:min(560px,90vw);padding:12px 16px;border-radius:14px;background:var(--vidro2);border:1px solid var(--line);font-size:13.5px;line-height:1.5;z-index:9000;display:flex;gap:12px;align-items:center}
 #aviso[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.w,.w.pegando{transition-duration:.01s}}
@@ -67,7 +68,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.3';
+const VERSAO = '0.4';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -253,15 +254,80 @@ function ligaGestos(W){
 }
 addEventListener('resize', () => { for (const W of ABERTOS.values()){ const b = W.borda, A = area(); cabe(W); if (b.includes('r')) W.tx = A.w - W.w; if (b.includes('b')) W.ty = A.h - W.h; agita(W); } bus.emit('mesa:tela', area()); });
 
+
+/* ---------- hóspedes: apps do desklive rodando ORIGINAIS dentro da Mesa ----------
+   Cada hóspede é o HTML montado do app (Onda, Órbita…) num iframe. No lugar do host de verdade ele recebe uma
+   "janela de mentira": setBounds move e redimensiona o iframe, as telas são a própria Mesa (em coordenadas de tela,
+   pra bater com o screenX/screenY do mouse), e arquivos, processos e menu passam direto pro host real.
+   O "clique passa" do app vira pointer-events no iframe; a Mesa repassa o movimento do mouse pra ele acordar. */
+const HDEFS = new Map(), HOSP = new Map();
+window.__mesaHosp = {};
+const origem = () => ({ x:window.screenX || 0, y:window.screenY || 0 });
+function hospeda(def){ HDEFS.set(def.id, def); }
+function poeHospede(H){
+  const A = area(), o = H.o, r = H.r;
+  if (r.width <= A.w) r.x = clamp(r.x, o.x, o.x + A.w - r.width); if (r.height <= A.h) r.y = clamp(r.y, o.y, o.y + A.h - r.height);   // como o Windows: a janela não sai da tela
+  Object.assign(H.f.style, { left:(r.x - o.x) + 'px', top:(r.y - o.y) + 'px', width:r.width + 'px', height:r.height + 'px' });
+}
+function abreHospede(id){
+  const def = HDEFS.get(id); if (!def || HOSP.has(id)) return HOSP.get(id);
+  const f = document.createElement('iframe'); f.className = 'hosp'; f.title = def.nome; f.setAttribute('allowtransparency', 'true');
+  const H = { id, def, f, o:origem(), r:{ x:0, y:0, width:def.w || 400, height:def.h || 200 }, ignora:false };
+  H.r.x = H.o.x + 40; H.r.y = H.o.y + 40;
+  const ok = v => Promise.resolve(v), real = desktop, pc = podePC && real;
+  const proc = () => ({ stdout:{ on(){} }, stderr:{ on(){} }, stdin:{ write:() => ok() }, on(){}, kill:() => ok() });
+  const perms = () => ({ overlay:'granted', 'menu-bar':'granted', shortcuts:'denied', notifications:'denied', 'full-access':pc ? 'granted' : 'denied' });
+  window.__mesaHosp[id] = {
+    window:{
+      setOptions:o => ok({ applied:'now', reloading:false, options:o }), getOptions:() => ok({ options:{}, applied:{} }),
+      setBounds:b => { for (const k of ['x', 'y', 'width', 'height']) if (b[k] != null) H.r[k] = b[k]; poeHospede(H); return ok(); },
+      getBounds:() => ok({ ...H.r }), show:() => { f.hidden = false; return ok(); }, hide:() => { f.hidden = true; return ok(); }, focus:() => ok(),
+      setIgnoreMouseEvents:on => { H.ignora = !!on; f.style.pointerEvents = on ? 'none' : 'auto'; if (!on){ clearTimeout(tPassa); tPassa = 0; setPassa(false); } return ok(); },
+      setVisibleOnAllWorkspaces:() => ok(),
+    },
+    screen:{
+      getAllDisplays:() => { const A = area(), b = { x:H.o.x, y:H.o.y, width:A.w, height:A.h }; return ok([{ id:1, label:'Mesa', bounds:b, workArea:{ ...b }, size:{ width:A.w, height:A.h }, scaleFactor:1 }]); },
+      getCursorScreenPoint:() => ok({ x:H.o.x + mouseEm.x, y:H.o.y + mouseEm.y }),
+    },
+    permissions:{ state:() => ok(perms()), request:() => ok(perms()), manage:() => real ? dialogo(() => real.permissions.manage()) : ok() },
+    Menu:{ popup:m => real?.Menu ? real.Menu.popup(m) : ok(), setApplicationMenu:() => ok() },
+    tray:{ set:() => ok(true), remove:() => ok() }, app:{ dock:{ setIcon:() => ok({ written:false }), setBadge:() => ok(true) } },
+    globalShortcut:{ register:() => ok(false), unregister:() => ok() },
+    fs:pc ? real.fs : { mkdir:() => ok(), readFile:() => Promise.reject(new Error('ENOENT')), writeFile:() => ok(), appendFile:() => ok(), rename:() => ok(), exists:() => ok(false), rm:() => ok(), readdir:() => ok([]) },
+    childProcess:pc ? real.childProcess : { spawn:proc, exec:() => ok({ stdout:'', stderr:'' }) },
+    os:real?.os || { platform:() => ok('win32'), arch:() => ok('x64') },
+  };
+  // o app acha que está no host: window.claude.use('desktop') devolve a janela de mentira
+  f.srcdoc = '<script>window.claude={use:function(n){return Promise.resolve(n==="desktop"?parent.__mesaHosp[' + JSON.stringify(id) + ']:null)}};<' + '/script>' + def.html;
+  HOSP.set(id, H); poeHospede(H); camada.appendChild(f);
+  prefs.hospedes = [...HOSP.keys()]; salva(); bus.emit('mesa:abriu', { id });
+  return H;
+}
+function fechaHospede(id){ const H = HOSP.get(id); if (!H) return false; H.f.remove(); HOSP.delete(id); delete window.__mesaHosp[id]; prefs.hospedes = [...HOSP.keys()]; salva(); bus.emit('mesa:fechou', { id }); return true; }
+const mouseEm = { x:0, y:0 };
+// com o app em "clique passa", o mouse em cima dele chega na Mesa: ela repassa o movimento pra ele decidir se acorda
+function repassa(e){
+  mouseEm.x = e.clientX; mouseEm.y = e.clientY;
+  for (const H of HOSP.values()){
+    if (!H.ignora || H.f.hidden) continue;
+    const r = H.f.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (x < 0 || y < 0 || x > r.width || y > r.height) continue;
+    try { const w = H.f.contentWindow, d = w.document, el = d.elementFromPoint(x, y) || d.documentElement;
+      el.dispatchEvent(new w.PointerEvent('pointermove', { bubbles:true, cancelable:true, composed:true, pointerId:1, pointerType:'mouse', isPrimary:true, button:-1, buttons:0, clientX:x, clientY:y, screenX:e.screenX, screenY:e.screenY })); } catch {}
+  }
+}
+addEventListener('resize', () => { for (const H of HOSP.values()){ H.o = origem(); poeHospede(H); H.f.contentWindow?.dispatchEvent(new Event('resize')); } });
+
 /* o que o morador (e qualquer widget) enxerga da mesa inteira */
 function estado(){
   return { tela:area(), fundo:prefs.fundo,
     abertos:[...ABERTOS.values()].map(W => { let e; try { e = W.inst.estado?.(); } catch { e = undefined; } return { id:W.id, nome:W.def.nome, ...lugar(W), estado:e }; }),
+    apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch { e = undefined; } return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e }; }),
     fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })) };
 }
 function comandos(){
   const l = [];
   for (const W of ABERTOS.values()) for (const c of W.inst.comandos || []) l.push({ widget:W.id, nomeWidget:W.def.nome, ...c });
+  for (const H of HOSP.values()) for (const c of H.def.comandos || []) l.push({ widget:H.id, nomeWidget:H.def.nome, ...c });
   return l;
 }
 /* aparência: o morador (ou o menu) troca a cor de destaque, o vidro e o papel de parede; fica guardado */
@@ -289,12 +355,12 @@ document.addEventListener('pointerup', () => { apertado = false; }, true);
 document.addEventListener('pointermove', e => {
   if (e.target.closest?.('.alvo')){ clearTimeout(tPassa); tPassa = 0; setPassa(false); }
   else if (!apertado && !tPassa) tPassa = setTimeout(() => { tPassa = 0; if (!apertado) setPassa(true); }, 140);
-  bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY });
+  bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY }); repassa(e);
 });
-document.addEventListener('mouseleave', () => { if (!apertado) setPassa(true); });
+document.addEventListener('mouseleave', () => { if (!apertado && ![...HOSP.values()].some(H => !H.ignora)) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -310,6 +376,7 @@ let telas = [], monitor = 0, escala = 1;
 function menuItens(){
   return [
     ...[...DEFS.values()].map(d => ({ label:d.nome, type:'checkbox', checked:ABERTOS.has(d.id), click:() => ABERTOS.has(d.id) ? fecha(d.id) : abre(d.id) })),
+    ...[...HDEFS.values()].map(d => ({ label:d.nome + ' (app original)', type:'checkbox', checked:HOSP.has(d.id), click:() => HOSP.has(d.id) ? fechaHospede(d.id) : abreHospede(d.id) })),
     { type:'separator' },
     { label:'Fundo de mesa (cobre a área de trabalho)', type:'checkbox', checked:prefs.fundo === 'mesa', click:() => fundo(prefs.fundo === 'mesa' ? 'transparente' : 'mesa') },
     ...(telas.length > 1 ? [{ label:'Levar pro outro monitor', click:() => ocupa((monitor + 1) % telas.length) }] : []),
@@ -368,6 +435,8 @@ async function boot(){
   if (perms?.overlay === 'granted'){ if (['full-access', 'menu-bar', 'shortcuts'].some(k => perms[k] === 'prompt')) await pede(); diz(''); entra(perms); }
   else diz('Falta um passo: deixar a Mesa flutuar por cima das janelas e mexer nos seus apps.', 'Ativar a Mesa', async () => { await pede(); if (perms?.overlay === 'granted'){ diz(''); entra(perms); } });
 }
+// os hóspedes abrem depois que a Mesa sabe se tem acesso ao PC
+bus.on('mesa:pronta', () => { for (const id of (Array.isArray(prefs.hospedes) ? prefs.hospedes : [...HDEFS.keys()])) if (HDEFS.has(id)) abreHospede(id); });
 boot();
 if (location.protocol === 'file:' || location.hostname === 'localhost') window.__mesa = { Mesa, prefs, ABERTOS, DEFS };
 </script>

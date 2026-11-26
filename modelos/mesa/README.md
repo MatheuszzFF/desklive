@@ -1,20 +1,20 @@
 # Modelo: Mesa
 
-> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.3** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
+> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.4** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
 | [mesa-src.html](mesa-src.html) | o quadro: moldura dos widgets, física, barramento, clique-passa e a janela do app, com os marcadores `/*WIDGETS*/`, `/*ATLAS*/{}` e `/*ATLAS_PNG*/''` |
-| [widgets/](widgets/) | um `.js` por widget, montados em ordem de nome: `00-dengas.js` (o morador e assistente), `10-relogio.js`, `20-notas.js`, `30-onda.js` (o player da Onda), `40-orbita.js` (a barra da Órbita), `50-estante.js` (ponte com a Estante Musical) |
+| [widgets/](widgets/) | um `.js` por widget, montados em ordem de nome: `00-dengas.js` (o morador e assistente), `10-relogio.js`, `20-notas.js`, `30-onda.js` e `40-orbita.js` (declaram a Onda e a Órbita **originais** como hóspedes, com o marcador `APP:`), `50-estante.js` (ponte com a Estante Musical) |
 | [arte/](arte/) | o atlas do Dengas (`dengas-atlas.png`, células de 96 px, e o `.json` com as linhas) |
 | [build.ps1](build.ps1) | monta `mesa.html`: junta os widgets e embute a arte |
 
 ## Montar e testar
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File modelos\mesa\build.ps1 [-Saida <pasta>]
+powershell -ExecutionPolicy Bypass -File modelos\mesa\build.ps1 [-Saida <pasta>] [-SemToqueDeTecla]
 ```
 
 Saída: `mesa.html` (padrão em `modelos/saida/`). **No navegador ela já funciona inteira** (por `localhost` ou `file://`): a aba vira o quadro, com um fundo pra enxergar os widgets, e os ganchos `window.Mesa` e `window.__mesa` ficam à mão. Só o que depende do PC (PowerShell) e do Claude fica desligado.
