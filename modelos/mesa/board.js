@@ -66,7 +66,7 @@ estilo(`
 .mesa-v{--fg:#f4f5f8;--muted:rgba(244,245,248,.62);--faint:rgba(244,245,248,.38);--line:rgba(255,255,255,.09);--vidro:rgba(10,11,16,.9);--vidro2:rgba(22,24,33,.92);--coral:#d97757;--pessego:#f0a98a;
   --corpo:"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif;--titulo:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;--mola:cubic-bezier(.2,.9,.25,1.12);font-family:var(--corpo);color:var(--fg)}
 #camada-mesa{position:absolute;left:0;top:0;width:100%;height:100%;z-index:6;pointer-events:none}
-#camada-mesa .alvo{pointer-events:auto}
+:where(#camada-mesa .alvo){pointer-events:auto}
 .mesa-v textarea,.mesa-v input{user-select:text;-webkit-user-select:text}
 .mesa-v button,.mesa-v textarea,.mesa-v input{font:inherit;color:inherit}
 #fundo-mesa{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;opacity:0;transition:opacity .5s cubic-bezier(.2,.8,.2,1);pointer-events:none;
