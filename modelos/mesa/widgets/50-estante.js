@@ -63,3 +63,4 @@ Mesa.define({
     };
   },
 });
+Mesa.agente('estante', "Você cuida da Estante Musical do dono (a coleção de discos e músicas dele). Consulte o estado antes de responder e devolva títulos e artistas exatamente como estão lá.");

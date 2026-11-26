@@ -20,3 +20,4 @@ Mesa.hospeda({
   ],
 });
 }
+Mesa.agente('orbita', "Você cuida da Órbita, a barra que abre os programas do PC do dono. Pra abrir um programa, procure pelo nome antes e abra o que bater; se houver mais de um parecido, escolha o mais provável e diga qual foi.");

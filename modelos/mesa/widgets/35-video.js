@@ -24,11 +24,11 @@ const JANELA_PS = [
   "    }",
   "    'move' { Poe $p[2] $p[3] $p[4] $p[5] }",
   // lê o texto da página aberta: fala com o próprio Edge da Mesa pela porta de depuração (só neste PC, porta sorteada a cada abertura)
-  "    'le' {",
+  "    'js' {",
   "      $alvo = @(Invoke-RestMethod -Uri ('http://127.0.0.1:' + $script:porta + '/json') -TimeoutSec 5) | ForEach-Object { $_ } | Where-Object { $_.type -eq 'page' -and $_.url -notlike 'devtools*' } | Select-Object -First 1",
   "      if (-not $alvo) { $r = 'sem_pagina' } else {",
   "        $ws = New-Object Net.WebSockets.ClientWebSocket; $ct = [Threading.CancellationToken]::None; [void]$ws.ConnectAsync([uri]$alvo.webSocketDebuggerUrl, $ct).Wait(5000)",
-  "        $js = '(function(){var t=document.body?document.body.innerText:String();return JSON.stringify({titulo:document.title,endereco:location.href,texto:t.slice(0,7000)})})()'",
+  "        $js = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2]))",
   "        $m = [Text.Encoding]::UTF8.GetBytes((@{ id = 1; method = 'Runtime.evaluate'; params = @{ expression = $js; returnByValue = $true } } | ConvertTo-Json -Compress -Depth 5))",
   "        [void]$ws.SendAsync((New-Object 'ArraySegment[byte]' (,$m)), 'Text', $true, $ct).Wait(5000)",
   "        $buf = New-Object byte[] 65536; $ms = New-Object IO.MemoryStream; do { $t = $ws.ReceiveAsync((New-Object 'ArraySegment[byte]' (,$buf)), $ct); [void]$t.Wait(8000); $ms.Write($buf, 0, $t.Result.Count) } while (-not $t.Result.EndOfMessage)",
@@ -90,11 +90,32 @@ Mesa.define({
       await abreUrl('https://www.youtube.com/watch?v=' + id, titulo, q);
       return { tocando:titulo || id };
     }
-    async function leTela(espera){
+    // conversa com a página aberta: as expressões são escritas aqui no widget (o texto do Claude entra só como dado, em JSON)
+    const naPagina = async (fn, arg) => {
       if (!aberta) throw new Error('não tem página aberta no navegador da Mesa: abra com abrir_site antes');
-      const e = Math.max(0, Math.min(15, Number(espera) || 0)); if (e) await new Promise(r => setTimeout(r, e * 1000));
-      const r = String(await pede('le', 20000) || ''); if (!r.startsWith('b64:')) throw new Error('não consegui ler a página (' + (r || 'sem resposta') + ')');
+      const r = String(await pede('js ' + b64('(' + fn.toString() + ')(' + JSON.stringify(arg ?? null) + ')'), 20000) || '');
+      if (!r.startsWith('b64:')) throw new Error('não consegui falar com a página (' + (r || 'sem resposta') + ')');
       try { return JSON.parse(decodeURIComponent(escape(atob(r.slice(4))))); } catch { throw new Error('a página devolveu algo que não deu pra ler'); }
+    };
+    const LE = function(){ var t = document.body ? document.body.innerText : ''; return JSON.stringify({ titulo:document.title, endereco:location.href, rolagem:Math.round(scrollY) + ' de ' + Math.max(0, document.documentElement.scrollHeight - innerHeight), texto:t.slice(0, 7000) }); };
+    const CLICA = function(alvo){
+      var n = function(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); }, q = n(alvo), melhor = null, tam = 1e9;
+      if (!q) return JSON.stringify({ erro:'diga o texto do que clicar' });
+      document.querySelectorAll('a,button,[role=button],[role=link],[role=listitem],[role=row],[role=tab],[role=option],[role=menuitem],[tabindex],summary,input[type=submit],input[type=button]').forEach(function(el){
+        var r = el.getBoundingClientRect(); if (r.width < 3 || r.height < 3 || r.bottom < 0 || r.top > innerHeight) return;
+        var t = n(el.innerText || el.value), a = n(el.getAttribute('aria-label') || el.title); if (t.indexOf(q) < 0 && a.indexOf(q) < 0) return;
+        var L = t.indexOf(q) >= 0 ? t.length : a.length; if (L < tam){ tam = L; melhor = el; } });
+      if (!melhor) return JSON.stringify({ erro:'não achei na parte visível da página nada clicável com esse texto (role a página ou leia a tela de novo)' });
+      var r = melhor.getBoundingClientRect(), o = { bubbles:true, cancelable:true, view:window, clientX:r.left + r.width / 2, clientY:r.top + r.height / 2, button:0 };
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(function(tp){ melhor.dispatchEvent(new (tp.indexOf('pointer') === 0 ? PointerEvent : MouseEvent)(tp, o)); });
+      return JSON.stringify({ clicou:(melhor.innerText || melhor.getAttribute('aria-label') || melhor.title || '').trim().slice(0, 80) });
+    };
+    const ROLA = function(d){ var antes = scrollY; scrollBy(0, (d === 'cima' ? -1 : 1) * innerHeight * .85); return JSON.stringify({ rolou:Math.round(scrollY - antes), rolagem:Math.round(scrollY) + ' de ' + Math.max(0, document.documentElement.scrollHeight - innerHeight) }); };
+    const VOLTA = function(){ history.back(); return JSON.stringify({ voltou:true }); };
+    const depois = async ms => { await new Promise(r => setTimeout(r, ms)); const p = await naPagina(LE); return { titulo:p.titulo, endereco:p.endereco }; };
+    async function leTela(espera){
+      const e = Math.max(0, Math.min(15, Number(espera) || 0)); if (e) await new Promise(r => setTimeout(r, e * 1000));
+      return naPagina(LE);
     }
     async function fechaJanela(){ aberta = false; await pede('fecha'); furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = 'Fechado. Peça outro vídeo ou site.'; }
     // a janela acompanha o furo: confere a posição várias vezes por segundo e só manda quando mudou
@@ -110,8 +131,13 @@ Mesa.define({
         { nome:'abrir_site', descricao:'Abre qualquer site (endereço https completo) dentro do widget, como um navegador preso à Mesa.',
           esquema:{ type:'object', properties:{ endereco:{ type:'string' } }, required:['endereco'] },
           roda({ endereco }){ const u = String(endereco || '').trim(); if (!/^https:\/\/[^\s'"<>]+$/i.test(u)) throw new Error('precisa ser um endereço https completo'); return abreUrl(u, '', u); } },
-        { nome:'ler_tela', descricao:'Lê o texto da página que está aberta no navegador da Mesa (título, endereço e até 7 mil letras do que aparece nela), com as contas do dono logadas. espera: segundos pra aguardar a página carregar antes de ler (0 a 15). Só leitura: não clica nem digita.',
+        { nome:'ler_tela', descricao:'Lê o texto da página que está aberta no navegador da Mesa (título, endereço e até 7 mil letras do que aparece nela), com as contas do dono logadas. espera: segundos pra aguardar a página carregar antes de ler (0 a 15). Leia de novo depois de clicar ou rolar.',
           esquema:{ type:'object', properties:{ espera:{ type:'number' } } }, roda:({ espera } = {}) => leTela(espera) },
+        { nome:'clicar', descricao:'Clica, na página aberta, no link, botão ou item cujo texto visível contém o texto dado (ex.: o título de um resultado, o nome de uma conversa). Só acha o que está na parte visível: se não achar, role e tente de novo. Devolve no que clicou e a página em que ficou.',
+          esquema:{ type:'object', properties:{ texto:{ type:'string' } }, required:['texto'] }, async roda({ texto }){ const r = await naPagina(CLICA, String(texto || '').slice(0, 120)); if (r.erro) throw new Error(r.erro); return { ...r, ...(await depois(1300)) }; } },
+        { nome:'rolar', descricao:'Rola a página aberta uma tela pra baixo ou pra cima. direcao: "baixo" (padrão) ou "cima". Devolve onde a rolagem ficou.',
+          esquema:{ type:'object', properties:{ direcao:{ type:'string', enum:['baixo','cima'] } } }, roda:({ direcao } = {}) => naPagina(ROLA, direcao === 'cima' ? 'cima' : 'baixo') },
+        { nome:'voltar', descricao:'Volta pra página anterior do navegador da Mesa.', async roda(){ await naPagina(VOLTA); return depois(1300); } },
         { nome:'fechar_janela', descricao:'Fecha o vídeo ou site que está aberto no widget (o widget continua na Mesa).', roda:() => fechaJanela().then(() => 'fechado') },
       ],
       aoFechar(){ clearInterval(tic); clearInterval(vigia); pede('fecha'); },
@@ -119,3 +145,4 @@ Mesa.define({
   },
 });
 }
+Mesa.agente('video', "Você é o navegador da Mesa: uma janela do Edge presa ao widget, com as contas do dono logadas. Fluxo de trabalho: abrir_site (ou tocar, pra vídeo do YouTube), ler_tela pra ver o que apareceu (use espera de 2 a 8 s em página pesada), clicar no que interessa pelo texto visível, ler_tela de novo, rolar quando o que procura não está na parte visível, voltar se entrou no lugar errado. Pra pesquisar, abra https://www.google.com/search?q=<busca codificada>. Você não digita em página nenhuma: nada de formulário, login, compra ou envio de mensagem; se a página pedir login, avise que o dono precisa entrar. No WhatsApp Web (https://web.whatsapp.com): só abra uma conversa quando o pedido nomear essa conversa (abrir marca como lida), e nunca envie nada. Se o widget estiver pequeno pro conteúdo (vídeo, página larga), aumente com caixa sem cobrir os outros.");

@@ -2,6 +2,13 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.16: mini agente em cada app
+- **Direção do dono:** cada app com o próprio harness e um mini agente que conversa com o Dengas; o Dengas vê e manipula tudo sem carregar o conhecimento de cada app.
+- **O que:** a casca ganha `Mesa.agente(id, regras)`. O Dengas ganha a ferramenta `agente(app, pedido)`: outra chamada ao Claude, com as regras do app, o estado dele, o espaço da tela (caixa dele e dos vizinhos) e, como ferramentas, os comandos do app mais `caixa` (mover e redimensionar a si mesmo). Os comandos de cada app deixam de ser ferramentas do Dengas (ficava acima do teto); `widget_comando` continua pro comando direto. Regras escritas pros seis apps (navegador, relógio, notas, Onda, Órbita, Estante); widget sem regras ganha agente só pelas descrições.
+- **Navegador:** o ajudante troca `le` por `js` (roda uma função do widget na página) e entram `clicar` (pelo texto visível), `rolar` e `voltar`. Sem comando de digitar, de propósito.
+- **Documentação:** `modelos/mesa/ARQUITETURA.md`.
+- **Testado:** no navegador, a Mesa sobe sem erro, os seis agentes ficam registrados e os comandos aparecem; a janela do Edge de verdade neste PC abriu, leu, rolou, clicou num link (mudou de página) e voltou (`janela_teste.js`, página pública). **Não testado:** nenhuma conversa com o Claude (o agente chamando ferramentas), nem o WhatsApp Web.
+
 ## 2026-11-26 · Mesa 0.15: o Dengas lê a página do navegador (WhatsApp Web)
 - **Pedido do dono:** ler as mensagens do WhatsApp. Não há conector oficial; o dono aceitou ler pelo WhatsApp Web no navegador da Mesa, sabendo da porta local.
 - **O que:** o Edge da Mesa abre com `--remote-debugging-port` (porta sorteada a cada abertura, só em 127.0.0.1) e o ajudante ganha `le`: pega o texto da página por `Runtime.evaluate` e devolve título, endereço e até 7 mil letras. Comando `video_ler_tela` (com `espera`). Só leitura: não clica, não abre conversa, não envia.

@@ -22,3 +22,4 @@ Mesa.define({
     };
   },
 });
+Mesa.agente('notas', "Você cuida do bloco de notas do dono. Leia o que já existe antes de escrever, nunca apague o que ele escreveu sem o pedido dizer isso, e ao acrescentar mantenha o estilo curto das notas dele.");

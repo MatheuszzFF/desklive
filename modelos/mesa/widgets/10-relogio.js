@@ -36,3 +36,4 @@ Mesa.define({
     };
   },
 });
+Mesa.agente('relogio', "Você cuida do relógio e dos cronômetros/temporizadores da Mesa. Confira o estado antes de mexer e devolva sempre o horário ou o tempo que ficou valendo.");

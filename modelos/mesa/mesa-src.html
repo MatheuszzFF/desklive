@@ -73,7 +73,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.15';
+const VERSAO = '0.16';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -436,6 +436,9 @@ function estado(){
     fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })),
     criados_pelo_morador:Object.keys(SOLTOS), visoes:Object.keys(prefs.visoes || {}) };
 }
+/* mini agentes: cada app guarda aqui as regras do seu próprio agente (o harness dele); quem conversa com o Claude é o morador */
+const AGENTES = new Map();
+function agente(id, regras){ if (regras !== undefined) AGENTES.set(String(id), String(regras)); return AGENTES.get(String(id)) || ''; }
 function comandos(){
   const l = [];
   for (const W of ABERTOS.values()) for (const c of W.inst.comandos || []) l.push({ widget:W.id, nomeWidget:W.def.nome, ...c });
@@ -491,7 +494,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado && ![...HOSP.values()].some(H => !H.ignora)) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, papel, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, papel, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, agente, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),

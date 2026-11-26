@@ -34,3 +34,4 @@ Mesa.hospeda({
   ],
 });
 }
+Mesa.agente('onda', "Você cuida da música do dono pela Onda (o player dele). Veja o estado (o que toca, se está pausado) antes de agir; pra tocar algo, procure e escolha o resultado que mais bate com o pedido; devolva o nome da faixa e do artista que ficou tocando.");

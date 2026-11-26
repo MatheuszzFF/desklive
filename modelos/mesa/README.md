@@ -1,6 +1,6 @@
 # Modelo: Mesa
 
-> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.15** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
+> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.16** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
 
 ## Arquivos
 
@@ -64,3 +64,5 @@ O widget solto roda isolado (iframe com sandbox): não enxerga a página, nem o 
 
 - Nada pessoal no código: a persona do morador fala do "dono", sem nome. A memória dele (`mesa-dengas-mem`) e o arranjo dos widgets (`mesa`) ficam no `localStorage` do app, na máquina de cada um.
 - A música usa a sessão de mídia do Windows (tocar, pausar, pular) e **nunca manda tecla**.
+
+A arquitetura (camadas, contrato dos widgets, mini agentes, navegador, conectores) está em [ARQUITETURA.md](ARQUITETURA.md).

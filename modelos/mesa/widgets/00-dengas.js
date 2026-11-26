@@ -231,7 +231,7 @@ function regras(){
   return [
     'Você é o Dengas, um rato de estimação gordinho, preto em cima, branco no meio e preto embaixo, de cachecol coral. Você mora na Mesa: o quadro que cobre a área de trabalho do seu dono, onde ficam os widgets dele. Você é carinhoso e é o assistente esperto da casa.',
     'Fale sempre em português do Brasil, informal, curto e com graça de bichinho inteligente e guloso (no máximo umas 4 linhas), em texto simples: sem títulos, sem tabelas, sem negrito. Nunca diga que é uma IA; você é o Dengas.',
-    'Você enxerga e mexe em tudo que está na Mesa. Pra agir, use as ferramentas: mesa_widget abre, fecha, move e redimensiona; cada widget aberto oferece os próprios comandos (o nome começa com o id do widget). Depois confirme em uma frase curta. Não invente que fez algo que nenhuma ferramenta fez.',
+    'Você enxerga e mexe em tudo que está na Mesa. Pra agir, use as ferramentas: mesa_widget abre, fecha, move e redimensiona; cada app tem os próprios comandos e um agente próprio. Pra um comando só, widget_comando; pra tarefa que exige conhecer o app ou vários passos (navegar num site, ler e clicar, montar algo na música, se ajustar ao espaço), delegue com a ferramenta agente dizendo o objetivo. Depois confirme em uma frase curta. Não invente que fez algo que nenhuma ferramenta fez.',
     'A Mesa é uma casca e cada widget é uma peça solta: você pode tirar, pôr, mover, criar um widget novo na hora (widget_criar), misturar widgets (um widget seu que chama os comandos dos outros com mesa.pedir), guardar e abrir visões (mesa_visao) e abrir ou fechar os apps hospedados (mesa_app). Quando o dono pedir algo que nenhum widget faz, crie um. Ids de widget disponíveis: ' + Mesa.defs().map(d => d.id).join(', ') + '.',
     'Como escrever o html de um widget (widget_criar): fundo transparente, texto claro, sem rede e sem bibliotecas externas. Dentro dele existe o objeto mesa: mesa.registrar({ estado:()=>({...}), comandos:[{ nome, descricao, esquema, roda(args){...} }] }) expõe o widget pra você; mesa.estado() devolve a Mesa inteira (Promise); mesa.pedir("<id>_<comando>", args) chama o comando de outro widget ou app (ex.: "notas_escrever", "onda_controlar"), e é assim que se fazem misturas; mesa.ouvir(tipo, fn) ouve eventos (ex.: "relogio:fim"); mesa.avisar(texto) faz você falar; mesa.salvar(v) e mesa.ler() guardam dados. Cores prontas em CSS: --coral, --pessego, --muted, --line.',
     'A Mesa não tem cara de Windows: nenhum widget tem barra de título, barra de rolagem, nem botões de janela. Nunca desenhe cabeçalho com o nome do widget, botão de fechar ou barra dentro do seu html: o X flutuante e o redimensionar pelas bordas são da casca.',
@@ -242,7 +242,7 @@ function regras(){
     'Se o widget que você precisa está fechado, abra com mesa_widget (a resposta traz os comandos dele) e, no MESMO pedido, use widget_comando pra fazer o que foi pedido. Nunca peça pro dono clicar ou digitar algo que um comando faz.',
     conectores.length ? 'Conectores da conta do dono que você pode usar com a ferramenta conector: ' + JSON.stringify(conectores).slice(0, 5000) : '',
     'E-mail: você pode enviar, responder e encaminhar pelo Gmail, mas só quando o dono pedir pra enviar. Se ele pediu só pra escrever ou não disse pra quem, faça rascunho (create_draft) e avise. Depois de enviar, diga pra quem foi e o assunto.',
-    'WhatsApp e páginas logadas: você lê o que está na tela do navegador da Mesa com o comando ler_tela do widget video. Pro WhatsApp: abrir_site com https://web.whatsapp.com, depois ler_tela com espera 8 (se vier só a tela de QR, peça pro dono escanear uma vez). Você vê a lista de conversas com a última mensagem de cada uma e a conversa que estiver aberta. É só leitura: você não abre conversa, não clica e não envia. Leia o WhatsApp só quando o dono pedir, e resuma em vez de despejar tudo.',
+    'WhatsApp e páginas logadas: você lê o que está na tela do navegador da Mesa com o comando ler_tela do widget video. Pro WhatsApp: abrir_site com https://web.whatsapp.com, depois ler_tela com espera 8 (se vier só a tela de QR, peça pro dono escanear uma vez). Pra ir além da lista (abrir uma conversa e ler), delegue ao agente do video; abrir uma conversa marca as mensagens como lidas, então só quando o dono pedir aquela conversa. Ninguém envia mensagem no WhatsApp. Leia o WhatsApp só quando o dono pedir, e resuma em vez de despejar tudo.',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
     'A Mesa agora (posições em px, origem no canto de cima à esquerda): ' + JSON.stringify(e).slice(0, 3500),
@@ -295,6 +295,33 @@ function ferramentas(atos){
           return { ...Mesa.abertos().find(q => q.id === id), comandos:Mesa.comandos().filter(q => q.widget === id).map(q => ({ nome:q.nome, o_que_faz:q.descricao, args:q.esquema?.properties ? Object.keys(q.esquema.properties) : [] })), como_usar:'chame widget_comando com widget "' + id + '"' }; }
         if (acao === 'frente'){ Mesa.frente(id); return 'na frente'; }
         const r = Mesa.move(id, { x, y, w, h, borda }); Mesa.toca(id); nota((acao === 'mover' ? '⇄ ' : '⤢ ') + id); return r;
+      } },
+    { name:'agente', description:'Passa uma tarefa pro agente de um app ou widget da Mesa. Cada app tem um agente próprio, que conhece o app por dentro e tem as ferramentas dele (o navegador clica, rola e lê páginas; a Onda mexe na música; etc.). app: o id (os mesmos de mesa_estado). pedido: o OBJETIVO em uma frase, com os dados que ele precisa (não os passos). Ele faz e devolve o resultado em texto. Use pra tudo que exige conhecer o app ou mais de um passo; pra um comando só, widget_comando é mais rápido.',
+      inputSchema:{ type:'object', properties:{ app:{ type:'string' }, pedido:{ type:'string' } }, required:['app','pedido'] },
+      async execute({ app, pedido }){
+        app = String(app || ''); pedido = String(pedido || '').trim().slice(0, 1500); if (!pedido) throw new Error('diga o que o agente deve fazer');
+        let cmds = Mesa.comandos().filter(q => q.widget === app);
+        if (!cmds.length){   // fechado: abre e espera ele registrar os comandos
+          if (Mesa.hospedes().some(h => h.id === app)) Mesa.abreHospede(app); else if (Mesa.defs().some(d => d.id === app)) Mesa.abre(app); else throw new Error('não existe app "' + app + '". Ids: ' + [...Mesa.defs().map(d => d.id), ...Mesa.hospedes().map(h => h.id)].join(', '));
+          await new Promise(r => setTimeout(r, 900)); cmds = Mesa.comandos().filter(q => q.widget === app);
+          if (!cmds.length) throw new Error('o app "' + app + '" abriu mas não tem comandos');
+        }
+        const sample = Mesa.sample(); if (!sample) throw new Error('sem Claude aqui');
+        visita(app); if (Mesa.aberto(app)) Mesa.toca(app);
+        const e = Mesa.estado(), todos = [...e.abertos, ...(e.apps || [])], eu = todos.find(q => q.id === app) || {};
+        const regrasDele = [
+          'Você é o agente do app "' + (cmds[0].nomeWidget || app) + '" dentro da Mesa, a área de trabalho do seu dono. Quem te pede as coisas é o Dengas, o assistente principal. Cumpra o pedido usando as suas ferramentas, quantas vezes precisar, e no fim responda em até três frases com o resultado de verdade (inclua os dados que ele pediu). Não invente: se uma ferramenta falhar ou não der pra fazer, diga isso e o motivo. Não peça nada ao dono.',
+          Mesa.agente(app) || 'Use as ferramentas do app pelo que a descrição de cada uma diz.',
+          'Espaço: a tela tem ' + e.tela.w + ' x ' + e.tela.h + ' px. Sua caixa agora: ' + JSON.stringify({ x:eu.x, y:eu.y, w:eu.w, h:eu.h }) + '. Outros na Mesa (não cubra sem motivo): ' + JSON.stringify(todos.filter(q => q.id !== app).map(q => ({ id:q.id, x:q.x, y:q.y, w:q.w, h:q.h }))).slice(0, 900) + (Mesa.aberto(app) ? '. Pra mudar de lugar ou de tamanho use a ferramenta caixa.' : '.'),
+          'Seu estado agora: ' + JSON.stringify(eu.estado ?? null).slice(0, 1500),
+        ].join('\n');
+        const fs = cmds.map(c => ({ name:String(c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60), description:c.descricao, inputSchema:c.esquema, execute:async (en, ctx) => { const r = await c.roda(en || {}, ctx); return r === undefined ? 'feito' : r; } }));
+        if (Mesa.aberto(app)) fs.push({ name:'caixa', description:'Move ou redimensiona o seu próprio widget na Mesa. x, y, w, h em px; borda encosta: l, r, t, b, tl, tr, bl, br ou centro. Devolve a caixa nova.',
+          inputSchema:{ type:'object', properties:{ x:{ type:'number' }, y:{ type:'number' }, w:{ type:'number' }, h:{ type:'number' }, borda:{ type:'string', enum:['l','r','t','b','tl','tr','bl','br','centro'] } } }, execute:en => Mesa.move(app, en || {}) });
+        try {
+          const r = await sample([{ role:'user', content:regrasDele + '\n\nPedido do Dengas: ' + pedido }], { model:MODELO, modelTier:'quick', cache:false, signal:ctl?.signal, tools:dentroDosLimites(fs) });
+          nota('⚙ ' + (cmds[0].nomeWidget || app)); return String(r.text || 'feito').slice(0, 3000);
+        } catch (er) { if (er?.text) return String(er.text).slice(0, 3000); throw new Error('o agente de ' + app + ' não conseguiu (' + (er?.code || 'erro') + '). Tente widget_comando direto.'); }
       } },
     { name:'widget_comando', description:'Chama um comando de qualquer widget ou app aberto, inclusive um que você abriu agora há pouco neste mesmo pedido. widget: o id; comando: o nome do comando; args: o objeto de argumentos. Os comandos de cada um estão em mesa_estado (campo comandos) e na resposta de mesa_widget abrir. Ex.: { widget:"video", comando:"tocar", args:{ busca:"show do Linkin Park" } }.',
       inputSchema:{ type:'object', properties:{ widget:{ type:'string' }, comando:{ type:'string' }, args:{ type:'object' } }, required:['widget','comando'] },
@@ -373,9 +400,7 @@ function ferramentas(atos){
       inputSchema:{ type:'object', properties:{ nota:{ type:'string' } }, required:['nota'] },
       execute({ nota:n }){ n = String(n || '').trim().slice(0, 160); if (!n) throw new Error('nota vazia'); mem.notas = ((mem.notas ? mem.notas + ' ' : '') + n).slice(-900); guardaMem(); nota('✎ anotado'); return 'guardado'; } },
   ];
-  // os comandos de cada widget aberto viram ferramentas, sem código a mais
-  for (const c of Mesa.comandos()) l.push({ name:(c.widget + '_' + c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60), description:`[${c.nomeWidget}] ${c.descricao}`, inputSchema:c.esquema,
-    async execute(entrada, ctx){ visita(c.widget); Mesa.toca(c.widget); const r = await c.roda(entrada || {}, ctx); nota('• ' + c.nomeWidget + ': ' + c.nome); return r === undefined ? 'feito' : r; } });
+  // os comandos de cada app não viram ferramentas do Dengas: ele delega ao agente do app (agente) ou chama um comando direto (widget_comando)
   if (Mesa.podePC()) l.push(
     { name:'abrir_site', description:'Abre no navegador do PC um endereço https completo, ou um atalho de app (spotify:, steam:, discord:, ms-settings:).',
       inputSchema:{ type:'object', properties:{ alvo:{ type:'string' } }, required:['alvo'] },
