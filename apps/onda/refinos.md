@@ -6,6 +6,36 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Ponto de pega invariante, registro, progresso, nada pisca (v21)
+- **Pedido:** "a posição do app em relação ao meu mouse, onde eu estava clicando inicialmente ta mudando muito" (troca de forma, espelho, tamanho no meio do arrasto); "bugar com o click segurando ali na parada de arrastar o tempo da musica"; medir com cuidado o vídeo de 1 min.
+- **Onde:** arrasto, deslizar do progresso, menu (registro), motor-piloto.
+- **Antes → depois:**
+  - **Ponto de pega:** a âncora ficava embaixo do mouse e o ponto pego escorregava → peça pega + fração, `nudge` no mesmo quadro, estica e inclina em volta do ponto pego. Erro parado 1–200 px → ≤ 0,4 px; salto na troca 2–108 → 0–4 px ([ponto de pega](../../padroes/motion/ponto-de-pega.md#situação-25112026)).
+  - **Zona:** decidida pela âncora → pelo ponto pego (na emenda, 14 → 2 trocas).
+  - **Caixa da janela:** presa na tela no arrasto → só a forma nova, encolhendo na hora.
+  - **Progresso:**
+    - o soltar perdido deixava a prévia "segurando" → perder a captura aplica e fecha (onda, barras, tira, vinil);
+    - só o botão esquerdo;
+    - mover sem botão também fecha;
+    - o "clique passa" não liga com botão pressionado, e um pressionar o desliga.
+  - **Área de toque:** a linha da onda (~4 px) → pega a 9 px acima e abaixo e a 6 px antes (onda, barras, tira).
+  - **Piscadas:** esconder 2 quadros → nunca esconde (R25).
+  - **Registro:** novo, no menu **Gravar diagnóstico** ([como medir](../../referencias/ambiente/como-medir.md#2-modo-de-registro-trace-no-app)); salva `~/.orbita/onda-trace.json`.
+- **Vídeos analisados:**
+  - curto: em 1,3 / 3,1 / 3,7 s, pressionar logo acima ou antes da onda fina caía na área de trabalho e desenhava o retângulo azul de seleção;
+  - de 1 min: em ~14 s, o expandido cruzando o meio da tela vira de cima pra baixo e a capa anda ~80 px em relação ao mouse (o mesmo em cada troca de lado); as piscadas, a emenda e a tremedeira estão nos [bugs 25–27](../../referencias/motor/bugs-e-licoes.md).
+- **Docs atualizados:** [ponto de pega](../../padroes/motion/ponto-de-pega.md), [motor-piloto](../../referencias/motor/motor-piloto.md), [bugs e lições](../../referencias/motor/bugs-e-licoes.md), [diário](../../diario/2026-11.md), [README](README.md) (Testado), [CHANGELOG](../../CHANGELOG.md).
+- **Testado** (Chrome, simulador imitando o host, sem mouse real):
+  - `grabtest` em 12 casos (números acima);
+  - emenda com 2 monitores;
+  - 16/16 arrastos com a janela dentro da tela;
+  - zigue-zague com 2 trocas;
+  - deslizar com perda de captura, botão direito e mover sem botão;
+  - o registro gera o arquivo com quadros e eventos.
+  - **Não testado:** no app instalado. Os bugs 26 (fantasma da emenda) e 27 (tremedeira no canto) não reproduzem no simulador e ficam pro registro.
+- **Regras:** R7, R9, R19, R22, R24, R25, R26.
+
+
 ## 2026-11-25 — App piloto: motor-piloto, emenda como portal, hover pelo cursor real (v20)
 - **Pedido:** a Onda vira o app piloto (R24): aplicar as receitas do [ambiente](../../referencias/ambiente/receitas-recomendadas.md) (M1, M2, T1–T4, H1–H5, M5) a partir das [medições no app instalado](../../referencias/ambiente/medicoes.md).
 - **Onde:** motor da janela (só na Onda), tamanho da janela, hover e "clique passa".

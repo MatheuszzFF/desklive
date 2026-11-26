@@ -28,13 +28,15 @@ Tudo que vai pro Windows sai de `pump()`, chamada uma vez por quadro no laço do
 
 Ao assentar não há trava (o destino do app já cabe). 200 ms depois de parar, `checkHost()` lê `getBounds()`; se a real difere mais de 1 px, a lógica adota a real (`stats.hostFix`).
 
-## v21: `nudge` (em implementação)
+## v21: `nudge` e nada de esconder
 
 Pro [ponto de pega](../../padroes/motion/ponto-de-pega.md): anda posição lógica, alvo e referência do arrasto juntos, sem mola, e envia no mesmo quadro (se não houver commit esperando o `resize`).
 ```
 nudge(dx, dy): cur += d; alvo += d; se arrastando, referência do arrasto += d
                pedir envio; stats.nudges++; se não S.landing → pump() já
 ```
+
+**Esconder removido (R25).** O v20 escondia o conteúdo 2 quadros no pulo de monitor e quando um commit de tamanho movia o canto de cima à esquerda; no app instalado isso virou piscada. Agora não esconde mais e só conta: `stats.tlMoves` (canto de cima à esquerda andou com o tamanho, quadro velho possível) e `stats.jumps` (pulo de monitor). O registro da Onda grava os dois por quadro.
 
 ## O que a Onda faz do lado dela (junto com o piloto)
 

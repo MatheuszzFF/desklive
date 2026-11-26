@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v21: ponto de pega invariante, registro, progresso, nada pisca
+- **Atualizado:** [ponto de pega](padroes/motion/ponto-de-pega.md) (zona pelo ponto pego, caixa só do alvo com a janela presa, números antes/depois), [motor-piloto](referencias/motor/motor-piloto.md) (`nudge`, esconder removido), [bugs e lições](referencias/motor/bugs-e-licoes.md) (25, 28–30 resolvidos; 31 e 32 novos), [diário](diario/2026-11.md), [refinos da Onda](apps/onda/refinos.md) e o Testado da [Onda](apps/onda/README.md).
+
 ### Base técnica de movimento, tamanho e hover trazida pro repo (R26) + diário
 - **Novo:**
   - [diario/](diario/README.md): índice, modelo da entrada (data · app/versão · o que mudou · por quê · números · como foi provado) e [2026-11](diario/2026-11.md) com as entradas de 24 e 25/11;
