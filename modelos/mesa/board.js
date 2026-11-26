@@ -48,19 +48,25 @@ async function ps(script, tempo){
     return ((r.stdout || '').trim() || (r.stderr || '').trim()).slice(0, 800);
   } catch (e) { dl('erro', String(script).slice(0, 160), { ms:Math.round(performance.now() - t0), erro:String(e?.message || e).slice(0, 200) }); throw e; }
 }
-function ajudante(codigo){
+function ajudante(codigo, nome){
   let proc = null, n = 0, buf = ''; const pend = new Map();
+  // diário (~/.orbita/logs): liga, morre, não responde e cada comando, menos o 'move' de rotina (o lento entra)
+  nome = nome || (/msedge/.test(codigo) ? 'navegador' : /janelas-adotadas/.test(codigo) ? 'janelas' : 'ajudante');
+  const dl = (nv, m, d) => window.Board?.diario?.('ajudante:' + nome, nv, m, d);
   function liga(){
+    dl('info', 'ligou');
     proc = desktop.childProcess.spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encodePs(codigo)]); buf = '';
     proc.stdout.on('data', c => { buf += c; let i; while ((i = buf.indexOf('\n')) >= 0){ const l = buf.slice(0, i).replace(/^﻿/, '').trim(); buf = buf.slice(i + 1); const sp = l.indexOf(' '), id = sp < 0 ? l : l.slice(0, sp), r = pend.get(id); if (r){ pend.delete(id); r(sp < 0 ? '' : l.slice(sp + 1)); } } });
-    const morreu = () => { proc = null; for (const r of pend.values()) r(null); pend.clear(); };
+    const morreu = c => { dl('aviso', 'o processo saiu', { codigo:typeof c === 'number' ? c : String(c?.message || c || ''), pendentes:pend.size }); proc = null; for (const r of pend.values()) r(null); pend.clear(); };
     proc.on('exit', morreu); proc.on('error', morreu);
   }
   return (cmd, tempo = 8000) => {
     if (!podePCm() || !desktop?.childProcess) return Promise.resolve(null);
     try { if (!proc) liga(); } catch { return Promise.resolve(null); }
     const id = 'r' + (++n);
-    return new Promise(res => { pend.set(id, res); Promise.resolve(proc.stdin.write(id + ' ' + cmd + '\n')).catch(() => { pend.delete(id); res(null); }); setTimeout(() => { if (pend.has(id)){ pend.delete(id); res(null); } }, tempo); });
+    const t0 = performance.now(), verbo = String(cmd).split(' ')[0], rotina = verbo === 'move' || verbo === 'viva' || verbo === 'titulo';
+    const fim = r => { const ms = Math.round(performance.now() - t0); if (r == null) dl('aviso', verbo + ' sem resposta', { ms }); else if (!rotina || ms > 300) dl(ms > 300 ? 'aviso' : 'info', verbo + (ms > 300 ? ' lento' : ''), { ms, r:String(r).startsWith('b64:') ? '(dados)' : String(r).slice(0, 120) }); return r; };
+    return new Promise(res => { pend.set(id, res); Promise.resolve(proc.stdin.write(id + ' ' + cmd + '\n')).catch(() => { pend.delete(id); res(null); }); setTimeout(() => { if (pend.has(id)){ pend.delete(id); res(null); } }, tempo); }).then(fim);
   };
 }
 

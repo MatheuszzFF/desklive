@@ -227,7 +227,7 @@ hit.addEventListener('pointermove', e => {
 function larga(){
   if (!gesto) return; const era = gesto.on, g0 = gesto; gesto = null;
   if (!era){ D.aberto ? fecha() : abre(); return; }
-  { const A = area(), vx = clamp(g0.vx || 0, -3000, 3000), vy = clamp(g0.vy || 0, -3000, 3000), px = D.x + vx * .15, py = D.y + vy * .15, Z = 110, ZL = Math.max(140, A.w * .08);
+  { const A = area(), vx = clamp(g0.vx || 0, -3000, 3000), vy = clamp(g0.vy || 0, -3000, 3000), px = D.x + vx * .15, py = D.y + clamp(vy * .15, -120, 120),   /* o embalo ajuda a achar o canto, mas soltar no meio da lateral fica na lateral */ Z = 110, ZL = Math.max(140, A.w * .08);
     // lateral: vale o pé dele, o ponto projetado pelo embalo OU o cursor na hora de soltar (o que estiver mais perto da beira)
     const cx = g0.px ?? D.x, perto = Math.min(px, D.x, cx), longe = Math.max(px, D.x, cx);
     const lado = perto < ZL ? 'l' : longe > A.w - ZL ? 'r' : null, vert = py < Z + 60 ? 't' : py > A.h - Z ? 'b' : null;
