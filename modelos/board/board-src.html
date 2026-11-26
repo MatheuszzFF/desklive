@@ -1938,6 +1938,8 @@ function nascer(def, e, noMeu){
    13. menu (clique direito), bandeja, atalhos, sair
    ============================================================================ */
 let temBandeja = false, pecasEscondidas = false;
+const MENU_EXTRA = [];   // itens que os opcionais acrescentam (Board.menu(fn → [{label, click}]))
+const extras = () => { const l = []; for (const f of MENU_EXTRA) try { l.push(...(f() || [])); } catch {} return l; };
 function itensMenu(P){
   const it = [];
   if (P?.inst.menu) for (const m of P.inst.menu()) it.push(m);
@@ -1946,6 +1948,7 @@ function itensMenu(P){
     it.push({ label:(Q?.visivel ? 'Esconder ' : 'Mostrar ') + def.nome, click:() => executarComando('alternarPeca', def.id, true) });
   }
   it.push({ label:pecasEscondidas ? 'Mostrar as peças' : 'Esconder as peças', click:() => executarComando('alternarTudo', null, true) });
+  it.push(...extras());
   it.push({ label:'Esconder o Board', click:() => W.hide?.().catch(() => {}) });
   it.push({ label:'Permissões…', click:abrirPermissoes });
   it.push({ label:'Sair', click:sair });
@@ -1960,6 +1963,7 @@ function montarBandeja(){
       { label:'Afinação do motion', click:() => executarComando('alternarPeca', 'afinacao', true) },
       { label:'Mostrar ou esconder as peças', click:() => executarComando('alternarTudo', null, true) },
       { label:'Mostrar o Board', click:() => W.show?.().catch(() => {}) },
+      ...extras(),
       { label:'Esconder o Board', click:() => W.hide?.().catch(() => {}) },
       { label:'Permissões…', click:abrirPermissoes },
       { label:'Sair', click:sair },
@@ -2097,7 +2101,7 @@ async function comandoApi(id, nome, args){
 function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'function') throw new Error('uma peça precisa de id e de criar(ctx)'); B.registrar(def); anunciar('peca:definida', { id:def.id }); if (opcoes.mostrar !== false && minha && !pecas.has(def.id)) return mostrarApi(def.id, true); return null; }
 function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
 Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
-  get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; }, alvo:fn => { ALVOS.add(fn); return () => ALVOS.delete(fn); } });
+  get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; }, alvo:fn => { ALVOS.add(fn); return () => ALVOS.delete(fn); }, menu:fn => { MENU_EXTRA.push(fn); } });
 /* opcionais: módulos e peças que a montagem acrescenta (build.ps1 -Pecas a,b,c). Sem lista, fica vazio. */
 /*PECAS*/
 let sonda = null;

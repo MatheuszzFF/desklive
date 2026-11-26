@@ -153,7 +153,8 @@ function estado(){
 const HDEFS = new Map(), HOSP = new Map(), hprefs = le('mesa-hospedes', []);
 window.__mesaHosp = {};
 const origem = () => ({ x:window.screenX || 0, y:window.screenY || 0 });
-function hospeda(def){ if (!PRINCIPAL) return; HDEFS.set(def.id, def); if (hprefs.includes(def.id)) setTimeout(() => abreHospede(def.id), 300); }
+function hospeda(def){ if (!PRINCIPAL) return; HDEFS.set(def.id, def);
+  if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'conectar_spotify')) def.comandos.push({ nome:'conectar_spotify', descricao:'Conecta a Onda ao Spotify da pessoa: abre o login do Spotify no navegador (ela só autoriza, uma vez; depois fica salvo no PC). Use quando a Onda disser que não está conectada, e avise que é só autorizar na página que abriu.', roda:async () => (await spotifyConectado()) ? 'o Spotify já está conectado na Onda' : conectarSpotify() }); if (hprefs.includes(def.id)) setTimeout(() => abreHospede(def.id), 300); }
 function poeHospede(H){
   const A = area(), o = H.o, r = H.r;
   if (r.width <= A.w) r.x = clamp(r.x, o.x, o.x + A.w - r.width); if (r.height <= A.h) r.y = clamp(r.y, o.y, o.y + A.h - r.height);
@@ -192,6 +193,16 @@ function abreHospede(id){
   HOSP.set(id, H); poeHospede(H); camada.appendChild(f); salvaHosp(); bus.emit('mesa:abriu', { id });
   return H;
 }
+/* Spotify da Onda: o login é uma vez só (o token fica em ~/.orbita/spotify-token.json e vale pra qualquer versão).
+   Aqui é só o atalho: abre a Onda se precisar e aperta o "Conectar Spotify" dela, que abre o login no navegador. */
+const spotifyConectado = async () => { try { return !!(podePCm() && await desktop.fs.exists('~/.orbita/spotify-token.json')); } catch { return false; } };
+async function conectarSpotify(){
+  if (!HDEFS.has('onda')) throw new Error('a Onda não está neste Board');
+  const H = abreHospede('onda');
+  for (let i = 0; i < 40; i++){ const b = H.f.contentDocument?.getElementById('connect'); if (b){ b.click(); return 'abri o login do Spotify no navegador: é só autorizar lá (uma vez só; depois fica salvo no PC)'; } await new Promise(r => setTimeout(r, 250)); }
+  throw new Error('a Onda não abriu a tempo; tente de novo');
+}
+if (PRINCIPAL) MB.menu(() => HDEFS.has('onda') ? [{ label:'Conectar o Spotify (Onda)…', click:() => conectarSpotify().then(t => bus.emit('mesa:aviso', { texto:'Abri o login do Spotify no navegador. Autoriza lá que eu já consigo tocar.' })).catch(e => bus.emit('mesa:aviso', { texto:String(e.message || e) })) }] : []);
 function fechaHospede(id){ const H = HOSP.get(id); if (!H) return false; H.f.remove(); HOSP.delete(id); delete window.__mesaHosp[id]; salvaHosp(); bus.emit('mesa:fechou', { id }); return true; }
 // com o app em "clique passa", o mouse em cima dele chega no Board: a ponte repassa o movimento pra ele decidir se acorda
 function repassa(e){
