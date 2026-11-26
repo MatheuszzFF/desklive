@@ -1,13 +1,13 @@
 # Modelo: Mesa
 
-> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.7** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
+> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.8** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
 | [mesa-src.html](mesa-src.html) | o quadro: moldura dos widgets, física, barramento, clique-passa e a janela do app, com os marcadores `/*WIDGETS*/`, `/*ATLAS*/{}` e `/*ATLAS_PNG*/''` |
-| [widgets/](widgets/) | um `.js` por widget, montados em ordem de nome: `00-dengas.js` (o morador e assistente), `10-relogio.js`, `20-notas.js`, `35-video.js` (YouTube dentro da Mesa), `30-onda.js` e `40-orbita.js` (declaram a Onda e a Órbita **originais** como hóspedes, com o marcador `APP:`), `50-estante.js` (ponte com a Estante Musical) |
+| [widgets/](widgets/) | um `.js` por widget, montados em ordem de nome: `00-dengas.js` (o morador e assistente), `10-relogio.js`, `20-notas.js`, `35-video.js` (vídeo e sites numa janela do Edge presa ao widget), `30-onda.js` e `40-orbita.js` (declaram a Onda e a Órbita **originais** como hóspedes, com o marcador `APP:`), `50-estante.js` (ponte com a Estante Musical) |
 | [arte/](arte/) | o atlas do Dengas (`dengas-atlas.png`, células de 96 px, e o `.json` com as linhas) |
 | [build.ps1](build.ps1) | monta `mesa.html`: junta os widgets e embute a arte |
 

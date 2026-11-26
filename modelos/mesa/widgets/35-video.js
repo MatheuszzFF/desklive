@@ -1,71 +1,97 @@
-/* Vídeo: toca vídeo do YouTube DENTRO da Mesa. O morador pede por assunto ("show do Linkin Park") e o widget
-   acha o primeiro resultado e dá play. A busca é feita pelo PC (PowerShell), porque a página não acessa a rede;
-   o player é o do próprio YouTube, embutido. Também aceita um link ou o id direto. */
+/* Vídeo (e qualquer site): o app do Claude barra páginas de fora embutidas (frame-src), então este widget é um
+   "furo". Ele abre o site numa janela própria do Edge (modo app, perfil separado em ~/.mesa/edge), tira a moldura
+   dela, e mantém essa janela exatamente embaixo do furo, acompanhando o widget quando ele anda ou muda de tamanho.
+   Dentro do furo o mouse vai direto pra janela. Nada de tecla: a janela é mexida por mensagens do Windows
+   (SetWindowPos) e fechada encerrando o processo que o próprio widget abriu. */
 {
+const JANELA_PS = [
+  "$ErrorActionPreference = 'SilentlyContinue'",
+  "Add-Type -Namespace M -Name W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware(); [DllImport(\"user32.dll\")] public static extern int GetWindowLong(System.IntPtr h, int i); [DllImport(\"user32.dll\")] public static extern int SetWindowLong(System.IntPtr h, int i, int v); [DllImport(\"user32.dll\")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr a, int x, int y, int w, int t, uint f);'",
+  "[void][M.W]::SetProcessDPIAware(); $proc = $null; $h = [IntPtr]::Zero",
+  "function Poe($x, $y, $w, $t) { if ($script:h -ne [IntPtr]::Zero) { [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$x, [int]$y, [int]$w, [int]$t, 0x0030) } }",
+  "function Fecha { if ($script:proc) { try { Stop-Process -Id $script:proc.Id -Force } catch {} }; $script:proc = $null; $script:h = [IntPtr]::Zero }",
+  "[Console]::Out.WriteLine('ready'); [Console]::Out.Flush()",
+  "while ($null -ne ($l = [Console]::In.ReadLine())) {",
+  "  $p = $l.Split(' '); $id = $p[0]; $r = 'ok'",
+  "  try { switch ($p[1]) {",
+  "    'abre' {",
+  "      Fecha; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
+  "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
+  "      for ($i = 0; $i -lt 60 -and $script:h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $script:proc.Refresh(); if ($script:proc.HasExited) { break }; $script:h = $script:proc.MainWindowHandle }",
+  "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$p[3], [int]$p[4], [int]$p[5], [int]$p[6], 0x0060) }",
+  "    }",
+  "    'move' { Poe $p[2] $p[3] $p[4] $p[5] }",
+  "    'fecha' { Fecha }",
+  "    'viva' { if (-not $script:proc -or $script:proc.HasExited) { $r = 'nao' } else { $r = 'sim' } }",
+  "  } } catch { $r = 'erro ' + $_.Exception.Message }",
+  "  [Console]::Out.WriteLine($id + ' ' + $r); [Console]::Out.Flush()",
+  "}",
+  "Fecha",
+].join('\n');
 Mesa.estilo(`
-.vd{position:absolute;inset:0;display:flex;flex-direction:column;background:#000;border-radius:inherit;overflow:hidden}
-.vd iframe{flex:1;width:100%;border:0;display:block;background:#000}
-.vd-vazio{flex:1;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:13px;line-height:1.5;background:radial-gradient(120% 120% at 50% 0,#1c1622,#07080d)}
+.w[data-id=video]{background:transparent;box-shadow:0 0 0 1px var(--line)}
+.vd{position:absolute;inset:0;display:flex;flex-direction:column;border-radius:inherit;overflow:hidden}
+.vd-furo{flex:1;min-height:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:13px;line-height:1.5}
+.vd-furo.vazio{background:radial-gradient(120% 120% at 50% 0,#1c1622,#07080d)}
 .vd-b{flex:none;display:flex;gap:8px;padding:8px 10px;background:var(--vidro)}
-.vd-aviso{flex:none;padding:8px 12px;background:#2a1512;color:#ffb4a2;font-size:12.5px;line-height:1.4;user-select:text;-webkit-user-select:text}
 .vd-b input{flex:1;min-width:0;height:30px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);padding:0 12px;font:400 13px var(--corpo);outline:0;user-select:text;-webkit-user-select:text}
 .vd-b input:focus{border-color:rgba(240,169,138,.45)}
-@container w (max-height:170px){.vd-b{display:none}}
 `);
 const Q = '(?:"|\\\\x22)';   // aspas normais ou escritas como \x22, pro regex do PowerShell
 const idDe = t => { const m = String(t || '').match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/) || String(t || '').match(/^([\w-]{11})$/); return m ? m[1] : null; };
+const b64 = t => btoa(unescape(encodeURIComponent(t)));
 Mesa.define({
-  id:'video', nome:'Vídeo', descricao:'toca vídeo do YouTube dentro da Mesa (busca por assunto, link ou id)', w:560, h:372, minW:260, minH:150,
+  id:'video', nome:'Vídeo', descricao:'toca vídeo do YouTube e abre qualquer site dentro da Mesa (numa janela presa ao widget)', w:640, h:420, minW:320, minH:220,
   icone:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/>',
   monta(corpo, api){
-    corpo.innerHTML = '<div class="vd"><div class="vd-vazio">Peça um vídeo pro Dengas<br>ou digite aqui embaixo.</div><div class="vd-b"><input placeholder="Buscar e tocar: show do Linkin Park…" spellcheck="false" aria-label="Buscar vídeo"><button class="m-bot" type="button">Tocar</button></div></div>';
-    const caixa = corpo.querySelector('.vd'), campo = corpo.querySelector('input'), bot = corpo.querySelector('.m-bot');
-    let atual = api.ler({}).atual || null, quadro = null, tocando = false, bloqueio = '';
-    // se o app barrar o player embutido (política de segurança da página), o motivo aparece no widget e no estado
-    const aviso = t => { bloqueio = t; let el = caixa.querySelector('.vd-aviso'); if (!el){ el = document.createElement('div'); el.className = 'vd-aviso'; caixa.insertBefore(el, caixa.querySelector('.vd-b')); } el.textContent = t; };
-    const barrado = e => { const u = String(e.blockedURI || ''); if (/youtube|ytimg|googlevideo/.test(u) || /frame-src|child-src/.test(String(e.violatedDirective || ''))) aviso('O app bloqueou o player embutido (' + (e.violatedDirective || 'política da página') + ').'); };
-    document.addEventListener('securitypolicyviolation', barrado);
-    function poe(id, titulo, busca){
-      atual = { id, titulo:titulo || '', busca:busca || '' }; api.salvar({ atual });
-      caixa.querySelector('.vd-vazio')?.remove(); quadro?.remove();
-      quadro = document.createElement('iframe'); quadro.title = titulo || 'Vídeo';
-      quadro.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; quadro.setAttribute('allowfullscreen', '');
-      quadro.referrerPolicy = 'strict-origin-when-cross-origin';   // o YouTube recusa o player quando não sabe de onde vem o pedido
-      const origem = /^https?:/.test(location.origin) ? '&origin=' + encodeURIComponent(location.origin) : '';
-      quadro.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&enablejsapi=1&playsinline=1' + origem;
-      bloqueio = ''; caixa.querySelector('.vd-aviso')?.remove();
-      // se em 6 s o player não der sinal de vida, avisa (a página do YouTube manda mensagens quando carrega)
-      const esteQuadro = quadro; let vivo = false; const ouve = e => { if (e.source === esteQuadro.contentWindow) vivo = true; }; addEventListener('message', ouve);
-      esteQuadro.addEventListener('load', () => { try { esteQuadro.contentWindow.postMessage(JSON.stringify({ event:'listening', id:1 }), '*'); } catch {} });
-      setTimeout(() => { removeEventListener('message', ouve); if (!vivo && quadro === esteQuadro && !bloqueio) aviso('O player do YouTube não respondeu aqui dentro. Origem da página: ' + location.origin); }, 6000);
-      caixa.insertBefore(quadro, caixa.firstChild); tocando = true; api.emitir('tocando', atual);
+    corpo.style.paddingTop = '0'; corpo.style.background = 'transparent';
+    corpo.innerHTML = '<div class="vd"><div class="vd-furo vazio">Peça um vídeo ou um site pro Dengas<br>ou digite aqui embaixo.</div><div class="vd-b"><input placeholder="Buscar e tocar: show do Linkin Park… (ou cole um endereço https)" spellcheck="false" aria-label="Buscar vídeo ou abrir site"><button class="m-bot" type="button">Abrir</button></div></div>';
+    const furo = corpo.querySelector('.vd-furo'), campo = corpo.querySelector('input'), bot = corpo.querySelector('.m-bot');
+    const pede = api.ajudante(JANELA_PS);
+    let atual = api.ler({}).atual || null, aberta = false, ultimo = '', problema = '';
+    // onde o furo está na tela, em pixels físicos (a janela do Edge é posta nessas coordenadas)
+    const ret = () => { const r = furo.getBoundingClientRect(), k = devicePixelRatio || 1; return [Math.round(((window.screenX || 0) + r.left) * k), Math.round(((window.screenY || 0) + r.top) * k), Math.round(r.width * k), Math.round(r.height * k)].join(' '); };
+    const diz = t => { problema = t; furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = t; };
+    async function abreUrl(url, titulo, busca){
+      if (!api.podePC()) throw new Error('só no app instalado, com o acesso total liberado');
+      atual = { url, titulo:titulo || '', busca:busca || '' }; api.salvar({ atual }); problema = '';
+      furo.textContent = 'Abrindo…';
+      const r = await pede('abre ' + b64(url) + ' ' + ret(), 20000);
+      if (r !== 'ok'){ aberta = false; diz(r === 'sem_janela' ? 'A janela do Edge não apareceu. O Microsoft Edge está instalado?' : 'Não consegui abrir a janela (' + (r || 'sem resposta') + ').'); throw new Error(problema); }
+      aberta = true; ultimo = ret(); furo.textContent = ''; furo.classList.remove('vazio'); furo.classList.add('furo'); api.emitir('abriu', atual);
+      return { aberto:titulo || url };
     }
-    const manda = func => quadro?.contentWindow?.postMessage(JSON.stringify({ event:'command', func, args:'' }), '*');
     async function busca(q){
-      q = String(q || '').trim().slice(0, 160); if (!q) throw new Error('diga o que procurar');
-      const direto = idDe(q); if (direto){ poe(direto, '', q); return { id:direto }; }
-      const s = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $h = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -Uri ('https://www.youtube.com/results?search_query=' + [uri]::EscapeDataString('" + q.replace(/'/g, "''") + "')) -Headers @{ 'Accept-Language' = 'pt-BR' }).Content; "
-        // a resposta vem com as aspas e chaves escritas como \x22, \x7b… (ou normais, conforme a versão da página)
-        + "$q = '" + Q + "'; $m = [regex]::Match($h, $q + 'videoId' + $q + ':' + $q + '([\\w-]{11})'); "
-        + "if ($m.Success) { $t = [regex]::Match($h.Substring($m.Index), $q + 'title' + $q + ':(?:\\{|\\\\x7b)' + $q + 'runs' + $q + ':(?:\\[|\\\\x5b)(?:\\{|\\\\x7b)' + $q + 'text' + $q + ':' + $q + '(.*?)' + $q + '(?:\\}|\\\\x7d)'); [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $m.Groups[1].Value + '|' + $t.Groups[1].Value } else { 'nada' }";
-      const r = await api.ps(s, 30000); if (!r || r === 'nada' || !/^[\w-]{11}\|/.test(r)) throw new Error('não achei vídeo pra "' + q + '"');
-      const id = r.slice(0, 11), titulo = r.slice(12).replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\u0026/g, '&').replace(/\\(["'\\\/])/g, '$1').slice(0, 120);
-      poe(id, titulo, q); return { id, titulo };
+      q = String(q || '').trim().slice(0, 300); if (!q) throw new Error('diga o que procurar ou o endereço');
+      if (/^https:\/\/[^\s'"<>]+$/i.test(q) && !idDe(q)) return abreUrl(q, '', q);
+      let id = idDe(q), titulo = '';
+      if (!id){
+        const s = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $h = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -Uri ('https://www.youtube.com/results?search_query=' + [uri]::EscapeDataString('" + q.replace(/'/g, "''") + "')) -Headers @{ 'Accept-Language' = 'pt-BR' }).Content; "
+          + "$q = '" + Q + "'; $m = [regex]::Match($h, $q + 'videoId' + $q + ':' + $q + '([\\w-]{11})'); "
+          + "if ($m.Success) { $t = [regex]::Match($h.Substring($m.Index), $q + 'title' + $q + ':(?:\\{|\\\\x7b)' + $q + 'runs' + $q + ':(?:\\[|\\\\x5b)(?:\\{|\\\\x7b)' + $q + 'text' + $q + ':' + $q + '(.*?)' + $q + '(?:\\}|\\\\x7d)'); [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $m.Groups[1].Value + '|' + $t.Groups[1].Value } else { 'nada' }";
+        const r = await api.ps(s, 30000); if (!r || r === 'nada' || !/^[\w-]{11}\|/.test(r)) throw new Error('não achei vídeo pra "' + q + '"');
+        id = r.slice(0, 11); titulo = r.slice(12).replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\u0026/g, '&').replace(/\\(["'\\\/])/g, '$1').slice(0, 120);
+      }
+      await abreUrl('https://www.youtube.com/watch_popup?v=' + id + '&autoplay=1', titulo, q);
+      return { tocando:titulo || id };
     }
+    async function fechaJanela(){ aberta = false; await pede('fecha'); furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = 'Fechado. Peça outro vídeo ou site.'; }
+    // a janela acompanha o furo: confere a posição várias vezes por segundo e só manda quando mudou
+    const tic = setInterval(() => { if (!aberta) return; const r = ret(); if (r !== ultimo){ ultimo = r; pede('move ' + r); } }, 60);
+    const vigia = setInterval(async () => { if (aberta && await pede('viva') === 'nao'){ aberta = false; diz('A janela foi fechada.'); } }, 4000);
     const vai = () => busca(campo.value).then(() => { campo.value = ''; }).catch(e => api.avisar(String(e.message || e)));
     bot.addEventListener('click', vai); campo.addEventListener('keydown', e => { if (e.key === 'Enter') vai(); });
-    if (atual?.id){ caixa.querySelector('.vd-vazio').innerHTML = 'Último vídeo: ' + (atual.titulo || atual.busca || atual.id).replace(/[<>&]/g, '') + '<br>Peça outro ou clique em Tocar.'; campo.value = atual.busca || ''; }
     return {
-      estado:() => atual ? { video:atual.titulo || atual.busca || atual.id, id:atual.id, tocando:tocando && !bloqueio, problema:bloqueio || undefined } : { video:null },
+      estado:() => ({ aberto:aberta ? (atual?.titulo || atual?.busca || atual?.url) : null, endereco:aberta ? atual?.url : null, problema:problema || undefined }),
       comandos:[
-        { nome:'tocar', descricao:'Acha e toca um vídeo do YouTube dentro da Mesa. busca: o assunto (ex.: "Linkin Park show ao vivo completo"), um link do YouTube ou o id do vídeo. Devolve o título que começou a tocar.',
-          esquema:{ type:'object', properties:{ busca:{ type:'string' } }, required:['busca'] },
-          roda:({ busca:q }) => busca(q) },
-        { nome:'controlar', descricao:'Controla o vídeo que está no widget: pausar, continuar, parar, mudo, som.',
-          esquema:{ type:'object', properties:{ acao:{ type:'string', enum:['pausar','continuar','parar','mudo','som'] } }, required:['acao'] },
-          roda({ acao }){ if (!quadro) throw new Error('não tem vídeo aberto'); manda({ pausar:'pauseVideo', continuar:'playVideo', parar:'stopVideo', mudo:'mute', som:'unMute' }[acao] || 'pauseVideo'); tocando = acao === 'continuar' || (tocando && (acao === 'mudo' || acao === 'som')); return 'feito'; } },
+        { nome:'tocar', descricao:'Acha e toca um vídeo do YouTube dentro da Mesa. busca: o assunto (ex.: "Linkin Park show ao vivo completo"), um link do YouTube ou o id. O vídeo já começa tocando. Devolve o título.',
+          esquema:{ type:'object', properties:{ busca:{ type:'string' } }, required:['busca'] }, roda:({ busca:q }) => busca(q) },
+        { nome:'abrir_site', descricao:'Abre qualquer site (endereço https completo) dentro do widget, como um navegador preso à Mesa.',
+          esquema:{ type:'object', properties:{ endereco:{ type:'string' } }, required:['endereco'] },
+          roda({ endereco }){ const u = String(endereco || '').trim(); if (!/^https:\/\/[^\s'"<>]+$/i.test(u)) throw new Error('precisa ser um endereço https completo'); return abreUrl(u, '', u); } },
+        { nome:'fechar_janela', descricao:'Fecha o vídeo ou site que está aberto no widget (o widget continua na Mesa).', roda:() => fechaJanela().then(() => 'fechado') },
       ],
-      aoFechar(){ quadro?.remove(); document.removeEventListener('securitypolicyviolation', barrado); },
+      aoFechar(){ clearInterval(tic); clearInterval(vigia); pede('fecha'); },
     };
   },
 });

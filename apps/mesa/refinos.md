@@ -2,6 +2,11 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.8: vídeo e sites por "furo"
+- **Achado no app instalado:** o app barra qualquer página de fora embutida (`frame-src`), então o player do YouTube em iframe fica preto.
+- **O que:** o widget Vídeo vira um **furo**: abre o site numa janela própria do Edge (`--app`, perfil separado em `~/.mesa/edge`, `--autoplay-policy=no-user-gesture-required`), tira a moldura dela (`SetWindowLong`), põe por cima de tudo e mantém a janela exatamente embaixo do furo (confere a posição a cada 60 ms e manda `SetWindowPos` só quando muda; coordenadas em pixels físicos, `devicePixelRatio`). A casca ganha a classe `.furo`: dentro dela o clique passa direto. Comandos: `video_tocar` (busca no YouTube e abre `watch_popup` com autoplay), `video_abrir_site` (qualquer https) e `video_fechar_janela`. Nada de tecla; fechar é encerrar o processo que o widget abriu.
+- **Testado:** o ajudante abriu, moveu e fechou uma janela do Edge neste PC; a busca do YouTube devolveu id e título. **Não testado:** dentro do app instalado (alinhamento com o furo, se a moldura some de vez, o som do vídeo).
+
 ## 2026-11-26 · Mesa 0.7: sem cara de Windows
 - **O que:** os widgets perdem a barra de título (faixa de 34 px com ícone e nome) e toda barra de rolagem (`scrollbar-width: none` na casca e no kit dos soltos). **Fechar:** um X flutuante de 26 px no canto de cima à direita, que só aparece com o mouse em cima do widget. **Redimensionar:** pelas quatro bordas (zona de 9 px) e pelas quatro quinas (18 px); o lado oposto fica parado; some a alça antiga. **Arrastar:** por qualquer parte do corpo que não seja um controle (botão, campo, iframe, canvas) ou pela mãozinha de cima (zona de 16 px com um traço de 38 × 4 px que aparece com o mouse); continua virando arrasto só depois de 4 px.
 - **Por quê:** a Mesa existe pra tirar a cara do Windows; nada de barra superior nem de rolagem.

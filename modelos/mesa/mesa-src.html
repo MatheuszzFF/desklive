@@ -73,7 +73,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.7';
+const VERSAO = '0.8';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -483,7 +483,8 @@ function setPassa(on){ if (!desktop?.window) return; if (prefs.fundo === 'mesa' 
 document.addEventListener('pointerdown', () => { apertado = true; }, true);
 document.addEventListener('pointerup', () => { apertado = false; }, true);
 document.addEventListener('pointermove', e => {
-  if (e.target.closest?.('.alvo')){ clearTimeout(tPassa); tPassa = 0; setPassa(false); }
+  // .furo: um buraco dentro de um widget por onde o mouse vai direto pra janela que está embaixo (ex.: o vídeo)
+  if (e.target.closest?.('.alvo') && !e.target.closest('.furo')){ clearTimeout(tPassa); tPassa = 0; setPassa(false); }
   else if (!apertado && !tPassa) tPassa = setTimeout(() => { tPassa = 0; if (!apertado) setPassa(true); }, 140);
   bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY }); repassa(e);
 });
