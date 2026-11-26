@@ -24,7 +24,7 @@ html.previa #fundo{opacity:1}
 /* ---------- widget: a moldura é da Mesa, o miolo é de cada widget ---------- */
 .w{position:absolute;left:0;top:0;display:flex;flex-direction:column;box-sizing:border-box;min-width:0;
   background:linear-gradient(rgba(255,255,255,.055),rgba(255,255,255,.012)) , var(--vidro);
-  border:1px solid var(--line);border-radius:20px;box-shadow:0 18px 44px -16px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);
+  border:1px solid var(--line);border-radius:var(--raio,20px);box-shadow:0 18px 44px -16px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);
   transition:border-radius .35s var(--mola),box-shadow .25s,opacity .25s,scale .35s var(--mola);will-change:transform}
 .w.nasce{opacity:0;scale:.9}
 .w.some{opacity:0;scale:.92;pointer-events:none}
@@ -67,7 +67,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.1';
+const VERSAO = '0.2';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -246,6 +246,15 @@ function comandos(){
   for (const W of ABERTOS.values()) for (const c of W.inst.comandos || []) l.push({ widget:W.id, nomeWidget:W.def.nome, ...c });
   return l;
 }
+/* aparência: o morador (ou o menu) troca a cor de destaque, o vidro e o papel de parede; fica guardado */
+function aparencia(o = {}){
+  const a = prefs.aparencia = Object.assign({}, prefs.aparencia, o), st = R.style, cor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
+  if (cor(a.destaque)){ st.setProperty('--coral', a.destaque); st.setProperty('--pessego', `color-mix(in srgb, ${a.destaque} 62%, white)`); }
+  if (a.vidro != null){ const v = clamp(+a.vidro || 0, .35, 1); st.setProperty('--vidro', `rgba(10,11,16,${v})`); st.setProperty('--vidro2', `rgba(22,24,33,${Math.min(1, v + .04)})`); }
+  if (Array.isArray(a.papel) && a.papel.length >= 2 && a.papel.every(cor)) $('fundo').style.background = `radial-gradient(120% 90% at 15% 110%, ${a.papel[0]}, ${a.papel[1]} 46%, ${a.papel[2] || '#07080d'} 82%)`;
+  if (a.raio != null) st.setProperty('--raio', clamp(+a.raio || 0, 0, 34) + 'px');
+  salva(); bus.emit('mesa:aparencia', a); return a;
+}
 function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); salva(); setPassa(false); bus.emit('mesa:fundo', prefs.fundo); }
 
 /* ---------- clique passa: fora do que se vê, o mouse vai pra área de trabalho de verdade ----------
@@ -263,7 +272,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -314,7 +323,7 @@ async function entra(perms){
   bus.emit('mesa:pronta', { app:true });
 }
 function arruma(){   // abre o que estava aberto da última vez (ou o conjunto de partida)
-  R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa');
+  R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); if (prefs.aparencia) aparencia({});
   const lista = Array.isArray(prefs.abertos) ? prefs.abertos : [...DEFS.values()].filter(d => d.deSaida).map(d => d.id);
   for (const id of lista) if (DEFS.has(id)) { try { abre(id); } catch (e) { console.warn(e); } }
 }

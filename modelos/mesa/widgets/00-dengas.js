@@ -192,6 +192,11 @@ function fala(texto){
 }
 falaEl.addEventListener('click', () => { falaEl.classList.remove('viva'); abre(); });
 bus.on('mesa:aviso', a => fala(a.texto));
+// reações dele ao que acontece na mesa (sem gastar o Claude)
+let ultimaReacao = 0;
+const reage = t => { const n = performance.now(); if (D.aberto || n - ultimaReacao < 25000) return; ultimaReacao = n; fala(t); };
+bus.on('musica:mudou', m => reage('♪ ' + (m.musica || 'música nova') + (m.artista ? ', ' + m.artista : '') + '. Boa!'));
+bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs().find(q => q.id === e.id); if (d && !D.em) vai((Mesa.caixa(e.id)?.x || 0) + 60); } });
 
 /* ---------- conversa ---------- */
 function poePainel(){
@@ -250,6 +255,9 @@ function ferramentas(atos){
         if (acao === 'frente'){ Mesa.frente(id); return 'na frente'; }
         const r = Mesa.move(id, { x, y, w, h, borda }); Mesa.toca(id); nota((acao === 'mover' ? '⇄ ' : '⤢ ') + id); return r;
       } },
+    { name:'mesa_aparencia', description:'Muda a cara da Mesa. destaque: cor de destaque em #rrggbb; vidro: opacidade dos widgets de 0.35 a 1; raio: arredondamento dos widgets em px (0 a 34); papel: 2 ou 3 cores #rrggbb do papel de parede (de dentro pra fora); fundo: "mesa" cobre a área de trabalho com o papel de parede, "transparente" deixa ver o Windows.',
+      inputSchema:{ type:'object', properties:{ destaque:{ type:'string' }, vidro:{ type:'number' }, raio:{ type:'number' }, papel:{ type:'array', items:{ type:'string' } }, fundo:{ type:'string', enum:['mesa','transparente'] } } },
+      execute({ fundo:f, ...resto }){ const a = Mesa.aparencia(resto); if (f) Mesa.fundo(f); nota('✦ aparência'); return { ...a, fundo:Mesa.estado().fundo }; } },
     { name:'lembrar', description:'Guarda uma frase curta sobre o dono (gosto, hábito, preferência) pra lembrar nas próximas conversas.',
       inputSchema:{ type:'object', properties:{ nota:{ type:'string' } }, required:['nota'] },
       execute({ nota:n }){ n = String(n || '').trim().slice(0, 160); if (!n) throw new Error('nota vazia'); mem.notas = ((mem.notas ? mem.notas + ' ' : '') + n).slice(-900); guardaMem(); nota('✎ anotado'); return 'guardado'; } },
