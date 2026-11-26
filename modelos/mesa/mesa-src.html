@@ -68,7 +68,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.5';
+const VERSAO = '0.6';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -338,7 +338,27 @@ const PONTE = '<script>(function(){var n=0,pend={},ouv={},reg={};'
   + 'estado:function(){return pede("mesa_estado")},pedir:function(cmd,args){return pede("pedir",{cmd:cmd,args:args})},'
   + 'ouvir:function(tipo,f){(ouv[tipo]=ouv[tipo]||[]).push(f);manda("ouvir",{tipo:tipo})},emitir:function(tipo,dado){manda("emitir",{tipo:tipo,dado:dado})},'
   + 'avisar:function(t){manda("avisar",{texto:t})},salvar:function(v){manda("salvar",{v:v})},ler:function(){return pede("ler")}};})();<' + '/script>';
-const BASE_SOLTO = '<meta charset="utf-8"><style>html,body{margin:0;height:100%;background:transparent;color:#f4f5f8;font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color-scheme:light;overflow:hidden}*{box-sizing:border-box}button,input,textarea{font:inherit;color:inherit}:root{--coral:#d97757;--pessego:#f0a98a;--muted:rgba(244,245,248,.62);--line:rgba(255,255,255,.09)}</style>';
+const BASE_SOLTO = '<meta charset="utf-8"><style>'
+  + 'html,body{margin:0;height:100%;background:transparent;color:#f4f5f8;font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color-scheme:light;overflow:hidden;-webkit-font-smoothing:antialiased}'
+  + '*{box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit}'
+  + ':root{--coral:#d97757;--pessego:#f0a98a;--fg:#f4f5f8;--muted:rgba(244,245,248,.62);--faint:rgba(244,245,248,.38);--line:rgba(255,255,255,.09);--chapa:rgba(255,255,255,.055);--mola:cubic-bezier(.2,.9,.25,1.12);--suave:cubic-bezier(.2,.8,.2,1)}'
+  /* kit: as mesmas peças dos widgets de fábrica, pra todo widget novo nascer no mesmo estilo */
+  + '.pad{padding:4px 16px 14px;height:100%;display:flex;flex-direction:column;gap:10px}'
+  + '.titulo{font:600 20px/1.2 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.01em;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+  + '.num{font:600 44px/1 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}'
+  + '.sub{color:var(--muted);font-size:12.5px}.rotulo{font:600 10px/1 system-ui;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}'
+  + '.linha{display:flex;align-items:center;gap:8px}.cresce{flex:1;min-width:0;min-height:0}.rola{overflow:auto;scrollbar-width:none}.rola::-webkit-scrollbar{display:none}'
+  + '.bot{border:1px solid var(--line);background:var(--chapa);border-radius:999px;padding:7px 14px;font-weight:500;font-size:13px;cursor:pointer;transition:background .2s,scale .3s var(--mola),border-color .2s}'
+  + '.bot:hover{background:rgba(255,255,255,.12)}.bot:active{scale:.95}.bot.pri{background:var(--coral);border-color:transparent;color:#fff}.bot.pri:hover{filter:brightness(1.08)}'
+  + '.bot.redondo{width:38px;height:38px;padding:0;display:grid;place-items:center}'
+  + '.campo{width:100%;border:1px solid var(--line);background:var(--chapa);border-radius:12px;padding:8px 12px;outline:0;transition:border-color .2s}.campo:focus{border-color:rgba(240,169,138,.5)}'
+  + '.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(217,119,87,.16);border:1px solid rgba(240,169,138,.3);color:#ffd9c9;font-size:11.5px;font-weight:500}'
+  + '.chapa{background:var(--chapa);border:1px solid var(--line);border-radius:14px;padding:10px 12px}'
+  + '.barra{height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}.barra>i{display:block;height:100%;background:linear-gradient(90deg,var(--coral),var(--pessego));border-radius:2px;transition:width .5s var(--suave)}'
+  + '.entra{animation:entra .5s var(--mola) both}@keyframes entra{from{opacity:0;transform:translateY(8px) scale(.97)}}'
+  + 'svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}'
+  + '@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}'
+  + '</style>';
 function defineSolto(id){
   const d = SOLTOS[id]; if (!d) return;
   define({ id, nome:d.nome, descricao:d.descricao || 'widget criado na Mesa', w:d.w || 320, h:d.h || 220, minW:140, minH:90, solto:true,
@@ -424,6 +444,24 @@ function aparencia(o = {}){
   if (a.raio != null) st.setProperty('--raio', clamp(+a.raio || 0, 0, 34) + 'px');
   salva(); bus.emit('mesa:aparencia', a); return a;
 }
+/* papel de parede com imagem: um arquivo do PC ou um endereço https (baixado pelo PowerShell pra ~/.mesa).
+   A imagem fica no PC; a Mesa guarda só o caminho e relê ao abrir. */
+async function papel(origem){
+  origem = String(origem || '').trim();
+  if (!origem){ delete prefs.papelArquivo; $('fundo').style.backgroundImage = ''; salva(); return 'sem imagem'; }
+  if (!podePC || !desktop?.fs) throw new Error('imagem de fundo só no app instalado, com o acesso total liberado');
+  let caminho = origem;
+  if (/^https:\/\//i.test(origem)){
+    const ext = (origem.split('?')[0].match(/\.(png|jpe?g|webp|gif)$/i) || [0, 'jpg'])[1].toLowerCase();
+    caminho = BUS_DIR + '/papel.' + ext;
+    await ps("$d = Join-Path $env:USERPROFILE '.mesa'; New-Item -ItemType Directory -Force $d | Out-Null; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '" + origem.replace(/'/g, "''") + "' -OutFile (Join-Path $d 'papel." + ext + "') -TimeoutSec 30; 'ok'", 45000);
+  }
+  const b64 = await desktop.fs.readFile(caminho, 'base64');
+  if (!b64 || b64.length < 200) throw new Error('não consegui ler a imagem');
+  const ext = (caminho.match(/\.(png|jpe?g|webp|gif)$/i) || [0, 'jpg'])[1].toLowerCase().replace('jpg', 'jpeg');
+  const f = $('fundo'); f.style.backgroundImage = `url(data:image/${ext};base64,${b64})`; f.style.backgroundSize = 'cover'; f.style.backgroundPosition = 'center';
+  prefs.papelArquivo = caminho; salva(); fundo('mesa'); return 'imagem de fundo aplicada';
+}
 function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); salva(); setPassa(false); bus.emit('mesa:fundo', prefs.fundo); }
 
 /* ---------- clique passa: fora do que se vê, o mouse vai pra área de trabalho de verdade ----------
@@ -445,7 +483,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado && ![...HOSP.values()].some(H => !H.ignora)) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, papel, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -496,6 +534,7 @@ async function entra(perms){
   if (perms['menu-bar'] === 'granted') desktop.tray.set({ icon:Mesa.icone?.(32) || '', iconIsTemplate:false, toolTip:'Mesa', menu:menuItens() }).catch(() => {});
   if (perms.shortcuts === 'granted') desktop.globalShortcut.register(SHORTCUT, () => { desktop.window.show().catch(() => {}); seguraCliques(12000); bus.emit('mesa:atalho'); }).catch(() => {});
   document.addEventListener('contextmenu', e => { if (e.target.closest('textarea,input') || !e.target.closest('.alvo')) return; e.preventDefault(); desktop.Menu.popup(menuItens()).catch(() => {}); });
+  if (prefs.papelArquivo) papel(prefs.papelArquivo).catch(() => {});
   bus.emit('mesa:pronta', { app:true });
 }
 function arruma(){   // abre o que estava aberto da última vez (ou o conjunto de partida)
