@@ -1,6 +1,6 @@
 # Modelo: Mesa
 
-> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.8** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
+> **O que é:** o código da Mesa, o quadro único que cobre a área de trabalho e hospeda widgets, no estado da **Mesa 0.9** (piloto). **Quando ler:** você vai montar a Mesa ou escrever um widget pra ela. Como ela é feita e por quê: [apps/mesa/](../../apps/mesa/README.md). Índice: [modelos](../README.md).
 
 ## Arquivos
 

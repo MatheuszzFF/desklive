@@ -2,6 +2,11 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.9: o Dengas ganha internet
+- **Queixa:** o Dengas respondeu que não conseguia pesquisar na internet e pediu um link de imagem pro dono.
+- **O que:** ferramenta `internet` (uma só, pra não gastar o teto de ferramentas), só com o acesso ao PC liberado, pelo PowerShell: `pesquisar` (DuckDuckGo em HTML, até 6 resultados), `imagens` (API aberta do Wikimedia Commons, fotos largas de 1600 px pra cima) e `ler` (título e texto de uma página https, até 5 mil letras). O texto do Claude vai em base64, nunca vira código. O download do papel de parede passou a mandar um User-Agent. As regras mandam ele buscar sozinho e só dizer que fez depois da ferramenta confirmar.
+- **Testado:** as três ações rodadas de verdade no PowerShell deste PC. **Não testado:** a conversa inteira no app instalado (buscar a imagem e aplicar de fundo).
+
 ## 2026-11-26 · Mesa 0.8: vídeo e sites por "furo"
 - **Achado no app instalado:** o app barra qualquer página de fora embutida (`frame-src`), então o player do YouTube em iframe fica preto.
 - **O que:** o widget Vídeo vira um **furo**: abre o site numa janela própria do Edge (`--app`, perfil separado em `~/.mesa/edge`, `--autoplay-policy=no-user-gesture-required`), tira a moldura dela (`SetWindowLong`), põe por cima de tudo e mantém a janela exatamente embaixo do furo (confere a posição a cada 60 ms e manda `SetWindowPos` só quando muda; coordenadas em pixels físicos, `devicePixelRatio`). A casca ganha a classe `.furo`: dentro dela o clique passa direto. Comandos: `video_tocar` (busca no YouTube e abre `watch_popup` com autoplay), `video_abrir_site` (qualquer https) e `video_fechar_janela`. Nada de tecla; fechar é encerrar o processo que o widget abriu.
