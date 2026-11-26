@@ -52,7 +52,7 @@ Todas as credenciais ficam num arquivo só, no PC de quem usa: `~/.orbita/chaves
 | Opcional | O que é | Depende de |
 |---|---|---|
 | [assistente](assistente/) | o cérebro: conversa com o Claude de quem abriu e usa a API aberta como ferramentas; mini agente por peça; internet pelo PowerShell | nada (sem corpo; quem quiser um usa `Board.assistente`) |
-| [mesa](mesa/) | a ponte da Mesa: o Dengas, a Onda, a Órbita e o navegador da Mesa com o mesmo código, rodando em cima do Board; declara a chave do Spotify | nada (é o que o Fe usa: `-Pecas mesa`) |
+| [mesa](mesa/) | a ponte da Mesa: o Dengas, a Onda, a Órbita e o navegador da Mesa com o mesmo código, rodando em cima do Board; declara a chave do Spotify | nada (monta com `-Pecas mesa`) |
 | [dengas](dengas/) | o corpo: um ratinho de pixel que anda pelo espaço livre, senta nos lados e cantos, fala em balão e abre a conversa | `assistente` pra pensar (sem ele, só faz companhia) |
 
 ## Provar
