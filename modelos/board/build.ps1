@@ -24,6 +24,9 @@ foreach ($nome in ($Pecas | ForEach-Object { $_ -split ',' } | ForEach-Object { 
   $js = Read-Texto $arq
   $js = [regex]::Replace($js, "/\*ARQ:([\w.\-]+)\*/''", { param($m) Get-JsString (Join-Path $pasta $m.Groups[1].Value) })
   $js = [regex]::Replace($js, "/\*B64:([\w.\-]+)\*/''", { param($m) "'" + [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $pasta $m.Groups[1].Value))) + "'" })
+  # um opcional pode ter a própria montagem (montar.ps1 recebe o texto e devolve o texto montado)
+  $montar = Join-Path $pasta 'montar.ps1'
+  if (Test-Path $montar) { $js = & $montar -Js $js -Pasta $pasta }
   [void]$junto.Append("`n/* ---- opcional: $nome ---- */`n{`n").Append($js).Append("`n}`n")
   "opcional: $nome"
 }

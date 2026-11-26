@@ -671,6 +671,9 @@ if ('onpointerrawupdate' in window){
   addEventListener('pointerrawupdate', e => { ENT.cru = true; tratarAmostras(e); if (algumArrasto()) acordar(); }, { passive:true });
 }
 
+/* alvos: o que precisa do mouse sem ser peça (Board.alvo(fn(x, y) → bool)). Ex.: um mascote solto, um app hospedado */
+const ALVOS = new Set();
+const alvoEm = (x, y) => { for (const f of ALVOS) try { if (f(x, y)) return true; } catch {} return false; };
 /* hover e clique-passa pela geometria; balões pela camada raiz */
 let ultimo = { x:-9999, y:-9999, t:0, v:0, vx:0, vy:0 };
 /* hover acende com ease pelo motor: um levantar mínimo (escala 1,006 e um fio de sombra), entrando e saindo */
@@ -694,7 +697,7 @@ function avaliar(x, y, t, origem){
     else if (Q.hov && !Q.hovTimer){ Q.hovTimer = setTimeout(() => { Q.hovTimer = null; if (!naForma(Q, ultimo.x, ultimo.y, 8)){ Q.hov = false; brilhoHover(Q, false); try { Q.inst.onHover?.(false, Q); } catch {} sonda?.teste?.hov?.(Q, false, now(), 'timer'); } }, 160); }
   }
   if (P !== avaliar.ant){ if (P) sonda?.teste?.entrou?.(P, t, origem); avaliar.ant = P; }
-  if (P || forcarAcordado) querAcordar(t);
+  if (P || forcarAcordado || alvoEm(x, y)) querAcordar(t);
   else if (!CP.quer && !botoes && !algumArrasto()) querDormir();   // saiu da forma: religa na hora (o hover visual tem a sua própria histerese)
 }
 addEventListener('pointermove', e => {
@@ -710,7 +713,7 @@ addEventListener('pointerdown', e => {
   const P = e.target?.closest?.('.peca') ? pecas.get(e.target.closest('.peca').dataset.peca) : null;
   amostra(e.timeStamp, e.clientX, e.clientY);
   if (P && naForma(P, e.clientX, e.clientY, 2)){ querAcordar(e.timeStamp); trazerPraFrente(P); }
-  else { botoes = 0; querDormir(); }   // clique que caiu no Board fora de peça: religa já, o próximo passa
+  else if (!alvoEm(e.clientX, e.clientY)){ botoes = 0; querDormir(); }   // clique que caiu no Board fora de peça (e fora de alvo): religa já, o próximo passa
 }, true);
 const fimBotao = e => { botoes = e.buttons || 0; for (const P of pecas.values()){ P.pre = null; if (P.drag) soltar(P); } bomba(); avaliar(e.clientX ?? ultimo.x, e.clientY ?? ultimo.y, e.timeStamp || now(), 'fim'); };
 addEventListener('pointerup', fimBotao, true);
@@ -2077,7 +2080,7 @@ async function comandoApi(id, nome, args){
 function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'function') throw new Error('uma peça precisa de id e de criar(ctx)'); B.registrar(def); anunciar('peca:definida', { id:def.id }); if (opcoes.mostrar !== false && minha && !pecas.has(def.id)) return mostrarApi(def.id, true); return null; }
 function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
 Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
-  get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; } });
+  get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; }, alvo:fn => { ALVOS.add(fn); return () => ALVOS.delete(fn); } });
 /* opcionais: módulos e peças que a montagem acrescenta (build.ps1 -Pecas a,b,c). Sem lista, fica vazio. */
 /*PECAS*/
 let sonda = null;
