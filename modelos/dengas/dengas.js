@@ -72,7 +72,7 @@ const msgsEl = painel.querySelector('#dgMsgs'), chipsEl = painel.querySelector('
 
 /* ---------- onde ele está: (x, y) é o ponto dos pés ---------- */
 const salvo = Mesa.le('mesa-dengas', {});
-const D = { bolinha:salvo.bolinha || null, x:salvo.x ?? null, y:salvo.y ?? null, vy:0, dir:'e', alvo:null, modo:'parado', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(9000, 16000) };
+const D = { bolinha:salvo.bolinha || null, baixo:!!salvo.baixo, dorme:false, x:salvo.x ?? null, y:salvo.y ?? null, vy:0, dir:'e', alvo:null, modo:'parado', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(40000, 70000) };
 const chao = () => area().h - 24;   // ele pisa em cima do banquinho fundido na beira de baixo
 // superfícies onde ele pode ficar: a beira de baixo e o topo de cada widget (com espaço pra ele em cima)
 function superficies(){
@@ -81,7 +81,7 @@ function superficies(){
   return l;
 }
 function superficieAbaixo(x, y){ let m = null; for (const s of superficies()) if (x >= s.x0 - 20 && x <= s.x1 + 20 && s.y >= y - 6 && (!m || s.y < m.y)) m = s; return m || superficies()[0]; }
-function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y), bolinha:D.bolinha }); }
+function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y), bolinha:D.bolinha, baixo:D.baixo }); }
 const R_BOLA = 32, MARGEM = R_BOLA + 6;
 // onde a bolinha fica: grudada no lado (e no canto, se for canto), sempre inteira na tela
 function lugarBola(b){ const A = area(); return { x:b.lado === 'l' ? MARGEM : A.w - MARGEM, y:b.vert === 't' ? MARGEM : b.vert === 'b' ? A.h - MARGEM : clamp(b.y, MARGEM, A.h - MARGEM) }; }
@@ -91,38 +91,70 @@ function trocou(){ raiz.classList.remove('troca'); void raiz.offsetWidth; raiz.c
 const RASTRO = { arrasto:null, andou:null };
 Mesa.diagFonte('dengas', () => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, alvo:D.alvo, area:area(), chao:chao(), limites:{ x:[30, area().w - 30], y:[110, chao()] }, mouse:D.mouse, ...RASTRO }));
 
-/* ---------- animação ---------- */
-let clipes = [], atual = null, chave = '', extraEm = performance.now() + 6000;
+/* ---------- animação ----------
+   Calmo por padrão: o laço parado roda devagar e com pausas (ele fica paradinho respirando, olhando);
+   gracinhas (espreguiçar, coçar, brincar…) são raras, sem repetir a anterior; sem nada acontecendo por
+   uns minutos, ele senta e cochila. Com o baixo na mão (D.baixo) ele fica com o baixo, tocando e parando,
+   até guardar: não saca e guarda toda hora. */
+let clipes = [], atual = null, chave = '', extraEm = performance.now() + rnd(40000, 70000), ultimaGracinha = '';
 const clip = (a, o = {}) => ({ a, t0:0, ...o });
+const GRACINHAS_PE = ['espreguicando', 'cocando', 'curioso', 'gracinha', 'brincando', 'acenando'];
+const GRACINHAS_SENTADO = ['balancando', 'bolinha', 'comendo'];
+function gracinha(lista){ const l = lista.filter(a => a !== ultimaGracinha); const a = sorteia(l); ultimaGracinha = a; return a; }
+// o laço calmo: uma volta devagar, depois parado num quadro por uns segundos
+const calmo = a => [clip(a, { ritmo:.6 }), clip(a, { segura:rnd(1800, 5200) })];
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
-  if (D.bolinha){ if (fala) return [clip('r_falando')]; if (D.pensando) return [clip('pensando')]; const r = Math.random(); return [clip(r < .6 ? 'r_piscando' : r < .86 ? 'r_olhando' : 'r_feliz')]; }
+  if (D.bolinha){ if (fala) return [clip('r_falando')]; if (D.pensando) return [clip('pensando')]; const r = Math.random(); return r < .7 ? [clip('r_piscando', { ritmo:.7 }), clip('r_piscando', { segura:rnd(2000, 5000) })] : [clip(r < .9 ? 'r_olhando' : 'r_feliz', { ritmo:.8 })]; }
   if (D.modo === 'andando') return [clip(nomeCorre())];
   if (D.pego || D.modo === 'caindo') return [clip('parado')];
+  if (D.baixo){
+    // com o baixo: toca um pouco, para segurando o baixo, toca de novo
+    if (fala || D.pensando) return [clip('tocando_baixo', { segura:900 })];
+    return Math.random() < .55 ? [clip('tocando_baixo', { ritmo:.75 }), clip('tocando_baixo', { ritmo:.75 })] : [clip('tocando_baixo', { segura:rnd(1500, 4000) })];
+  }
   if (D.pose === 'sentado'){
+    if (D.dorme) return [clip('dormindo', { ritmo:.7 })];
     if (fala) return [clip('sentado_falando')];
     if (D.pensando) return [clip('sentado_pensando')];
-    if (now > extraEm){ extraEm = now + rnd(7000, 15000); const a = sorteia(['balancando', 'bolinha', 'comendo', 'balancando']); return [clip(a), clip(a)]; }
-    return [clip('observando')];
+    if (now > extraEm){ extraEm = now + rnd(50000, 120000); const a = gracinha(GRACINHAS_SENTADO); return [clip(a, { ritmo:.85 }), clip(a, { ritmo:.85 })]; }
+    return calmo('observando');
   }
   if (fala) return [clip('falando')];
   if (D.pensando) return [clip('pensando')];
   const z = zonaOlhar(now);
-  if (z) return [clip('t_olha_' + z), clip('olhando_' + z, { laco:() => zonaOlhar(performance.now()) === z && !D.pego && D.modo === 'parado' }), clip('t_olha_' + z, { rev:true })];
-  if (now > extraEm){ extraEm = now + rnd(8000, 16000); return [clip(sorteia(['espreguicando', 'cocando', 'curioso', 'gracinha', 'brincando', 'acenando']))]; }
-  return [clip('parado')];
+  if (z) return [clip('t_olha_' + z), clip('olhando_' + z, { ritmo:.7, laco:() => zonaOlhar(performance.now()) === z && !D.pego && D.modo === 'parado' }), clip('t_olha_' + z, { rev:true })];
+  if (now > extraEm){ extraEm = now + rnd(45000, 110000); return [clip(gracinha(GRACINHAS_PE), { ritmo:.85 })]; }
+  return calmo('parado');
 }
 function toca(lista){ clipes = lista; atual = null; }
+// cochilo: sentado e sem ninguém mexendo por perto há 3 min, ele dorme; mexeu o mouse perto, clicou ou falou, acorda
+let quietoDesde = performance.now();
+function cochilo(now){
+  if (D.dorme){ if (D.aberto || D.pensando || now < D.falandoAte || D.baixo || D.pose !== 'sentado') acorda(); return; }
+  if (D.pose === 'sentado' && !D.bolinha && !D.baixo && !D.aberto && !D.pensando && now - quietoDesde > 180000){ D.dorme = true; toca([clip('t_sentado_dormindo')]); }
+}
+function acorda(){ quietoDesde = performance.now(); if (!D.dorme) return; D.dorme = false; toca([clip('t_dormindo_sentado')]); }
+// o mini baixo: saca uma vez e fica com ele até guardar
+function pegaBaixo(sim){
+  sim = !!sim; if (D.baixo === sim) return false;
+  if (D.bolinha) desvirarBola();
+  acorda(); if (D.pose === 'sentado'){ D.pose = 'pe'; raiz.classList.remove('sentado'); }
+  D.baixo = sim; D.alvo = null; guardaLugar();
+  toca([clip('t_baixo', sim ? {} : { rev:true })]); chave = 'troca-baixo';
+  return true;
+}
 function senta(sim){
   if ((D.pose === 'sentado') === sim) return;
   D.pose = sim ? 'sentado' : 'pe'; raiz.classList.toggle('sentado', sim);
   toca([clip(sim ? 't_parado_sentado' : 't_sentado_parado')]); chave = '';
 }
 function desenha(now){
-  const k = (D.bolinha ? 'b' : '') + D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
-  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
-  let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps / 1000) : 0;
+  const k = (D.bolinha ? 'b' : '') + (D.baixo ? 'B' : '') + (D.dorme ? 'z' : '') + D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
+  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+|baixo|sentado_dormindo|dormindo_sentado)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
+  let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps * (atual.ritmo || 1) / 1000) : 0;
+  if (m && atual.segura) c = now - atual.t0 < atual.segura ? 0 : m.n;
   if (!m || c >= m.n){
     if (m && atual.laco && atual.laco()) atual.t0 = now;
     else { if (!clipes.length) clipes = proximos(now); atual = clipes.shift(); atual.t0 = now; m = AT.anims[atual.a] || AT.anims.parado; }
@@ -165,8 +197,9 @@ function passo(now){
       }
     } else {
       if (D.modo === 'andando') D.modo = 'parado';
-      if (D.pose === 'pe' && !D.aberto && !D.pensando && now > (D.sentaEm || Infinity) && now > D.falandoAte){ senta(true); D.sentaEm = null; }
-      if (!D.bolinha && !D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(16000, 38000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
+      cochilo(now);
+      if (D.pose === 'pe' && !D.baixo && !D.aberto && !D.pensando && now > (D.sentaEm || Infinity) && now > D.falandoAte){ senta(true); D.sentaEm = null; }
+      if (!D.bolinha && !D.baixo && !D.dorme && !D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(50000, 120000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
     }
   }
   if (D.bolinha){ D.x = clamp(D.x, MARGEM, A.w - MARGEM); D.y = clamp(D.y, MARGEM, A.h - MARGEM); } else { D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao()); }
@@ -178,11 +211,11 @@ function passo(now){
 const reduzido = matchMedia('(prefers-reduced-motion: reduce)').matches;
 atlas.onload = () => Mesa.quadro(passo);
 if (atlas.complete && atlas.naturalWidth) Mesa.quadro(passo);
-bus.on('mesa:mouse', p => { if (Math.abs(p.x - D.mouse.x) + Math.abs(p.y - D.mouse.y) > 3){ D.mouse.x = p.x; D.mouse.y = p.y; D.mouse.at = performance.now(); } });
+bus.on('mesa:mouse', p => { if (Math.abs(p.x - D.mouse.x) + Math.abs(p.y - D.mouse.y) > 3){ D.mouse.x = p.x; D.mouse.y = p.y; D.mouse.at = performance.now(); if (Math.hypot(p.x - D.x, p.y - D.y) < 220) acorda(); } });
 
 /* pegar e soltar: vira arrasto depois de 4 px; soltou, ele cai até a superfície de baixo */
 let gesto = null;
-hit.addEventListener('pointerdown', e => { if (e.button !== 0) return; gesto = { id:e.pointerId, x0:e.clientX, y0:e.clientY, on:false }; });
+hit.addEventListener('pointerdown', e => { if (e.button !== 0) return; acorda(); gesto = { id:e.pointerId, x0:e.clientX, y0:e.clientY, on:false }; });
 hit.addEventListener('pointermove', e => {
   if (!gesto || e.pointerId !== gesto.id) return;
   if (e.buttons === 0) return larga();
@@ -234,6 +267,7 @@ function pintaChips(){
   chipsEl.replaceChildren();
   const l = [];
   for (const d of Mesa.defs()) if (!Mesa.aberto(d.id) && l.length < 3) l.push(['Abrir ' + d.nome, () => { Mesa.abre(d.id); pintaChips(); }]);
+  l.push(D.baixo ? ['Guardar o baixo', () => { pegaBaixo(false); fala('Depois a gente toca mais.'); pintaChips(); }] : ['Bora tocar', () => { pegaBaixo(true); fala('Vamos lá!'); pintaChips(); }]);
   l.push(['Organiza a mesa', () => pergunta('Organiza os widgets abertos de um jeito bom pra esta tela, sem sobrepor.')]);
   if (Mesa.aberto('musica')) l.push(['O que tá tocando?', () => pergunta('O que tá tocando?')]);
   for (const [t, fn] of l.slice(0, 5)){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = t; b.addEventListener('click', fn); chipsEl.appendChild(b); }
@@ -420,6 +454,9 @@ function ferramentas(atos){
     { name:'mesa_app', description:'Abre ou fecha um app original hospedado na Mesa (os ids estão em "apps" e nos disponíveis do estado; ex.: onda, orbita).',
       inputSchema:{ type:'object', properties:{ acao:{ type:'string', enum:['abrir','fechar'] }, id:{ type:'string' } }, required:['acao','id'] },
       execute({ acao, id }){ if (!Mesa.hospedes().some(h => h.id === id)) throw new Error('apps disponíveis: ' + Mesa.hospedes().map(h => h.id).join(', ')); acao === 'fechar' ? Mesa.fechaHospede(id) : Mesa.abreHospede(id); nota((acao === 'fechar' ? '× ' : '↗ ') + id); return 'feito'; } },
+    { name:'baixo', description:'Seu mini baixo. acao "pegar": quando o dono vai tocar, estudar ou praticar música, você saca o baixo e fica com ele na mão (diga algo como "vamos lá"). acao "guardar": quando ele terminar ou mudar de assunto. Não pegue e guarde à toa.',
+      inputSchema:{ type:'object', properties:{ acao:{ type:'string', enum:['pegar', 'guardar'] } }, required:['acao'] },
+      execute({ acao }){ const mudou = pegaBaixo(acao === 'pegar'); return mudou ? (acao === 'pegar' ? 'baixo na mão' : 'baixo guardado') : 'já estava assim'; } },
     { name:'lembrar', description:'Guarda uma frase curta sobre o dono (gosto, hábito, preferência) pra lembrar nas próximas conversas.',
       inputSchema:{ type:'object', properties:{ nota:{ type:'string' } }, required:['nota'] },
       execute({ nota:n }){ n = String(n || '').trim().slice(0, 160); if (!n) throw new Error('nota vazia'); mem.notas = ((mem.notas ? mem.notas + ' ' : '') + n).slice(-900); guardaMem(); nota('✎ anotado'); return 'guardado'; } },
