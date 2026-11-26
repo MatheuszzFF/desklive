@@ -28,7 +28,9 @@ Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6
 | [como-medir.md](como-medir.md) | os contadores do motor, a sonda (testes e como rodar), o modo de registro por quadro (`<app>-trace.json`) e a análise de vídeo quadro a quadro (mediana, bbox, centroide) |
 | [medicoes.md](medicoes.md) | **números medidos no app instalado** (vale mais que o inferido): tempo, redimensionar pela direita e pela esquerda, trava, hover e corrida do clique, gravações e o vídeo da Onda v20 |
 | [receitas-recomendadas.md](receitas-recomendadas.md) | o que mudar no motor e nos apps, em ordem, com por quê, ganho e risco |
-| [board.md](board.md) | **proposta:** o Board (uma janela transparente em tela cheia por monitor, apps como peças movidas por `transform`), o que as typings permitem (uma janela por app), N monitores com emendas, cantos e degraus, guias de encaixe, passe entre Boards, riscos, a sonda e o fundo no Wallpaper Engine |
+| [board.md](board.md) | **v1 publicado (só simulador):** o que existe, e o conceito: o Board (uma janela transparente em tela cheia por monitor, apps como peças movidas por `transform`), o que as typings permitem (uma janela por app), N monitores com emendas, cantos e degraus, guias de encaixe, passe entre Boards, riscos, a sonda e o fundo no Wallpaper Engine |
+| [board-pecas.md](board-pecas.md) | a API de peça do Board (registrar, formas, degraus, âncora, recorte, ombros), as camadas z, o clique-passa só na forma real e como pôr a Onda dentro |
+| [board-motor.md](board-motor.md) | o motor de motion do Board: 15 canais, molas por canal e por estado, passo fixo de 240 Hz, entrada com regressão e previsão, ganchos, afinação e os números do simulador |
 
 ## Os achados que mais mudam o trabalho
 

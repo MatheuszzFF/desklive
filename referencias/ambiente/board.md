@@ -1,6 +1,15 @@
 # Board: um palco em tela cheia por monitor
 
-> L3 · referência. Índice: [ambiente](README.md). **O que é:** a arquitetura proposta em que os apps viram peças dentro de uma janela transparente do tamanho do monitor, os riscos, o que as typings permitem, como ligar N monitores, as guias de encaixe e a ideia do fundo no Wallpaper Engine. **Quando ler:** antes de decidir migrar um app pro Board ou de rodar a sonda dele. **Situação (25/11/2026):** proposta; a sonda está escrita e **ainda não rodou**: nada aqui é medido.
+> L3 · referência. Índice: [ambiente](README.md). **O que é:** a arquitetura proposta em que os apps viram peças dentro de uma janela transparente do tamanho do monitor, os riscos, o que as typings permitem, como ligar N monitores, as guias de encaixe e a ideia do fundo no Wallpaper Engine. **Quando ler:** antes de decidir migrar um app pro Board ou de rodar a sonda dele. **Situação (25/11/2026):** **Board v1 publicado** (dois artefatos, "Board" e "Board 2"), com a Sonda como primeira peça; provado só no simulador, **ainda não rodou no app instalado**. Peças e camadas: [board-pecas](board-pecas.md); motor e números: [board-motor](board-motor.md).
+
+## O que existe (v1)
+
+- **Shell:** a janela cobre a área útil do monitor (respeita a barra de tarefas), transparente, sempre no topo, clique passando; só se reposiciona quando o monitor muda (relê no `change` e a cada 3 s). Menu no clique direito de qualquer peça (`Menu.popup`), bandeja (Sonda, Afinação, peças, mostrar/esconder o Board, Sair) e atalhos **Ctrl+Alt+B** (mostra/esconde as peças, avisa o outro Board) e **Ctrl+Alt+Shift+B** (Afinação).
+- **Peças:** cada uma é um módulo registrado; o shell cuida do arrasto, do motor, do encaixe, das guias, da emenda, do clique-passa e do hover ([board-pecas](board-pecas.md)). Posição, forma e "aberto" ficam em `~/.orbita/board-estado.json` (relativo ao monitor) junto com as molas afinadas.
+- **Sonda (primeira peça):** o painel de testes 1–8 com as listas, salvando em `~/.orbita/sonda-board.json`. Forma própria em cada lugar: **cápsula** solta (236 × 44), **ilha** no topo com status e linha de progresso (248 × 36, espiar 66), **horizonte** embaixo com o ritmo do laço numa linha viva (272 × 36), **coluna de contas** à esquerda com os 8 testes (40 × 212, espiar mostra os nomes), **medidor** à direita com laço e clique-passa (40 × 212), **sonar** nos cantos com o anel do teste (92 × 92, espiar 136). Hover espia (cresce pra dentro), clique abre o painel 400 × até 660 ancorado no lado ou canto. As peças de teste (cartão, pílula, onda, bolha WebGL) só existem enquanto o teste roda.
+- **Afinação:** peça escondida de dev (molas ao vivo, câmera lenta, overlay, registro).
+- **Quem é dono:** a peça salva no meu monitor nasce comigo; órfã (monitor sem Board ou primeira vez) só o Board mais antigo pega, depois de 2 batidas; duas cópias → a do Board mais novo some.
+- **Sair:** clique direito → Sair (ou bandeja): salva, solta o atalho, tenta fechar a janela e, se o host não deixar, minimiza. Fechar pela barra de tarefas também encerra.
 
 ## A ideia
 
@@ -29,13 +38,15 @@
 
 - **Só durante o arrasto.** As guias de bordas, cantos, degraus e emendas aparecem em 0,22 s e somem em 0,45 s ao soltar. Cada guia acende pela distância da peça: opacidade 0,14 → 0,76 dentro de 320 px.
 - **O alvo mais perto acende:** traço branco de 3 px com brilho que "respira" (1,1 s); emenda tracejada que corre. Uma **prévia** mostra a forma que a peça vai ganhar ali.
-- **Ímã:** a peça é puxada `k = 0,5 · smoothstep(1 − d/zona)`, suavizado a 14/s. Zonas: borda 72 px, canto 120, degrau 100, **emenda 44 px e só abaixo de 260 px/s**. Passando rápido, a peça atravessa; desacelerando perto, ela gruda.
+- **Ímã:** a peça é puxada `k = 0,5 · smoothstep(1 − d/zona)`, suavizado a 14/s. Zonas: borda 72 px, canto 120, degrau 100, **emenda 44 px e só abaixo de 260 px/s**. Passando rápido, a peça atravessa; desacelerando perto, ela gruda. **v1:** a ponta da emenda também é canto ("canto da emenda", 60 px, só devagar) e o canto ganha da borda perto dele (pontuação `d · 0,35 − 30`; antes `d · 0,6` perdia pra borda colada).
 - **Ao soltar:** mola k 320 ζ 0,78 até o alvo. A peça funde: raio 0 do lado da borda e ombros côncavos de 16 px; no canto, raio 0 nos dois lados e 30 px no de dentro. Sem alvo, embalo de 0,16 s da velocidade. (Na sonda isso é um rascunho; o padrão final segue a [fusão com a borda](../../padroes/motion/fusao-com-a-borda.md) e a R20.)
 
 ## Passar uma peça entre Boards (sem piscar)
 
 - Arrastando, o ponteiro fica capturado pelo Board A, que continua recebendo o mouse sobre o outro monitor. A escreve a posição global e a velocidade em `~/.orbita/board-caixa-<B>.json` (uma escrita em voo, vale a última).
 - B lê a cada ~12 ms e desenha um **fantasma** extrapolado pela velocidade (até 60 ms). Cada Board é cortado pela moldura do próprio monitor, então a emenda vira um portal.
+- **v1:** parado, B lê a caixa só a cada 120 ms; A manda a posição assim que a peça arrastada chega a **600 px** do monitor de B (B fica "quente" antes de ela cruzar) e o fantasma é desenhado no mesmo tick em que nasce. Sem isso o simulador mostrou a peça sumindo por alguns quadros na emenda (R25); com isso a área visível nunca caiu. Os tempos do barramento usam `performance.timeOrigin + performance.now()` (fração de ms, comparável entre Boards).
+- **Monitor some com peças:** se já há um Board no monitor que sobrou, o Board sem monitor passa as peças pra ele (proporcional, com mola) e se esconde; quando um monitor livre volta, ele reaparece lá.
 - **Ao soltar:** o dono é o monitor do centro do destino. B **adota no mesmo quadro**, com o mesmo elemento do fantasma, e confirma. A só remove a sua cópia quando chega a confirmação; se nada chegar em 1,5 s, a peça volta. Nunca esconde (R25).
 - **Rasgo na emenda ≈ velocidade × latência** (30 ms a 1000 px/s = 30 px). A sonda mede a latência do barramento; se não der, a alternativa é um servidor local num processo filho **(a testar)**.
 

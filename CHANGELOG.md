@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Board v1: o app, com a Sonda como primeira peça
+- **Novo:** [board-pecas](referencias/ambiente/board-pecas.md) (API de peça, camadas z, clique-passa, como pôr a Onda) e [board-motor](referencias/ambiente/board-motor.md) (canais, molas por estado, passo fixo, entrada, ganchos, afinação, números do simulador). **Atualizado:** [board](referencias/ambiente/board.md) (o que existe na v1, passe aquecido, canto da emenda), [índice do ambiente](referencias/ambiente/README.md), [glossário](visao/glossario.md), mapa do [CLAUDE.md](CLAUDE.md), [diário](diario/2026-11.md).
+
 ### Dreamer: regras R27–R31 e espelhos do dia
 - **Atualizado:** [regras de trabalho](regras/regras-de-trabalho.md) (novas R27 não inflar o que ele só explicou, R28 pediu faz, R29 emenda entre monitores é borda e canto, R30 ponto de pega e precisão, R31 medir e ver vídeo quadro a quadro; R10, R13, R15 e R23 refinadas), espelhos [layout](padroes/layout-posicao-e-tamanho.md), [interação entre apps](padroes/interacao-entre-apps.md) (Board, piloto, fila) e [design](padroes/design.md), agora com título.
 
