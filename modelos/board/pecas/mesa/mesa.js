@@ -154,6 +154,7 @@ const HDEFS = new Map(), HOSP = new Map(), hprefs = le('mesa-hospedes', []);
 window.__mesaHosp = {};
 const origem = () => ({ x:window.screenX || 0, y:window.screenY || 0 });
 function hospeda(def){ if (!PRINCIPAL) return; HDEFS.set(def.id, def);
+  if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'tocar_uri')) def.comandos.push({ nome:'tocar_uri', descricao:'Toca EXATAMENTE uma faixa, álbum, playlist ou artista do Spotify pela uri (spotify:track:…, spotify:album:…). Prefira isto: ache a uri certa com o conector do Spotify (search) e mande tocar aqui, em vez de deixar a Onda adivinhar pela busca.', esquema:{ type:'object', properties:{ uri:{ type:'string' } }, required:['uri'] }, roda:({ uri }) => tocarUri(uri) });
   if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'conectar_spotify')) def.comandos.push({ nome:'conectar_spotify', descricao:'Conecta a Onda ao Spotify da pessoa: abre o login do Spotify no navegador (ela só autoriza, uma vez; depois fica salvo no PC). Use quando a Onda disser que não está conectada, e avise que é só autorizar na página que abriu.', roda:async () => (await spotifyConectado()) ? 'o Spotify já está conectado na Onda' : conectarSpotify() }); if (hprefs.includes(def.id)) setTimeout(() => abreHospede(def.id), 300); }
 function poeHospede(H){
   const A = area(), o = H.o, r = H.r;
@@ -203,6 +204,33 @@ async function conectarSpotify(){
   throw new Error('a Onda não abriu a tempo; tente de novo');
 }
 if (PRINCIPAL) MB.menu(() => HDEFS.has('onda') ? [{ label:'Conectar o Spotify (Onda)…', click:() => conectarSpotify().then(t => bus.emit('mesa:aviso', { texto:'Abri o login do Spotify no navegador. Autoriza lá que eu já consigo tocar.' })).catch(e => bus.emit('mesa:aviso', { texto:String(e.message || e) })) }] : []);
+
+/* tocar uma coisa EXATA do Spotify (faixa, álbum, playlist ou artista) pela uri, no aparelho do PC, com o login da Onda.
+   A página não tem rede: vai pelo PowerShell, com o token que a Onda guarda em ~/.orbita/spotify-token.json. */
+const PS_TOCAR = String.raw`$ErrorActionPreference = 'Stop'; [Net.ServicePointManager]::SecurityProtocol = 'Tls12'; $ProgressPreference = 'SilentlyContinue'
+$uri = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('B64'))
+try { $t = Get-Content (Join-Path $env:USERPROFILE '.orbita\spotify-token.json') -Raw | ConvertFrom-Json } catch { 'sem_login'; exit }
+$h = @{ Authorization = 'Bearer ' + $t.access_token }
+$corpo = if ($uri -like 'spotify:track:*') { @{ uris = @($uri) } } else { @{ context_uri = $uri } }
+function Toca($q) { Invoke-WebRequest -UseBasicParsing -Method Put -Uri ('https://api.spotify.com/v1/me/player/play' + $q) -Headers $h -ContentType 'application/json' -Body ($corpo | ConvertTo-Json -Compress) -TimeoutSec 20 | Out-Null }
+try { Toca ''; 'ok' } catch {
+  $st = [int]$_.Exception.Response.StatusCode
+  if ($st -eq 401) { '401'; exit }
+  if ($st -eq 404) { $d = (Invoke-RestMethod -Uri 'https://api.spotify.com/v1/me/player/devices' -Headers $h -TimeoutSec 20).devices; $dv = @($d | Where-Object { $_.type -eq 'Computer' }) + @($d) | Select-Object -First 1
+    if ($dv) { Toca ('?device_id=' + [uri]::EscapeDataString($dv.id)); 'ok' } else { 'sem_aparelho' } }
+  else { 'erro ' + $st }
+}`;
+async function tocarUri(uri){
+  uri = String(uri || '').trim();
+  if (!/^spotify:(track|album|playlist|artist):[A-Za-z0-9]{10,40}$/.test(uri)) throw new Error('preciso de uma uri do Spotify, ex.: spotify:track:6gc4LhCNFbbs6wQDgafu7b (ache com o conector do Spotify)');
+  const roda = () => ps(PS_TOCAR.replace('B64', btoa(uri)), 40000);
+  let r = await roda();
+  if (r === '401'){ try { await comandos().find(c => c.widget === 'onda' && c.nome === 'listar')?.roda({ o_que:'fila' }); } catch {} r = await roda(); }   // a Onda renova o login quando usa a API
+  if (r === 'ok') return 'tocando ' + uri + ' no Spotify do PC';
+  if (r === 'sem_login') throw new Error('a Onda não está conectada ao Spotify: use conectar_spotify');
+  if (r === 'sem_aparelho') throw new Error('nenhum Spotify aberto no PC: abra o app do Spotify e tente de novo');
+  throw new Error('o Spotify recusou (' + r + ')');
+}
 function fechaHospede(id){ const H = HOSP.get(id); if (!H) return false; H.f.remove(); HOSP.delete(id); delete window.__mesaHosp[id]; salvaHosp(); bus.emit('mesa:fechou', { id }); return true; }
 // com o app em "clique passa", o mouse em cima dele chega no Board: a ponte repassa o movimento pra ele decidir se acorda
 function repassa(e){
@@ -242,6 +270,13 @@ async function papel(origem){
   prefs.papelArquivo = caminho; salvaPrefs(); fundo('mesa'); return 'imagem de fundo aplicada';
 }
 function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); salvaPrefs(); if (prefs.fundo === 'mesa') MB.querAcordar(); else MB.socorro('leve'); bus.emit('mesa:fundo', prefs.fundo); }
+let furoChave = '';
+setInterval(() => {
+  const rs = prefs.fundo !== 'mesa' ? [] : [...document.querySelectorAll('#camada-pecas .furo')].map(f => f.getBoundingClientRect()).filter(r => r.width > 4 && r.height > 4);
+  const ch = rs.map(r => [r.left, r.top, r.width, r.height].map(Math.round).join(',')).join(';'); if (ch === furoChave) return; furoChave = ch;
+  const W = innerWidth, H = innerHeight;
+  fundoEl.style.clipPath = rs.length ? `path(evenodd, 'M0 0 H${W} V${H} H0 Z ${rs.map(r => `M${Math.round(r.left)} ${Math.round(r.top)} h${Math.round(r.width)} v${Math.round(r.height)} h${-Math.round(r.width)} Z`).join(' ')}')` : '';
+}, 120);
 R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); if (prefs.aparencia) aparencia({}); if (prefs.papelArquivo && podePCm()) papel(prefs.papelArquivo).catch(() => {});
 
 const ainda = o => () => { throw new Error('ainda não veio pro Board: ' + o); };

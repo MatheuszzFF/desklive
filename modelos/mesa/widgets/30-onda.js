@@ -25,7 +25,7 @@ Mesa.hospeda({
     { nome:'controlar', descricao:'Controla a música pela Onda. acao: tocar_pausar, tocar, pausar, proxima, anterior, ir_para (valor = segundos), aleatorio (valor on/off), repetir (valor desligado/playlist/musica), abrir_spotify, tamanho (valor minima/compacta/expandida/grande), posicao (valor topo, base, esquerda, direita, centro ou um canto, dentro da Mesa).',
       esquema:{ type:'object', properties:{ acao:{ type:'string', enum:['tocar_pausar','tocar','pausar','proxima','anterior','ir_para','aleatorio','repetir','abrir_spotify','tamanho','posicao'] }, valor:{ type:['string','number'] } }, required:['acao'] },
       roda:({ acao, valor }) => pede(String(acao), valor) },
-    { nome:'escolher', descricao:'Toca ou põe na fila algo específico no Spotify (precisa do Spotify conectado na Onda). acao: tocar_busca (tipo musica/album/artista/playlist), tocar_minha_playlist (pelo nome), adicionar_fila. busca: o que procurar; inclua o artista quando souber.',
+    { nome:'escolher', descricao:'Toca ou põe na fila algo específico no Spotify (precisa do Spotify conectado na Onda). acao: tocar_busca (tipo musica/album/artista/playlist), tocar_minha_playlist (pelo nome), adicionar_fila. busca: o que procurar, de preferência com filtros do Spotify, ex.: track:"No Heart To Speak Of" artist:blink-182. Ela toca o PRIMEIRO resultado: pra uma faixa exata, prefira tocar_uri.',
       esquema:{ type:'object', properties:{ acao:{ type:'string', enum:['tocar_busca','tocar_minha_playlist','adicionar_fila'] }, busca:{ type:'string' }, tipo:{ type:'string', enum:['musica','album','artista','playlist'] } }, required:['acao','busca'] },
       roda:({ acao, busca, tipo }) => pede(String(acao), String(busca || ''), { tipo:tipo || 'musica' }) },
     { nome:'listar', descricao:'Lê pela Onda a fila do Spotify (o_que "fila") ou os nomes das suas playlists (o_que "playlists").',
@@ -34,4 +34,4 @@ Mesa.hospeda({
   ],
 });
 }
-Mesa.agente('onda', "Você cuida da música do dono pela Onda (o player dele). Veja o estado (o que toca, se está pausado) antes de agir; pra tocar algo, procure e escolha o resultado que mais bate com o pedido; devolva o nome da faixa e do artista que ficou tocando.");
+Mesa.agente('onda', "Você cuida da música do dono pela Onda (o player dele). Veja o estado (o que toca, se está pausado) antes de agir; pra tocar algo, procure e escolha o resultado que mais bate com o pedido; devolva o nome da faixa e do artista que ficou tocando. Pra uma faixa, álbum ou playlist específicos, ache a uri com o conector do Spotify e use tocar_uri; a busca da Onda pega o primeiro resultado e erra quando o nome vem diferente.");
