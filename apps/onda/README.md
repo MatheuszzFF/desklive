@@ -24,6 +24,7 @@ A linguagem de movimento comum está em [padroes/motion](../../padroes/motion/RE
 ## Testado
 
 O teste é no simulador `onda-sim.html` (localhost, gancho `window.__onda`, janela presa dentro da tela como no app real), nunca no mouse do PC (R19).
+- **v21.1:** a emenda entre monitores é borda e canto (rápido passa, devagar gruda, empurrar atravessa); mexer a borda de cima ou a da esquerda com o tamanho vira dois passos (commits com quadro velho possível 59 → 3); portal junto do `resize`; hover pela posição real. Análise quadro a quadro no [diário](../../diario/2026-11.md).
 - **v21:** o ponto pego fica embaixo do mouse nas trocas de forma: parado ≤ 0,4 px (v20: até 200 px); salto na troca 0–4 px (v20: até 108 px). Na emenda, 2 trocas. O deslizar do progresso não fica mais "segurando". Nada é escondido (R25). Modo de registro no menu ([ponto de pega](../../padroes/motion/ponto-de-pega.md)).
 - **v20 (app piloto, [motor-piloto](../../referencias/motor/motor-piloto.md)):** emenda como portal nos 4 degraus (âncora certa em todo quadro visível, 2 quadros escondidos no pulo de monitor); trocas de degrau pra esquerda/cima sem quadro velho; 16/16 arrastos; zigue-zague com 2 trocas; hover refeito pelo cursor real.
 - **v19 (motor v2.2), a 1920 × 1080:** troca de degrau com a janela no máx. 597 px (55 %), já com a união de antes + depois; 16 arrastos numa aba visível chegam a ≤ 1 px e assentam em 57–1250 ms; zigue-zague no limiar com 2 trocas. **Meça numa aba visível:** com o painel escondido, o relógio de animação quase para e tudo parece lento.

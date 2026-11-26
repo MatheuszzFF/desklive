@@ -59,7 +59,9 @@ Pra um bug que só aparece no app instalado (arrasto, troca de forma, deslizar o
   - **Piscada:** a área da máscara cai a ~0 por 1–2 quadros.
   - **Pulo ou tremida:** o centroide anda mais de N px entre quadros com o cursor parado.
   - **Vai e volta:** o sinal do deslocamento troca com o mouse indo reto.
-- O código da mediana e da bbox rodou no console na sessão de 25/11/2026 e **não foi salvo**: ao refazer, salve-o no `ver.html`.
+- **Bloco certo:** pegue só o **maior bloco ligado** da máscara (células de 4 px, ponte de até 8 células = 128 px do vídeo). Com a bbox de tudo, pontinhos de outros apps no canto esticavam a caixa por 1500 px; com ponte curta, a faixa do topo se partia em dois e o "maior" trocava entre quadros (saltos falsos de 550 px).
+- **Vai e volta (Onda v21.1, `ana.html`):** em cada quadro, para o centroide e as 4 bordas da bbox, `d1 = p(i) − p(i−1)`, `d2 = p(i+1) − p(i)`; tremida quando `d1·d2 < 0` com os dois ≥ 8 px. Agrupa por trecho (até 3 quadros de distância) e anota o tamanho e o lugar da bbox (borda, meio) e quanto o app andou 6 quadros antes e depois (parado ou arrasto). Some = área < 40 px entre quadros com o app.
+- **fps real:** `requestVideoFrameCallback` tocando 3 s, mediana do intervalo de `mediaTime` (as gravações de 25/11 são de **30 fps**).
 - **Teste visual de redimensionar** (sem vídeo longo): um traço parado na tela enquanto a janela cresce pela esquerda. Se ele piscar, é o quadro velho ancorado no canto.
 
 ## Outras ferramentas

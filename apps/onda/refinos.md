@@ -6,6 +6,26 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — Tremida quadro a quadro, emenda como borda, dois passos (v21.1)
+- **Pedido:** "uns frame que fica tremendo, mo doideira" (medir quadro a quadro); "essa divisão dos monitores tem que ser considerada canto"; R25 (nada pisca nem pula).
+- **Onde:** motor-piloto (monitor, portal), tamanho da janela, zona (borda e metade), hover.
+- **Antes → depois:**
+  - **Canto** (42–45 s, saltos de 20–80 px por 1 quadro): portal no envio → junto do CSS no `resize`; hover pela janela pedida → pela real.
+  - **Borda de cima/esquerda com tamanho:** 1 commit (quadro velho de até 157 px no vídeo, 682 no simulador) → dois passos. No simulador, 59 → 3 commits de risco.
+  - **Emenda:** passagem → borda e canto, cada monitor com a sua área útil. Rápido (> 600 px/s) passa; grudado segura até 1000 px/s; empurrar o ponto pego pro outro lado atravessa. Monitor com histerese 55/45 (fantasma de 10,93 s).
+  - **Zona:** borda pela âncora → pelo ponto pego (5 → 2 trocas chegando no canto da emenda).
+- **Números da análise:** [diário](../../diario/2026-11.md) (tabela por trecho, com quadros, série e amplitude).
+- **Docs atualizados:** [janela sem tremer](../../padroes/motion/janela-sem-tremer.md), [sensor de borda](../../padroes/motion/sensor-de-borda-e-encaixe.md), [motor-piloto](../../referencias/motor/motor-piloto.md), [como medir](../../referencias/ambiente/como-medir.md), [bugs e lições](../../referencias/motor/bugs-e-licoes.md), [README](README.md), [CHANGELOG](../../CHANGELOG.md).
+- **Testado** (simulador, Chrome):
+  - emenda: 5 casos no `#duplo`;
+  - 16 cantos × hover: 0 tremidas;
+  - 16/16 arrastos, zigue-zague com 2 trocas;
+  - `grabtest` sem piora;
+  - commits com quadro velho possível 59 → 3.
+  - **Não testado:** no app instalado (canto e emenda só se provam lá, pelo registro ou por vídeo novo).
+- **Regras:** R7, R9, R19, R22, R24, R25, R26.
+
+
 ## 2026-11-25 — Ponto de pega invariante, registro, progresso, nada pisca (v21)
 - **Pedido:** "a posição do app em relação ao meu mouse, onde eu estava clicando inicialmente ta mudando muito" (troca de forma, espelho, tamanho no meio do arrasto); "bugar com o click segurando ali na parada de arrastar o tempo da musica"; medir com cuidado o vídeo de 1 min.
 - **Onde:** arrasto, deslizar do progresso, menu (registro), motor-piloto.

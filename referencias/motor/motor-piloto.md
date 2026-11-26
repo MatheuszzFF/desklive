@@ -38,6 +38,10 @@ nudge(dx, dy): cur += d; alvo += d; se arrastando, referência do arrasto += d
 
 **Esconder removido (R25).** O v20 escondia o conteúdo 2 quadros no pulo de monitor e quando um commit de tamanho movia o canto de cima à esquerda; no app instalado isso virou piscada. Agora não esconde mais e só conta: `stats.tlMoves` (canto de cima à esquerda andou com o tamanho, quadro velho possível) e `stats.jumps` (pulo de monitor). O registro da Onda grava os dois por quadro.
 
+**v21.1:**
+- **Histerese na emenda** (bug 26): o monitor onde a janela já está (arrastando ou assentando) só é trocado quando o outro tem mais área que ele por 55/45; antes, perto de 50/50, a mola alternava o lado entre quadros e a janela voltava 1 quadro pro monitor antigo.
+- **Portal junto do commit:** num envio que muda o tamanho, o `--px/--py` entra no `resize` com o resto do CSS (`portalWant` guarda o pedido em voo); só mover continua na hora. Antes ele entrava no envio e, no quadro do `resize`, discordava do `--ax/--ay`.
+
 ## O que a Onda faz do lado dela (junto com o piloto)
 
 - **Âncora:** a posição lógica é o canto da capa compacta (64 px). Janela = âncora + caixa `LR`: `x = round(p.x) + LR.l`, largura `LR.r − LR.l`. A caixa tem duas versões: `LR` (lógica, vale já pro motor) e `LRc` (a do CSS, `--ax --ay --ww --wh`, que entra no `apply` do commit); `reshape(w, h, dx, dy, apply)`.

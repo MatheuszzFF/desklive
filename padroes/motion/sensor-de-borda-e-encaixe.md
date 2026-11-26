@@ -2,7 +2,13 @@
 
 > L1 · motion. Índice: [motion](README.md).
 
-Todo app **sente o lado antes de encostar**: a forma já se reorganiza durante o arrasto. A emenda entre dois monitores **não conta como borda**. Cada app testa um ponto 30 px além da borda (a Onda usa tolerância de 3 px entre os `bounds`). Se cair em outra tela, a borda é ignorada e dá pra passar direto.
+Todo app **sente o lado antes de encostar**: a forma já se reorganiza durante o arrasto. **A emenda entre dois monitores também é borda** (pedido dele: "essa divisão dos monitores tem que ser considerada canto"), e as pontas dela são cantos, cada monitor com a sua área útil (Onda v21.1; a Órbita e o Eco ainda tratam a emenda como passagem). Pra atravessar sem grudar sem querer:
+- **Passando rápido** (> 600 px/s naquele eixo), a emenda não conta e o app passa direto.
+- **Grudado**, segura até 1000 px/s.
+- **Chegando devagar e soltando** a menos de 90 px, gruda e vira a forma daquele lado ou canto.
+- **Empurrando devagar** além da emenda (o ponto pego passa pro outro monitor), atravessa e vira a forma do lado do outro monitor.
+- A distância até a borda e a metade da tela saem do **ponto pego** (fica parado embaixo do mouse), não da âncora: pela âncora, a troca de forma movia a âncora e a distância cruzava o limiar de volta (5 trocas chegando devagar no canto da emenda → 2).
+Nas bordas de fora, cada app testa um ponto 30 px além da borda (a Onda usa tolerância de 3 px entre os `bounds`).
 
 | | Órbita | Onda | Eco |
 |---|---|---|---|
