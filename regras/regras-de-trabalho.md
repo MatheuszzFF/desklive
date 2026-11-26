@@ -59,7 +59,7 @@
 - **Desde:** 2026-11-24 · **Reforçada:** 6× (última 2026-11-25, "state of art bem fluido e sem bug" · "controle ... extremamente fino") · **Força:** alta
 
 ### R8 — Layout por posição e por tamanho, com bordas e cantos próprios
-- **Regra:** todo app de desktop novo muda de layout de verdade conforme o lado da tela (coluna nas laterais, abre pra dentro da tela, topo especial) e conforme o tamanho (degraus ao redimensionar). Cada combinação de posição × tamanho tem comportamento próprio nas bordas e nos cantos, movimento com física e muito polimento (detalhes em [layout por posição e tamanho](../padroes/layout-posicao-e-tamanho.md)).
+- **Regra:** todo app de desktop novo muda de layout de verdade conforme o lado da tela (coluna nas laterais, abre pra dentro da tela, topo especial) e conforme o tamanho (degraus ao redimensionar). Cada combinação de posição × tamanho tem comportamento próprio nas bordas e nos cantos, movimento com física e muito polimento (detalhes em [[apps-desktop-encaixe-nas-bordas]]).
 - **Por quê:** pedido explícito pra todos os apps futuros; ele rejeitou a leitura de "só esconder numa aba na borda".
 - **Exemplo:** "pra cada layout tem que ter um tipo de comportamento nos cantos, movimentos e etc. isso também é regra de desenvolvimento de qualquer app".
 - **Desde:** 2026-11-24 · **Reforçada:** 3× · **Força:** alta
@@ -71,7 +71,7 @@
 - **Desde:** 2026-11-24 · **Reforçada:** 5× (última 2026-11-25, tamanhos mínimos únicos e interativos) · **Força:** máxima
 
 ### R18 — Os apps conversam e interagem entre si
-- **Regra:** todo app novo entra no barramento ~/.orbita (publica o próprio estado e lê o dos outros) e interage com os outros: grudar um no outro, desviar em vez de sobrepor, arrastar coisas de um pro outro, reagir juntos (cor, batida, "pensando"), aceitar comandos do Eco e respeitar modos (foco, jogo, tela cheia) (detalhes em [interação entre apps](../padroes/interacao-entre-apps.md)).
+- **Regra:** todo app novo entra no barramento ~/.orbita (publica o próprio estado e lê o dos outros) e interage com os outros: grudar um no outro, desviar em vez de sobrepor, arrastar coisas de um pro outro, reagir juntos (cor, batida, "pensando"), aceitar comandos do Eco e respeitar modos (foco, jogo, tela cheia) (detalhes em [[apps-interagem-entre-si]]).
 - **Por quê:** pedido explícito, valendo como regra de desenvolvimento.
 - **Exemplo:** "simm!! faz tbm isso ... e isso é regra tbm em".
 - **Desde:** 2026-11-24 · **Reforçada:** 1× · **Força:** alta
@@ -159,7 +159,7 @@
 
 ### R22 — Todo refino de app é documentado no desklive
 - **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Faça **só o commit local; NÃO faça push** (nem o dreamer) até ele dizer: ele pediu pra deixar o repo local por enquanto ("por enquanto deixa local", 25/11/2026). Só a receita, nunca o código. Mesmo local, confira antes de cada commit que não há segredos nem dados pessoais (o repo vai ser público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
-- **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([o CLAUDE.md do repo](../CLAUDE.md)).
+- **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([[desklive-repo-documentacao]]).
 - **Exemplo:** "sempre que refinarmos apps, documentamos lá" · "só vamos subir regras de tempos em tempos" · "faz no desklive sim ... mas por enquanto deixa local".
 - **Desde:** 2026-11-25 · **Reforçada:** 3× (última 2026-11-25) · **Força:** alta
 
@@ -183,7 +183,7 @@
 - **Desde:** 2026-11-25 · **Reforçada:** 2× (última 2026-11-25) · **Força:** alta
 
 ### R25 — Nada pisca: toda mudança de tamanho, posição ou visibilidade é suave
-- **Regra:** nenhuma largura, altura, posição, recorte ou visibilidade muda de um quadro pro outro sem transição suave. Valem pra isso:
+- **Regra:** nenhuma largura, altura, posição, recorte ou visibilidade muda de um quadro pro outro sem transição suave: ABSOLUTAMENTE TUDO é animado com cuidado, inclusive seções abrindo, textos e números trocando, listas crescendo, botões mudando de estado e vizinhos sendo empurrados (FLIP). Prova automática: um detector que acusa qualquer elemento que mude mais de 1 px num quadro fora de uma animação, com meta de zero ("Tudo que acontecer tem que ser motionado com cuidado, largura altura, absolutamente tudo"). Valem pra isso:
   - **Mudança de tamanho:** a janela cresce antes e o CSS anima dentro dela; o encolher é aplicado depois que a animação termina, no mesmo quadro que a compensação.
   - **Troca de layout:** usa FLIP, crossfade ou morph.
   - **Pulos inevitáveis de janela** (emenda dos monitores, trava do host): ficam escondidos por congelamento ou crossfade, nunca por "sumir".
