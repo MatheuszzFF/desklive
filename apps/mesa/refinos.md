@@ -3,6 +3,7 @@
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
 ## 2026-11-25 · Mesa 0.2
+- **Morador em quatro patas:** pra se deslocar ele desce pra quatro patas (5 quadros, 11 fps, ~460 ms), corre de lado a 150 px/s (8 quadros, 13 fps) e levanta ao chegar (a mesma descida ao contrário); parado e conversando continua de pé. Pra esquerda, os clipes são espelhados.
 - **O que:** widget **Apps** (lista os apps do menu Iniciar, favoritos, abre com um clique; comandos `abrir`, `favoritar`, `procurar`; sem tecla); widget **Estante** (ponte com a Estante Musical pelo barramento `~/.dengas`: estado, tocar, tom, andamento, trocar de música; comando `comando`); **aparência** comandável (`Mesa.aparencia`: cor de destaque, opacidade do vidro de 0,35 a 1, raio de 0 a 34 px, papel de parede em 2 ou 3 cores; ferramenta `mesa_aparencia` do morador); o morador reage sozinho quando a música muda (no máximo uma fala a cada 25 s) e anda até o widget que abre.
 - **Por quê:** tudo na Mesa tem de ser personalizável e comandável pelo morador.
 - **Testado:** no navegador por `localhost`: os cinco widgets abrem, os nove comandos aparecem, o comando de notas escreve, a aparência troca. **Não testado:** app instalado, abrir apps de verdade, a Estante respondendo, o Claude chamando as ferramentas.

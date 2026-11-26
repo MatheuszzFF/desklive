@@ -83,7 +83,7 @@ const clip = (a, o = {}) => ({ a, t0:0, ...o });
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
-  if (D.modo === 'andando') return [clip('andar_lado')];
+  if (D.modo === 'andando') return [clip('correndo_lado')];
   if (D.pego || D.modo === 'caindo') return [clip('parado')];
   if (D.pose === 'sentado'){
     if (fala) return [clip('sentado_falando')];
@@ -106,7 +106,7 @@ function senta(sim){
 }
 function desenha(now){
   const k = D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
-  if (k !== chave){ if (chave && !(atual && /^t_(parado_sentado|sentado_parado)$/.test(atual.a))) { clipes = []; atual = null; } chave = k; }
+  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_patas)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
   let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps / 1000) : 0;
   if (!m || c >= m.n){
     if (m && atual.laco && atual.laco()) atual.t0 = now;
@@ -116,7 +116,7 @@ function desenha(now){
   if (atual.rev) c = m.n - 1 - c;
   g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 384, 384);
   if (!atlas.naturalWidth) return;
-  if (atual.a === 'andar_lado' && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
+  if (/_lado$|^t_quatro_patas$/.test(atual.a) && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
   g.drawImage(atlas, c * CEL, m.l * CEL, CEL, CEL, 0, 0, 384, 384);
 }
 
@@ -141,8 +141,9 @@ function passo(now){
       if (now > (D.levantaAte || 0)){
         const s = D.em ? superficies().find(q => q.id === D.em) : superficies()[0], lim = s || { x0:44, x1:A.w - 44 };
         const alvo = clamp(D.alvoX, lim.x0, lim.x1), d = alvo - D.x;
-        if (Math.abs(d) < 3){ D.alvoX = null; D.modo = 'parado'; D.sentaEm = now + rnd(1200, 5000); guardaLugar(); const f = D.depois; D.depois = null; f?.(); }
-        else { D.modo = 'andando'; D.lado = Math.sign(d); D.x += D.lado * Math.min(Math.abs(d), 74 * dt); }
+        if (Math.abs(d) < 3){ D.alvoX = null; D.modo = 'parado'; toca([clip('t_quatro_patas', { rev:true })]); D.sentaEm = now + rnd(1200, 5000); guardaLugar(); const f = D.depois; D.depois = null; f?.(); }
+        else if (D.modo !== 'andando' && !D.desceu){ D.desceu = true; D.lado = Math.sign(d); toca([clip('t_quatro_patas')]); D.levantaAte = now + 460; }
+        else { D.desceu = false; D.modo = 'andando'; D.lado = Math.sign(d); D.x += D.lado * Math.min(Math.abs(d), 150 * dt); }
       }
     } else {
       if (D.modo === 'andando') D.modo = 'parado';

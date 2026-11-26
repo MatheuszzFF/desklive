@@ -32,7 +32,7 @@ Ainda não tem ombros côncavos nem o descolar líquido da [fusão com a borda](
 - **Soltar:** embalo `v × 0,14 s` (teto 3200 px/s, sem embalo abaixo de 120 px/s); a menos de **26 px** de uma borda, encosta nela. Assenta em k 230 / ζ 0,82, 4 subpassos, `dt` ≤ 1/30.
 - **Redimensionar:** alça de 22 px na quina **de dentro** (oposta às bordas encostadas); puxa a partir do lado oposto, com mínimo do widget e teto da tela.
 - **Trazer pra frente:** qualquer clique no widget.
-- **Morador:** fica em pé em **superfícies** (o banquinho da beira de baixo, 24 px acima do fim da tela, ou o topo de um widget com pelo menos 128 px livres em cima). Cai com gravidade 2600 px/s² (teto 1500), anda a 74 px/s de perfil (pra esquerda é o mesmo clipe espelhado), senta depois de alguns segundos, passeia a cada 16 a 38 s, anda junto com o widget em que está e cai se o widget some. Clique abre a conversa; arrastar (4 px) pega ele.
+- **Morador:** fica em pé em **superfícies** (o banquinho da beira de baixo, 24 px acima do fim da tela, ou o topo de um widget com pelo menos 128 px livres em cima). Cai com gravidade 2600 px/s² (teto 1500), corre em quatro patas a 150 px/s (desce em ~460 ms antes de sair e levanta ao chegar; pra esquerda é o mesmo clipe espelhado), senta depois de alguns segundos, passeia a cada 16 a 38 s, anda junto com o widget em que está e cai se o widget some. Clique abre a conversa; arrastar (4 px) pega ele.
 - **Conversa:** pílula de vidro que nasce do lado com mais tela, com sugestões (abrir widget fechado, organizar a mesa) e as mensagens; o balão coral é pra o que ele fala sozinho, com o texto saindo no ritmo da boca.
 
 ### Degraus de tamanho e alça
