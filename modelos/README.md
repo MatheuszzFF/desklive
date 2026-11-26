@@ -11,6 +11,7 @@ Esta é a **única** pasta do repo com código. O resto continua sendo receita (
 | [orbita/](orbita/README.md) | barra de tarefas: apps, anéis de CPU/RAM/placa, relógio, música | Órbita v28 | [apps/orbita/](../apps/orbita/README.md) |
 | [onda/](onda/README.md) | player do Spotify: capa, onda que reage ao som, Web API | Onda v19 | [apps/onda/](../apps/onda/README.md) |
 | [eco/](eco/README.md) | assistente (Claude) com marca líquida em WebGL | Eco v24 | [apps/eco/](../apps/eco/README.md) |
+| [mesa/](mesa/README.md) | o quadro dos widgets: uma janela só, com um morador que comanda tudo (piloto) | Mesa 0.1 | [apps/mesa/](../apps/mesa/README.md) |
 | [compartilhado/](compartilhado/README.md) | o motor de movimento (v2.2), os helpers usados por mais de um app e as funções da montagem | — | [motor](../referencias/motor/README.md) · [arquitetura](../padroes/arquitetura.md) |
 
 Cada app é escrito como um `*-src.html` com **marcadores** (`/*MOTOR*/`, `/*HELPER*/''`, `/*ICONS*/{}`…). O `build.ps1` de cada pasta troca os marcadores pelo motor, pelos helpers em PowerShell (como string JS) e pelos ícones, e grava **um HTML só**, que é o que vira artefato.

@@ -1,0 +1,340 @@
+<meta charset="utf-8">
+<title>Mesa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script type="application/json" id="claude-artifacts-manifest">{"permissions":["overlay","full-access","menu-bar","shortcuts"]}</script>
+<style>
+/* Mesa: um quadro só, do tamanho da área de trabalho, onde os widgets moram como peças da mesma página.
+   Mover, encostar na borda e redimensionar são contas de CSS dentro do quadro (a janela do app não se mexe),
+   então o que funciona no navegador por localhost funciona igual no app instalado. */
+:root{
+  --fg:#f4f5f8; --muted:rgba(244,245,248,.62); --faint:rgba(244,245,248,.38); --line:rgba(255,255,255,.09);
+  --vidro:rgba(10,11,16,.9); --vidro2:rgba(22,24,33,.92); --coral:#d97757; --pessego:#f0a98a;
+  --corpo:"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif; --titulo:"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --mola:cubic-bezier(.2,.9,.25,1.12); --suave:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;   /* no app, só com light o fundo fica transparente de verdade */
+}
+html,body{height:100%;margin:0;background:transparent;overflow:hidden;font-family:var(--corpo);color:var(--fg);user-select:none;-webkit-user-select:none}
+button,textarea,input{font:inherit;color:inherit}
+#mesa{position:fixed;inset:0;overflow:hidden}
+#fundo{position:absolute;inset:0;opacity:0;transition:opacity .5s var(--suave);pointer-events:none;
+  background:radial-gradient(120% 90% at 15% 110%,#3a2a4f,#141a30 46%,#07080d 82%)}
+html.fundo-mesa #fundo{opacity:1;pointer-events:auto}
+html.previa #fundo{opacity:1}
+
+/* ---------- widget: a moldura é da Mesa, o miolo é de cada widget ---------- */
+.w{position:absolute;left:0;top:0;display:flex;flex-direction:column;box-sizing:border-box;min-width:0;
+  background:linear-gradient(rgba(255,255,255,.055),rgba(255,255,255,.012)) , var(--vidro);
+  border:1px solid var(--line);border-radius:20px;box-shadow:0 18px 44px -16px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);
+  transition:border-radius .35s var(--mola),box-shadow .25s,opacity .25s,scale .35s var(--mola);will-change:transform}
+.w.nasce{opacity:0;scale:.9}
+.w.some{opacity:0;scale:.92;pointer-events:none}
+.w.pegando{box-shadow:0 30px 60px -18px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.1);scale:1.015;transition:border-radius .35s var(--mola),box-shadow .25s}
+.w.frente{border-color:rgba(240,169,138,.22)}
+.w.tocado{animation:tocado .9s var(--suave)}
+@keyframes tocado{0%{box-shadow:0 0 0 0 rgba(217,119,87,.75),0 18px 44px -16px rgba(0,0,0,.72)}100%{box-shadow:0 0 0 18px rgba(217,119,87,0),0 18px 44px -16px rgba(0,0,0,.72)}}
+/* encostado: as quinas do lado da borda ficam retas, como se o widget fizesse parte da tela */
+.w[data-borda*=l]{border-top-left-radius:0;border-bottom-left-radius:0;border-left-color:transparent}
+.w[data-borda*=r]{border-top-right-radius:0;border-bottom-right-radius:0;border-right-color:transparent}
+.w[data-borda*=t]{border-top-left-radius:0;border-top-right-radius:0;border-top-color:transparent}
+.w[data-borda*=b]{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent}
+.w-pega{flex:none;display:flex;align-items:center;gap:8px;height:34px;padding:0 8px 0 14px;cursor:grab;touch-action:none}
+.w.pegando .w-pega{cursor:grabbing}
+.w-ico{width:16px;height:16px;color:var(--pessego);flex:none;display:grid;place-items:center}
+.w-ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.w-nome{flex:1;min-width:0;font:600 12px/1 var(--titulo);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-x{flex:none;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:var(--faint);cursor:pointer;font-size:16px;line-height:1;opacity:0;transition:opacity .2s,background .2s}
+.w:hover .w-x,.w-x:focus-visible{opacity:1}
+.w-x:hover{background:rgba(255,255,255,.1);color:var(--fg)}
+.w-corpo{flex:1;min-height:0;position:relative;container-type:size;container-name:w;overflow:hidden;border-radius:0 0 19px 19px}
+.w-alca{position:absolute;width:22px;height:22px;right:0;bottom:0;cursor:nwse-resize;touch-action:none;opacity:0;transition:opacity .2s}
+.w:hover .w-alca{opacity:1}
+.w-alca::before{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;border-right:2.5px solid var(--pessego);border-bottom:2.5px solid var(--pessego);border-radius:0 0 7px 0}
+.w[data-alca=bl] .w-alca{right:auto;left:0;cursor:nesw-resize;transform:scaleX(-1)}
+.w[data-alca=tr] .w-alca{bottom:auto;top:0;cursor:nesw-resize;transform:scaleY(-1)}
+.w[data-alca=tl] .w-alca{right:auto;left:0;bottom:auto;top:0;transform:scale(-1,-1)}
+/* peças prontas para os widgets usarem */
+.m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);transition:background .2s,scale .2s var(--mola)}
+.m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
+.m-bot:focus-visible,.w-x:focus-visible{outline:2px solid var(--pessego);outline-offset:2px}
+.m-fraco{color:var(--muted);font-size:12.5px;line-height:1.45}
+
+#aviso{position:fixed;left:50%;top:18px;translate:-50% 0;max-width:min(560px,90vw);padding:12px 16px;border-radius:14px;background:var(--vidro2);border:1px solid var(--line);font-size:13.5px;line-height:1.5;z-index:9000;display:flex;gap:12px;align-items:center}
+#aviso[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.w,.w.pegando{transition-duration:.01s}}
+</style>
+
+<div id="mesa"><div id="fundo" class="alvo"></div><div id="camada"></div></div>
+<div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
+
+<script type="module">
+const VERSAO = '0.1';
+const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
+const SHORTCUT = 'Alt+Shift+M';
+const BUS_DIR = '~/.mesa';
+const $ = id => document.getElementById(id);
+const R = document.documentElement, camada = $('camada');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const le = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v ?? d; } catch { return d; } };
+const grava = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+// um quadro de animação que não morre quando a aba está escondida (o navegador segura o rAF)
+const quadro = fn => { let feito = false; const roda = t => { if (feito) return; feito = true; fn(t || performance.now()); }; requestAnimationFrame(roda); setTimeout(roda, 40); };
+
+let desktop = null, sampleFn = null, podePC = false;
+const prefs = Object.assign({ widgets:{}, abertos:null, fundo:'transparente' }, le('mesa', {}));
+const salva = () => grava('mesa', prefs);
+
+/* ---------- barramento: quem quiser ouve, quem quiser fala (tudo dentro da página, na hora) ---------- */
+const ouvintes = new Map();
+const bus = {
+  on(tipo, fn){ if (!ouvintes.has(tipo)) ouvintes.set(tipo, new Set()); ouvintes.get(tipo).add(fn); return () => ouvintes.get(tipo)?.delete(fn); },
+  emit(tipo, dado){ for (const fn of [...(ouvintes.get(tipo) || []), ...(ouvintes.get('*') || [])]){ try { fn(dado, tipo); } catch (e) { console.warn('mesa: ouvinte de', tipo, e); } } },
+};
+
+/* ---------- PowerShell (só no app instalado, com acesso total) ---------- */
+function encodePs(s){ let bin = ''; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); bin += String.fromCharCode(c & 255, c >> 8); } return btoa(bin); }
+async function ps(script, tempo){
+  if (!podePC) throw new Error('sem permissão pra mexer no PC (abra a Mesa pelo app instalado e libere o acesso total)');
+  const r = await desktop.childProcess.exec('powershell.exe -NoProfile -NonInteractive -EncodedCommand ' + encodePs(script), { timeout:tempo || 15000 });
+  return ((r.stdout || '').trim() || (r.stderr || '').trim()).slice(0, 800);
+}
+
+/* ---------- widgets ----------
+   Um widget é um objeto { id, nome, icone, w, h, minW, minH, monta(corpo, api) }.
+   monta devolve (opcional) { estado(), comandos:[{ nome, descricao, esquema, roda }], aoLugar(l), aoTamanho(t), aoFechar() }.
+   Os comandos e o estado de todo widget aberto ficam à vista do morador (o assistente) sem nenhum código a mais. */
+const DEFS = new Map(), ABERTOS = new Map();
+const SNAP = 26;
+let zTopo = 10;
+const area = () => ({ w:innerWidth, h:innerHeight });
+function define(def){ if (!def?.id || typeof def.monta !== 'function') throw new Error('widget sem id ou sem monta()'); DEFS.set(def.id, def); bus.emit('mesa:definiu', { id:def.id }); }
+const lugar = W => ({ borda:W.borda, x:Math.round(W.x), y:Math.round(W.y), w:Math.round(W.w), h:Math.round(W.h) });
+function pinta(W){ W.el.style.transform = `translate3d(${W.x.toFixed(1)}px,${W.y.toFixed(1)}px,0)`; W.el.style.width = W.w + 'px'; W.el.style.height = W.h + 'px'; }
+function bordaDe(W, x = W.tx, y = W.ty){ const A = area(); return (x <= .5 ? 'l' : '') + (x + W.w >= A.w - .5 ? 'r' : '') + (y <= .5 ? 't' : '') + (y + W.h >= A.h - .5 ? 'b' : ''); }
+function marcaBorda(W){
+  const b = bordaDe(W);
+  W.el.dataset.alca = (b.includes('b') && !b.includes('t') ? 't' : 'b') + (b.includes('r') && !b.includes('l') ? 'l' : 'r');
+  if (b === W.borda) return;
+  W.borda = b; W.el.dataset.borda = b;
+  try { W.inst.aoLugar?.(lugar(W)); } catch (e) { console.warn(e); }
+  bus.emit('mesa:lugar', { id:W.id, ...lugar(W) });
+}
+function guarda(W){ prefs.widgets[W.id] = { x:Math.round(W.tx), y:Math.round(W.ty), w:Math.round(W.w), h:Math.round(W.h) }; prefs.abertos = [...ABERTOS.keys()]; salva(); }
+function cabe(W){   // nunca fora da tela, nunca maior que ela
+  const A = area(); W.w = clamp(W.w, W.def.minW || 160, A.w); W.h = clamp(W.h, W.def.minH || 110, A.h);
+  W.tx = clamp(W.tx, 0, A.w - W.w); W.ty = clamp(W.ty, 0, A.h - W.h);
+}
+
+/* física: cada widget persegue o alvo numa mola (firme no arrasto, macia ao assentar) */
+const vivos = new Set(); let rodando = false, ultimoT = 0;
+function agita(W){ vivos.add(W); if (!rodando){ rodando = true; ultimoT = 0; quadro(tique); } }
+function tique(t){
+  const dt = ultimoT ? Math.min(1 / 30, (t - ultimoT) / 1000) : 1 / 60; ultimoT = t;
+  for (const W of [...vivos]){
+    const k = W.pega ? 1500 : 230, c = 2 * Math.sqrt(k) * (W.pega ? 1 : .82);
+    if (reduce){ W.x = W.tx; W.y = W.ty; W.vx = W.vy = 0; }
+    else for (let i = 0, h = dt / 4; i < 4; i++){ W.vx += (k * (W.tx - W.x) - c * W.vx) * h; W.vy += (k * (W.ty - W.y) - c * W.vy) * h; W.x += W.vx * h; W.y += W.vy * h; }
+    if (!W.pega && Math.abs(W.tx - W.x) < .3 && Math.abs(W.ty - W.y) < .3 && Math.hypot(W.vx, W.vy) < 6){ W.x = W.tx; W.y = W.ty; W.vx = W.vy = 0; vivos.delete(W); marcaBorda(W); guarda(W); }
+    pinta(W);
+  }
+  if (vivos.size) quadro(tique); else rodando = false;
+}
+
+function abre(id, onde){
+  const def = DEFS.get(id); if (!def) throw new Error('não existe widget "' + id + '"');
+  if (ABERTOS.has(id)){ const W = ABERTOS.get(id); frente(W); if (onde) move(id, onde); return W; }
+  const A = area(), s = Object.assign({}, prefs.widgets[id], onde);
+  const el = document.createElement('section'); el.className = 'w alvo nasce'; el.dataset.id = id; el.setAttribute('aria-label', def.nome);
+  el.innerHTML = '<header class="w-pega"><span class="w-ico"></span><span class="w-nome"></span><button class="w-x" type="button" aria-label="Fechar">×</button></header><div class="w-corpo"></div><span class="w-alca" aria-label="Redimensionar"></span>';
+  el.querySelector('.w-nome').textContent = def.nome;
+  if (def.icone) el.querySelector('.w-ico').innerHTML = `<svg viewBox="0 0 24 24">${def.icone}</svg>`;
+  const W = { id, def, el, corpo:el.querySelector('.w-corpo'), w:s.w || def.w || 320, h:s.h || def.h || 220, vx:0, vy:0, borda:'', pega:null, inst:{} };
+  W.tx = s.x ?? Math.round((A.w - W.w) / 2 + (ABERTOS.size % 5) * 28 - 56); W.ty = s.y ?? Math.round((A.h - W.h) / 2 + (ABERTOS.size % 5) * 24 - 48);
+  cabe(W); W.x = W.tx; W.y = W.ty;
+  const api = {
+    id, corpo:W.corpo,
+    ler:(d = {}) => le('mesa-w-' + id, d), salvar:v => grava('mesa-w-' + id, v),
+    emitir:(tipo, dado) => bus.emit(id + ':' + tipo, dado), ouvir:(tipo, fn) => bus.on(tipo, fn),
+    lugar:() => lugar(W), podePC:() => podePC, ps, host:() => desktop,
+    avisar:texto => bus.emit('mesa:aviso', { id, texto }),      // o morador fala isso em voz alta
+  };
+  ABERTOS.set(id, W); camada.appendChild(el); frente(W); pinta(W);
+  try { W.inst = def.monta(W.corpo, api) || {}; } catch (e) { console.warn('mesa: o widget', id, 'falhou ao montar', e); W.corpo.textContent = 'Este widget não abriu: ' + (e.message || e); }
+  if (!prefs.widgets[id] && !onde && def.lugar){ const l = def.lugar; if (l.x != null) W.tx = l.x; if (l.y != null) W.ty = l.y; cabe(W); const b = String(l.borda || ''); if (b.includes('l')) W.tx = 0; if (b.includes('r')) W.tx = A.w - W.w; if (b.includes('t')) W.ty = 0; if (b.includes('b')) W.ty = A.h - W.h; if (l.meio) W.ty = Math.round((A.h - W.h) / 2); W.x = W.tx; W.y = W.ty; pinta(W); }
+  marcaBorda(W); ligaGestos(W); guarda(W);
+  quadro(() => el.classList.remove('nasce'));
+  bus.emit('mesa:abriu', { id });
+  return W;
+}
+function fecha(id){
+  const W = ABERTOS.get(id); if (!W) return false;
+  try { W.inst.aoFechar?.(); } catch (e) { console.warn(e); }
+  ABERTOS.delete(id); vivos.delete(W); W.el.classList.add('some'); setTimeout(() => W.el.remove(), 260);
+  prefs.abertos = [...ABERTOS.keys()]; salva(); bus.emit('mesa:fechou', { id }); return true;
+}
+function frente(W){ W.el.style.zIndex = ++zTopo; for (const o of ABERTOS.values()) o.el.classList.toggle('frente', o === W); }
+// move e/ou redimensiona por comando: { x, y, w, h } em px, ou borda: 'l','r','t','b','tl','tr','bl','br','centro'
+function move(id, o = {}){
+  const W = ABERTOS.get(id); if (!W) throw new Error('o widget "' + id + '" não está aberto');
+  const A = area();
+  if (o.w != null) W.w = +o.w; if (o.h != null) W.h = +o.h;
+  if (o.x != null) W.tx = +o.x; if (o.y != null) W.ty = +o.y;
+  cabe(W);
+  const b = String(o.borda || '');
+  if (b === 'centro'){ W.tx = (A.w - W.w) / 2; W.ty = (A.h - W.h) / 2; }
+  else { if (b.includes('l')) W.tx = 0; if (b.includes('r')) W.tx = A.w - W.w; if (b.includes('t')) W.ty = 0; if (b.includes('b')) W.ty = A.h - W.h; }
+  try { W.inst.aoTamanho?.(lugar(W)); } catch (e) { console.warn(e); }
+  frente(W); agita(W); return lugar(W);
+}
+function toca(id){ const W = ABERTOS.get(id); if (!W) return; W.el.classList.remove('tocado'); void W.el.offsetWidth; W.el.classList.add('tocado'); }
+
+function ligaGestos(W){
+  const pega = W.el.querySelector('.w-pega'), alca = W.el.querySelector('.w-alca');
+  W.el.addEventListener('pointerdown', () => frente(W), true);
+  W.el.querySelector('.w-x').addEventListener('click', () => fecha(W.id));
+  // arrastar pela faixa de cima: só vira arrasto depois de 4 px (o × continua recebendo o clique)
+  let g = null;
+  pega.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('.w-x')) return; g = { id:e.pointerId, x0:e.clientX, y0:e.clientY, on:false }; });
+  pega.addEventListener('pointermove', e => {
+    if (!g || e.pointerId !== g.id) return;
+    if (e.buttons === 0) return solta(e);
+    if (!g.on){ if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < 4) return; g.on = true; try { pega.setPointerCapture(g.id); } catch {} W.pega = { dx:g.x0 - W.x, dy:g.y0 - W.y }; W.el.classList.add('pegando'); bus.emit('mesa:pegou', { id:W.id }); }
+    const A = area();
+    W.tx = clamp(e.clientX - W.pega.dx, 0, A.w - W.w); W.ty = clamp(e.clientY - W.pega.dy, 0, A.h - W.h);
+    agita(W);
+  });
+  function solta(){
+    if (!g) return; const era = g.on; g = null; if (!era) return;
+    const A = area();
+    // o embalo decide onde ele para; perto de uma borda, encosta nela
+    const v = Math.hypot(W.vx, W.vy), f = v > 120 ? Math.min(1, 3200 / v) * .14 : 0;
+    W.tx = clamp(W.tx + W.vx * f, 0, A.w - W.w); W.ty = clamp(W.ty + W.vy * f, 0, A.h - W.h);
+    if (W.tx < SNAP) W.tx = 0; else if (W.tx + W.w > A.w - SNAP) W.tx = A.w - W.w;
+    if (W.ty < SNAP) W.ty = 0; else if (W.ty + W.h > A.h - SNAP) W.ty = A.h - W.h;
+    W.pega = null; W.el.classList.remove('pegando'); agita(W); bus.emit('mesa:soltou', { id:W.id });
+  }
+  pega.addEventListener('pointerup', solta); pega.addEventListener('pointercancel', solta); pega.addEventListener('lostpointercapture', solta);
+  // redimensionar: a alça fica na quina de dentro da tela e puxa a partir do lado oposto
+  let r = null;
+  alca.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { alca.setPointerCapture(e.pointerId); } catch {}
+    const q = W.el.dataset.alca || 'br';
+    r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:W.w, h0:W.h, tx0:W.tx, ty0:W.ty, sx:q[1] === 'l' ? -1 : 1, sy:q[0] === 't' ? -1 : 1 };
+  });
+  alca.addEventListener('pointermove', e => {
+    if (!r || e.pointerId !== r.id) return;
+    const A = area(), mw = W.def.minW || 160, mh = W.def.minH || 110;
+    let w = r.w0 + (e.clientX - r.x0) * r.sx, h = r.h0 + (e.clientY - r.y0) * r.sy;
+    w = clamp(w, mw, r.sx > 0 ? A.w - r.tx0 : r.tx0 + r.w0); h = clamp(h, mh, r.sy > 0 ? A.h - r.ty0 : r.ty0 + r.h0);
+    W.w = Math.round(w); W.h = Math.round(h);
+    if (r.sx < 0) W.tx = W.x = r.tx0 + r.w0 - W.w; if (r.sy < 0) W.ty = W.y = r.ty0 + r.h0 - W.h;
+    pinta(W); try { W.inst.aoTamanho?.(lugar(W)); } catch (err) { console.warn(err); }
+  });
+  const fimR = () => { if (!r) return; r = null; marcaBorda(W); guarda(W); bus.emit('mesa:redimensionou', { id:W.id, ...lugar(W) }); };
+  alca.addEventListener('pointerup', fimR); alca.addEventListener('pointercancel', fimR);
+}
+addEventListener('resize', () => { for (const W of ABERTOS.values()){ const b = W.borda, A = area(); cabe(W); if (b.includes('r')) W.tx = A.w - W.w; if (b.includes('b')) W.ty = A.h - W.h; agita(W); } bus.emit('mesa:tela', area()); });
+
+/* o que o morador (e qualquer widget) enxerga da mesa inteira */
+function estado(){
+  return { tela:area(), fundo:prefs.fundo,
+    abertos:[...ABERTOS.values()].map(W => { let e; try { e = W.inst.estado?.(); } catch { e = undefined; } return { id:W.id, nome:W.def.nome, ...lugar(W), estado:e }; }),
+    fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })) };
+}
+function comandos(){
+  const l = [];
+  for (const W of ABERTOS.values()) for (const c of W.inst.comandos || []) l.push({ widget:W.id, nomeWidget:W.def.nome, ...c });
+  return l;
+}
+function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); salva(); setPassa(false); bus.emit('mesa:fundo', prefs.fundo); }
+
+/* ---------- clique passa: fora do que se vê, o mouse vai pra área de trabalho de verdade ----------
+   Desliga na hora quando o mouse volta pra um .alvo; só liga 140 ms depois de sair (não pisca nas frestas);
+   com o botão pressionado nunca liga. */
+let passa = null, tPassa = 0, apertado = false;
+function setPassa(on){ if (!desktop?.window) return; if (prefs.fundo === 'mesa') on = false; if (on === passa) return; passa = on; desktop.window.setIgnoreMouseEvents(on, { forward:true }).catch(() => {}); }
+document.addEventListener('pointerdown', () => { apertado = true; }, true);
+document.addEventListener('pointerup', () => { apertado = false; }, true);
+document.addEventListener('pointermove', e => {
+  if (e.target.closest?.('.alvo')){ clearTimeout(tPassa); tPassa = 0; setPassa(false); }
+  else if (!apertado && !tPassa) tPassa = setTimeout(() => { tPassa = 0; if (!apertado) setPassa(true); }, 140);
+  bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY });
+});
+document.addEventListener('mouseleave', () => { if (!apertado) setPassa(true); });
+
+/* a Mesa, pra widgets e pro morador */
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, fundo, bus, area, ps,
+  defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
+  caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
+  podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
+  estilo:css => { const e = document.createElement('style'); e.textContent = css; document.head.appendChild(e); } };
+window.Mesa = Mesa;
+
+/*WIDGETS*/
+
+/* ---------- janela do app ---------- */
+const avisoEl = $('aviso'), avisoTxt = $('avisoTxt'), avisoBot = $('avisoBot');
+function diz(t, rotulo, fn){ avisoTxt.textContent = t || ''; avisoEl.hidden = !t; avisoBot.hidden = !rotulo; if (rotulo){ avisoBot.textContent = rotulo; avisoBot.onclick = fn; } }
+let telas = [], monitor = 0, escala = 1;
+function menuItens(){
+  return [
+    ...[...DEFS.values()].map(d => ({ label:d.nome, type:'checkbox', checked:ABERTOS.has(d.id), click:() => ABERTOS.has(d.id) ? fecha(d.id) : abre(d.id) })),
+    { type:'separator' },
+    { label:'Fundo de mesa (cobre a área de trabalho)', type:'checkbox', checked:prefs.fundo === 'mesa', click:() => fundo(prefs.fundo === 'mesa' ? 'transparente' : 'mesa') },
+    ...(telas.length > 1 ? [{ label:'Levar pro outro monitor', click:() => ocupa((monitor + 1) % telas.length) }] : []),
+    { label:'Permissões…', click:() => desktop.permissions.manage().catch(() => {}) },
+    { type:'separator' },
+    { label:`Mesa ${VERSAO} · escala ${escala.toFixed(2)} · ${innerWidth}×${innerHeight}`, enabled:false },
+  ];
+}
+// a janela cobre a área de trabalho de um monitor (nas unidades do host, sem conversão) e nunca mais se mexe
+async function ocupa(i){
+  telas = await desktop.screen.getAllDisplays().catch(() => telas); if (!telas.length) return;
+  monitor = clamp(i, 0, telas.length - 1); prefs.monitor = monitor; salva();
+  const a = telas[monitor].workArea;
+  await desktop.window.setBounds({ x:a.x, y:a.y, width:a.width, height:a.height }).catch(() => {});
+  setTimeout(() => { escala = a.width / Math.max(1, innerWidth); }, 400);
+}
+async function entra(perms){
+  let res;
+  try { res = await desktop.window.setOptions(OPTS); } catch (e) { diz('O sistema não deixou a janela flutuar: ' + String(e.message || e)); return; }
+  if (res.reloading) return;
+  if (res.applied === 'next_open'){ diz('Quase lá: feche a Mesa por completo e abra de novo.'); return; }
+  // primeiro garante que o clique atravessa; só então a janela cresce pra cobrir a tela
+  const ok = await desktop.window.setIgnoreMouseEvents(true, { forward:true }).then(() => true).catch(() => false);
+  if (!ok){ diz('Não consegui deixar o clique atravessar a janela, então não cobri a tela (travaria o seu mouse).'); return; }
+  passa = true;
+  podePC = perms['full-access'] === 'granted';
+  if (podePC) desktop.fs.mkdir(BUS_DIR, { recursive:true }).catch(() => {});
+  R.classList.add('app');
+  await ocupa(prefs.monitor || 0);
+  if (perms['menu-bar'] === 'granted') desktop.tray.set({ icon:Mesa.icone?.(32) || '', iconIsTemplate:false, toolTip:'Mesa', menu:menuItens() }).catch(() => {});
+  if (perms.shortcuts === 'granted') desktop.globalShortcut.register(SHORTCUT, () => { desktop.window.show().catch(() => {}); bus.emit('mesa:atalho'); }).catch(() => {});
+  document.addEventListener('contextmenu', e => { if (e.target.closest('textarea,input') || !e.target.closest('.alvo')) return; e.preventDefault(); desktop.Menu.popup(menuItens()).catch(() => {}); });
+  bus.emit('mesa:pronta', { app:true });
+}
+function arruma(){   // abre o que estava aberto da última vez (ou o conjunto de partida)
+  R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa');
+  const lista = Array.isArray(prefs.abertos) ? prefs.abertos : [...DEFS.values()].filter(d => d.deSaida).map(d => d.id);
+  for (const id of lista) if (DEFS.has(id)) { try { abre(id); } catch (e) { console.warn(e); } }
+}
+async function boot(){
+  const use = window.claude?.use;
+  if (use) use('sample').then(s => { sampleFn = s; bus.emit('mesa:claude', !!s); }).catch(() => {});
+  desktop = use ? await use('desktop').catch(() => null) : null;
+  arruma();
+  if (!desktop?.window){
+    R.classList.add('previa');   // no navegador: o quadro é a própria aba, com um fundo pra enxergar os widgets
+    const s = desktop?.install ? await desktop.install.state().catch(() => 'unavailable') : 'unavailable';
+    if (s === 'available') diz('Instale como app pra a Mesa cobrir a sua área de trabalho.', 'Instalar como app', () => desktop.install.request().catch(() => {}));
+    else if (s === 'installed') diz('A Mesa já está instalada: abra pelo menu Iniciar.');
+    bus.emit('mesa:pronta', { app:false }); return;
+  }
+  let perms = await desktop.permissions.state().catch(() => null);
+  const pede = async () => { const r = await desktop.permissions.request(['overlay', 'full-access', 'menu-bar', 'shortcuts']).catch(() => null); if (r) perms = Object.assign({}, perms, r); };
+  if (perms?.overlay === 'granted'){ if (['full-access', 'menu-bar', 'shortcuts'].some(k => perms[k] === 'prompt')) await pede(); diz(''); entra(perms); }
+  else diz('Falta um passo: deixar a Mesa flutuar por cima das janelas e mexer nos seus apps.', 'Ativar a Mesa', async () => { await pede(); if (perms?.overlay === 'granted'){ diz(''); entra(perms); } });
+}
+boot();
+if (location.protocol === 'file:' || location.hostname === 'localhost') window.__mesa = { Mesa, prefs, ABERTOS, DEFS };
+</script>

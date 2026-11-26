@@ -37,6 +37,7 @@ A informação desce do geral pro específico, e cada nível só existe se o de 
 | **Refinar a Órbita** | [apps/orbita/](apps/orbita/README.md) → [refinos](apps/orbita/refinos.md) → o arquivo de [motion/](padroes/motion/README.md) do assunto |
 | **Refinar a Onda** | [apps/onda/](apps/onda/README.md) → [refinos](apps/onda/refinos.md) → [onda-e-cor](apps/onda/onda-e-cor.md) se for a onda ou a cor → motion do assunto |
 | **Refinar o Eco** | [apps/eco/](apps/eco/README.md) → [refinos](apps/eco/refinos.md) → [marca-webgl](apps/eco/marca-webgl.md) se for a marca → motion do assunto |
+| **Mexer na Mesa ou escrever um widget** | [apps/mesa/](apps/mesa/README.md) → [modelos/mesa/](modelos/mesa/README.md) (como escrever um widget) → [refinos](apps/mesa/refinos.md) |
 | **Mexer numa forma por lado ou num degrau** | [layout-posicao-e-tamanho](padroes/layout-posicao-e-tamanho.md) → [fusão com a borda](padroes/motion/fusao-com-a-borda.md) → [troca de forma](padroes/motion/troca-de-forma.md) → doc do app |
 | **Arrasto, encaixe, embalo** | [sensor de borda](padroes/motion/sensor-de-borda-e-encaixe.md) → [sentir o arrasto](padroes/motion/sentir-o-arrasto.md) → [motor](referencias/motor/README.md) |
 | **Mudar uma mola ou curva** | [molas](referencias/motion/molas.md) / [curvas e durações](referencias/motion/curvas-e-duracoes.md) |
