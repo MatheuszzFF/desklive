@@ -20,7 +20,7 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
   - emenda: 5 casos no `#duplo`;
   - 16 cantos × hover: 0 tremidas;
   - 16/16 arrastos, zigue-zague com 2 trocas;
-  - `grabtest` sem piora;
+  - `grabtest`: parado ≤ 0,4 px nos 12 casos; salto 0,8–5,7 px (o maior na borda do expandido; na v21 era ≤ 4,2: o passo a mais dos dois passos atrasa 1 quadro);
   - commits com quadro velho possível 59 → 3.
   - **Não testado:** no app instalado (canto e emenda só se provam lá, pelo registro ou por vídeo novo).
 - **Regras:** R7, R9, R19, R22, R24, R25, R26.
