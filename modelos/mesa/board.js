@@ -1,6 +1,6 @@
-/* ---------- Mesa (opcional): os widgets e o Dengas da Mesa, rodando em cima do Board ----------
-   O Dengas, a Onda, a Órbita e o navegador vêm com o MESMO código da Mesa (modelos/mesa/widgets), sem reescrever.
-   Este arquivo é só a ponte: ele dá a esses arquivos o objeto `Mesa` que eles conhecem, feito com o Board.
+/* ---------- Mesa no Board (opcional "mesa"): a ponte ----------
+   O Dengas, a Onda, a Órbita e o navegador usam o objeto `Mesa`; cada um mora na própria pasta (modelos/<app>/) e entra
+   no Board pelo board.js de lá, depois deste. Este arquivo é só a ponte: ele dá a esses arquivos o objeto `Mesa` que eles conhecem, feito com o Board.
    - widget da Mesa (Mesa.define)  → uma peça do Board (arrasto, guias, bordas, cantos, passe entre monitores)
    - app hospedado (Mesa.hospeda)  → o app original num iframe, com a "janela de mentira" da Mesa
    - o Dengas (livre, por cima)    → uma camada própria; o que tem a classe .alvo pega o mouse (Board.alvo)
@@ -314,13 +314,9 @@ const Mesa = { versao:VERSAO_MESA, define, abre, fecha, move, toca:() => {}, fre
   defs:() => [...DEFS.values()], abertos, aberto:id => !!pecaVisivel(id) || HOSP.has(id),
   caixa:id => { const P = MB.pecas.get(id); return P && P.visivel ? { x:P.rv[0], y:P.rv[1], w:P.rv[2], h:P.rv[3], pegando:!!P.drag } : null; },
   podePC:podePCm, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => [], estilo };
+Mesa.principal = PRINCIPAL;   // com dois Boards, o Dengas e os apps hospedados moram só no principal
 window.Mesa = Mesa;
 
-if (PRINCIPAL){
-/*JS:mesa/widgets/00-dengas.js*/
-}
-/*JS:mesa/widgets/30-onda.js*/
-/*JS:mesa/widgets/35-video.js*/
-/*JS:mesa/widgets/40-orbita.js*/
+// os apps entram depois, cada um pelo board.js da pasta dele (dengas, onda, navegador, orbita)
 
 setTimeout(() => bus.emit('mesa:pronta', { app:!MB.simulado }), 800);

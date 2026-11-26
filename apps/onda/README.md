@@ -41,3 +41,7 @@ O teste é no simulador `onda-sim.html` (localhost, gancho `window.__onda`, jane
 | [onda-e-cor.md](onda-e-cor.md) | L3: a onda que reage ao som (nível, camadas, envelope, barras, arco) e a cor tirada da capa |
 | [visual.md](visual.md) | halo, capa, texto, nome em pé, botões, ícone, ritmo de leitura |
 | [refinos.md](refinos.md) | registro de cada refino, com data e números |
+
+## No Board
+
+No [Board](../board/README.md), a Onda roda com o mesmo código, hospedada pela ponte da Mesa: a declaração e os comandos pro assistente estão em [modelos/onda/board.js](../../modelos/onda/board.js). O Client ID do Spotify vem das [chaves](../board/chaves.md), não do build.

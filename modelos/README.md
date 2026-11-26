@@ -12,7 +12,10 @@ Esta é a **única** pasta do repo com código. O resto continua sendo receita (
 | [onda/](onda/README.md) | player do Spotify: capa, onda que reage ao som, Web API | Onda v19 | [apps/onda/](../apps/onda/README.md) |
 | [eco/](eco/README.md) | assistente (Claude) com marca líquida em WebGL | Eco v24 | [apps/eco/](../apps/eco/README.md) |
 | [mesa/](mesa/README.md) | o quadro dos widgets: uma janela só, com um morador que comanda tudo (piloto) | Mesa 0.1 | [apps/mesa/](../apps/mesa/README.md) |
-| [board/](board/README.md) | palco transparente em tela cheia, um por monitor ("Board" e "Board · monitor 2"), com a Sonda como peça | Board v2 | [board](../referencias/ambiente/board.md) |
+| [board/](board/README.md) | palco transparente em tela cheia, um por monitor ("Board" e "Board · monitor 2"), com a Sonda como peça; os apps entram pelo `board.js` da pasta deles | Board v2 | [apps/board/](../apps/board/README.md) · [board](../referencias/ambiente/board.md) |
+| [dengas/](dengas/README.md) | o ratinho assistente (corpo, conversa e cérebro) | — | [apps/dengas/](../apps/dengas/README.md) |
+| [navegador/](navegador/README.md) | sites e vídeo dentro do quadro | — | [apps/navegador/](../apps/navegador/README.md) |
+| [assistente/](assistente/README.md) | cérebro genérico pro Board, sem corpo | — | [apps/assistente/](../apps/assistente/README.md) |
 | [compartilhado/](compartilhado/README.md) | o motor de movimento (v2.2), os helpers usados por mais de um app e as funções da montagem | — | [motor](../referencias/motor/README.md) · [arquitetura](../padroes/arquitetura.md) |
 
 Cada app é escrito como um `*-src.html` com **marcadores** (`/*MOTOR*/`, `/*HELPER*/''`, `/*ICONS*/{}`…). O `build.ps1` de cada pasta troca os marcadores pelo motor, pelos helpers em PowerShell (como string JS) e pelos ícones, e grava **um HTML só**, que é o que vira artefato.

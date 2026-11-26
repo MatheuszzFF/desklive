@@ -8,4 +8,4 @@ O cérebro de um Board: conversa com o Claude de quem abriu (capacidade `sample`
 - **Publicar:** declarar `capabilities: { desktop:{}, sample:{} }` (e `mcp` com os conectores de quem publica, quando houver ferramenta pra eles). Sem este opcional, o Board não pede o Claude.
 - Memória curta (gostos anotados com `lembrar`) fica no `localStorage` do artefato.
 
-Ainda não veio da Mesa: conectores (`mcp`), criar documento e criar peça em tempo real pelo assistente.
+Contexto: [apps/assistente/](../../apps/assistente/README.md). Ainda não veio da Mesa: conectores (`mcp`), criar documento e criar peça em tempo real pelo assistente.

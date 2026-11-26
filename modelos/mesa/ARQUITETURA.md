@@ -26,7 +26,7 @@ Regra de bolso: começa como solto; se precisar do PC ou da rede, vira de fábri
 
 ## Dengas e os mini agentes
 
-O Dengas (`widgets/00-dengas.js`) conversa com o Claude da própria pessoa (capacidade `sample` do artefato, sem
+O Dengas (`modelos/dengas/dengas.js`) conversa com o Claude da própria pessoa (capacidade `sample` do artefato, sem
 chave de API). Ele não carrega as ferramentas de todos os apps: isso estourava o teto de ferramentas por pergunta
 e misturava o conhecimento de cada app na cabeça dele. Em vez disso:
 
@@ -68,7 +68,7 @@ Ferramentas da casca que o Dengas tem: `mesa_estado`, `mesa_widget`, `widget_com
 | Página de fora embutida (`frame-src`): iframe de YouTube ou de qualquer site fica preto | O **furo**: o widget abre uma janela do Edge em modo app, sem moldura, e a mantém embaixo de um buraco do widget (`.furo` deixa o clique passar) |
 | A página não tem rede | Tudo que precisa de internet sai pelo PowerShell do PC |
 
-## Navegador da Mesa (`widgets/35-video.js`)
+## Navegador da Mesa (`modelos/navegador/navegador.js`)
 
 - Janela do Edge com perfil próprio (`~/.mesa/edge`), que guarda os logins de quem usa.
 - A janela é posta e movida com `SetWindowPos`; a barra de título que o Edge desenha é escondida subindo a janela e

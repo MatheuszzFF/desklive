@@ -15,7 +15,6 @@
 | Arquivo | O que é |
 |---|---|
 | [board-src.html](board-src.html) | o Board inteiro (shell, motor de motion, Telas, conexão, API aberta, Sonda e Afinação), com o manifesto de permissões no topo. Um marcador só, `/*PECAS*/`, onde entram os opcionais |
-| [pecas/](pecas/) | os opcionais (assistente, Dengas…), um por pasta |
 | [build.ps1](build.ps1) | grava `board.html` e `board-2.html` (só muda o `<title>`, que é o que diz qual Board é qual) e copia o simulador junto |
 | [teste/](teste/) | o simulador: `teste-board.html` (dois Boards em iframes sobre um desktop falso, mouse virtual que imita o host), os cenários `testes.js`, `testes2.js` e `testes3.js`, e `servir.ps1` (servidor local na porta 8765) |
 | [scripts/](scripts/) | as medições feitas no PC, fora do app: `telas.ps1` (monitores pelo Windows: posição física, DPI, Hz), `relay.ps1` (o relay de named pipes, igual ao embutido), `testa-relay.ps1`, `embutidos.ps1` (roda os trechos embutidos no HTML e mede), `pipe.ps1` e `canal.ps1` (latência de pipe e de arquivo com e sem rename) |
@@ -57,7 +56,7 @@ Monte, rode o `servir.ps1` que foi copiado pra pasta de saída e abra `http://lo
 
 ## Quadro vazio, API aberta e opcionais
 
-O Board não traz app nenhum: é um quadro vazio e completamente interativo. Qualquer um (uma peça, um assistente, o console) vê e mexe em tudo pela **API aberta**: `Board.mapa()`, `peca`, `mostrar`, `mover`, `degrau`, `comando`, `definir`, `remover`, `ouvir`, `anunciar`, `espacoLivre`. Peças declaram o que mostram e o que aceitam em `automacao`, e podem ter `furos`. O que cada pessoa põe no seu Board são **opcionais** (`pecas/<nome>/`), escolhidos na montagem com `-Pecas`; sem lista, sai o Board de sempre. Credenciais de integração ficam em `~/.orbita/chaves.json`, pelo serviço `Board.chaves` (declarar, valor, situação, abrir). Tudo em [pecas/README](pecas/README.md).
+O Board não traz app nenhum: é um quadro vazio e completamente interativo. Qualquer um (uma peça, um assistente, o console) vê e mexe em tudo pela **API aberta**: `Board.mapa()`, `peca`, `mostrar`, `mover`, `degrau`, `comando`, `definir`, `remover`, `ouvir`, `anunciar`, `espacoLivre`. Peças declaram o que mostram e o que aceitam em `automacao`, e podem ter `furos`. O que cada pessoa põe no seu Board são **opcionais**: apps do desklive com um `board.js` na pasta deles (`modelos/<app>/board.js`), escolhidos na montagem com `-Pecas mesa,dengas,onda,navegador,orbita`; sem lista, sai o Board de sempre. Credenciais de integração ficam em `~/.orbita/chaves.json`, pelo serviço `Board.chaves` (declarar, valor, situação, abrir). Tudo em [apps/board/](../../apps/board/README.md) ([API aberta](../../apps/board/api-aberta.md), [chaves](../../apps/board/chaves.md)).
 
 ## Docs do Board
 

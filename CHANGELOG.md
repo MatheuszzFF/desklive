@@ -2,6 +2,12 @@
 
 Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app ganha uma linha aqui e a entrada completa em `apps/<app>/refinos.md` ([modelo](templates/registro-de-refino.md)).
 
+## 2026-11-27
+
+### Board unificado com a Mesa (ramo `unifica`)
+- **Novo:** API aberta e chaves centralizadas no núcleo do Board ([apps/board/](apps/board/README.md), [API aberta](apps/board/api-aberta.md), [chaves](apps/board/chaves.md)); a ponte da Mesa ([modelos/mesa/board.js](modelos/mesa/board.js)).
+- **Cada app na sua pasta:** [Dengas](apps/dengas/README.md) e [Navegador](apps/navegador/README.md) saíram dos widgets da Mesa pra `modelos/dengas/` e `modelos/navegador/`; [Assistente](apps/assistente/README.md) em `modelos/assistente/`; a Onda e a Órbita ganham `board.js` na pasta delas. Montagem dos opcionais compartilhada (`Resolve-Marcadores`).
+
 ## 2026-11-26
 
 ### Modelos: o Board v2, do jeito publicado

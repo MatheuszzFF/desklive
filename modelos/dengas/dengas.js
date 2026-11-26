@@ -4,8 +4,8 @@
    abertos e os comandos que cada um oferece, e usa isso como ferramentas do Claude. Clique nele pra conversar;
    arraste pra mudar de lugar (ele cai até a superfície de baixo). */
 {
-const AT = /*ATLAS*/{};
-const atlas = new Image(); atlas.src = /*ATLAS_PNG*/'';
+const AT = /*JSON:arte/dengas-atlas.json*/{};
+const atlas = new Image(); atlas.src = /*DATAURL:arte/dengas-atlas.png*/'';
 const CEL = AT.cel || 96, Z = 2;                       // cada pixel da arte vira 2 px na tela
 const MODELO = 'claude-haiku-5-5';
 const { bus, area } = Mesa;

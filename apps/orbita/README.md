@@ -68,3 +68,7 @@ O teste é no simulador de mesa (`sim.html?app=orbita`, localhost, gancho da Ór
 | [degrau-minimo.md](degrau-minimo.md) | a forma e a interação da fina em cada lado e canto, e a fórmula da proximidade |
 | [hover-e-toque.md](hover-e-toque.md) | hover e pressionar (molas, escalas), balão, clique, histerese de colar e descolar, teto de área do degrau grande |
 | [refinos.md](refinos.md) | registro de cada refino, com data e números |
+
+## No Board
+
+No [Board](../board/README.md), a Órbita roda com o mesmo código, hospedada pela ponte da Mesa: a declaração e os comandos pro assistente estão em [modelos/orbita/board.js](../../modelos/orbita/board.js).

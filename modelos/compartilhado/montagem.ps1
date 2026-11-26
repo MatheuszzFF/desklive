@@ -65,6 +65,31 @@ public static class DeskliveIcone {
 }
 
 # grava o HTML montado e confere que nenhum marcador sobrou
+# Os marcadores de um arquivo de app que entra noutro (um opcional do Board, um widget da Mesa). Caminhos de JS, PS e
+# APP partem de modelos\; os de JSON, DATAURL, ARQ e B64 partem da pasta do próprio arquivo.
+#   /*JS:app/arq.js*/            o arquivo inteiro (com os marcadores dele resolvidos a partir da pasta dele)
+#   /*PS:app/arq.ps1*/''         um helper PowerShell como string JS
+#   /*APP:nome*/''               o HTML montado de modelos\<nome> (sem chave embutida e sem toque de tecla)
+#   /*JSON:arq.json*/{}          o JSON como objeto      /*DATAURL:arq.png*/''   o arquivo como data: URL
+#   /*ARQ:arq*/''                o texto como string JS   /*B64:arq*/''          o arquivo em base64
+function Resolve-Marcadores([string]$Js, [string]$Pasta) {
+  $modelos = (Resolve-Path (Join-Path $script:Compartilhado '..')).Path
+  $Js = [regex]::Replace($Js, "/\*JS:([\w./\-]+)\*/", { param($m) $f = Join-Path $modelos $m.Groups[1].Value; "/* ==== $($m.Groups[1].Value) ==== */`n" + (Resolve-Marcadores (Read-Texto $f) (Split-Path $f -Parent)) })
+  $Js = [regex]::Replace($Js, "/\*PS:([^*]+)\*/''", { param($m) Get-JsString (Join-Path $modelos $m.Groups[1].Value) })
+  $Js = [regex]::Replace($Js, "/\*JSON:([\w./\-]+)\*/\{\}", { param($m) Read-Texto (Join-Path $Pasta $m.Groups[1].Value) })
+  $Js = [regex]::Replace($Js, "/\*DATAURL:([\w./\-]+)\*/''", { param($m) $f = Join-Path $Pasta $m.Groups[1].Value; $tipo = @{ '.png'='image/png'; '.jpg'='image/jpeg'; '.webp'='image/webp'; '.svg'='image/svg+xml' }[[IO.Path]::GetExtension($f).ToLower()]; "'data:$tipo;base64," + [Convert]::ToBase64String([IO.File]::ReadAllBytes($f)) + "'" })
+  $Js = [regex]::Replace($Js, "/\*ARQ:([\w./\-]+)\*/''", { param($m) Get-JsString (Join-Path $Pasta $m.Groups[1].Value) })
+  $Js = [regex]::Replace($Js, "/\*B64:([\w./\-]+)\*/''", { param($m) "'" + [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $Pasta $m.Groups[1].Value))) + "'" })
+  foreach ($m in [regex]::Matches($Js, "/\*APP:([a-z]+)\*/''")) {
+    $n = $m.Groups[1].Value; $tmp = Join-Path $env:TEMP 'board-apps'; $build = Join-Path (Join-Path $modelos $n) 'build.ps1'
+    # app hospedado sai sem chave de ninguém: quem usa põe a dele nas chaves do Board (a Onda aceita -ClientId)
+    if ((Get-Command $build).Parameters.ContainsKey('ClientId')) { & $build -Saida $tmp -ClientId 'SEU_CLIENT_ID' 3>$null | Out-Null } else { & $build -Saida $tmp | Out-Null }
+    $app = (Read-Texto (Join-Path $tmp "$n.html")).Replace('keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);', '')   # nunca tecla
+    $Js = $Js.Replace($m.Value, (($app | ConvertTo-Json -Compress).Replace('</', '<\/')))
+  }
+  $Js
+}
+
 function Save-Montado([string]$Saida, [string]$Nome, [string]$Html) {
   New-Item -ItemType Directory -Force $Saida | Out-Null
   $destino = Join-Path (Resolve-Path $Saida).Path $Nome

@@ -4,9 +4,9 @@
 # Os dois so mudam no titulo, e e o titulo que diz qual e qual ("Board" e "Board <ponto> monitor 2").
 # Junto vai o simulador (teste-board.html, testes*.js, servir.ps1), que carrega board.html e board-2.html da mesma pasta.
 #
-# -Pecas: os opcionais que entram neste Board, na ordem dada. Cada um e uma pasta em modelos\board\pecas\<nome>\
-# com um <nome>.js (e, se tiver, arquivos citados nele por marcadores /*ARQ:arquivo*/'' , que viram texto, ou
-# /*B64:arquivo*/'' , que viram base64). Sem -Pecas o Board sai vazio, so com a Sonda: o quadro limpo.
+# -Pecas: os opcionais que entram neste Board, na ordem dada. Cada um e um app do desklive com um board.js na pasta
+# dele (modelos\<nome>\board.js); os marcadores sao os da montagem compartilhada (Resolve-Marcadores).
+# Sem -Pecas o Board sai vazio, so com a Sonda: o quadro limpo.
 param([string]$Saida = (Join-Path $PSScriptRoot '..\saida'), [switch]$SemTeste, [string[]]$Pecas = @())
 . (Join-Path $PSScriptRoot '..\compartilhado\montagem.ps1')
 
@@ -18,15 +18,11 @@ if (-not $html.Contains($marca)) { throw "board-src.html sem o marcador $marca" 
 
 $junto = New-Object System.Text.StringBuilder
 foreach ($nome in ($Pecas | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
-  $pasta = Join-Path $PSScriptRoot "pecas\$nome"
-  $arq = Join-Path $pasta "$nome.js"
+  $pasta = Join-Path $PSScriptRoot "..\$nome"
+  $arq = Join-Path $pasta 'board.js'
   if (-not (Test-Path $arq)) { throw "opcional '$nome': nao achei $arq" }
   $js = Read-Texto $arq
-  $js = [regex]::Replace($js, "/\*ARQ:([\w.\-]+)\*/''", { param($m) Get-JsString (Join-Path $pasta $m.Groups[1].Value) })
-  $js = [regex]::Replace($js, "/\*B64:([\w.\-]+)\*/''", { param($m) "'" + [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $pasta $m.Groups[1].Value))) + "'" })
-  # um opcional pode ter a própria montagem (montar.ps1 recebe o texto e devolve o texto montado)
-  $montar = Join-Path $pasta 'montar.ps1'
-  if (Test-Path $montar) { $js = & $montar -Js $js -Pasta $pasta }
+  $js = Resolve-Marcadores $js (Resolve-Path $pasta).Path
   [void]$junto.Append("`n/* ---- opcional: $nome ---- */`n{`n").Append($js).Append("`n}`n")
   "opcional: $nome"
 }
