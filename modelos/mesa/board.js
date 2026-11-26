@@ -20,6 +20,16 @@ const podePCm = () => !!desktop?.childProcess?.exec && MB.perms?.['full-access']
 let sampleFn = null;
 Promise.resolve(window.claude?.use?.('sample')).then(s => { sampleFn = s || null; bus.emit('mesa:claude', !!s); }).catch(() => {});
 
+/* diagnóstico: as últimas 20 ocorrências (com o retrato das fontes) em ~/.orbita/mesa-diag.json, pra ler depois sem tocar no PC */
+const DIAG_FONTES = new Map(), DIAG = [];
+let diagTimer = 0;
+function diagnostico(motivo, extra){
+  const r = { quando:new Date().toISOString(), motivo, area:area(), zoom:MB.zoom, ...(extra || {}) };
+  for (const [n, fn] of DIAG_FONTES) try { r[n] = fn(); } catch (e) { r[n] = { erro:String(e?.message || e) }; }
+  DIAG.push(r); if (DIAG.length > 20) DIAG.shift();
+  clearTimeout(diagTimer); diagTimer = setTimeout(() => { try { MB.FS?.writeFile?.('~/.orbita/mesa-diag.json', JSON.stringify({ board:MB.INST, itens:DIAG }, null, 1), 'utf8')?.catch?.(() => {}); } catch {} }, 400);
+}
+
 /* barramento da Mesa (dentro da página) */
 const ouvintesM = new Map();
 const bus = {
@@ -65,15 +75,9 @@ html.fundo-mesa #fundo-mesa{opacity:1;pointer-events:auto}
 html.fundo-mesa.fundo-suspenso #fundo-mesa{opacity:0;pointer-events:none}
 .m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);color:var(--fg);transition:background .2s,scale .2s var(--mola)}
 .m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
-.mw{position:relative;overflow:hidden}
-.mw .w-borda{position:absolute;z-index:6;touch-action:none}
-.mw .w-borda[data-d=n]{left:16px;right:16px;top:0;height:8px;cursor:ns-resize}.mw .w-borda[data-d=s]{left:16px;right:16px;bottom:0;height:8px;cursor:ns-resize}
-.mw .w-borda[data-d=w]{top:16px;bottom:16px;left:0;width:8px;cursor:ew-resize}.mw .w-borda[data-d=e]{top:16px;bottom:16px;right:0;width:8px;cursor:ew-resize}
-.mw .w-borda[data-d=nw]{left:0;top:0;width:16px;height:16px;cursor:nwse-resize}.mw .w-borda[data-d=se]{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize}
-.mw .w-borda[data-d=ne]{right:0;top:0;width:16px;height:16px;cursor:nesw-resize}.mw .w-borda[data-d=sw]{left:0;bottom:0;width:16px;height:16px;cursor:nesw-resize}
-.mw .w-mao{position:absolute;left:50%;top:6px;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:rgba(244,245,248,.5);opacity:0;transition:opacity .2s,width .3s var(--mola),margin .3s var(--mola);z-index:5;pointer-events:none}
-.mw:hover .w-mao{opacity:.55}
-.mw>.w-corpo{position:absolute;left:0;top:0;container-type:size;container-name:w;overflow:hidden;box-sizing:border-box;padding-top:12px}
+.mold>.w-corpo{container-type:size;container-name:w;box-sizing:border-box;padding-top:12px}
+.mold .w-mao{position:absolute;left:50%;top:6px;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:rgba(244,245,248,.5);opacity:0;transition:opacity .2s;z-index:5;pointer-events:none}
+.mold:hover .w-mao{opacity:.55}
 .hosp{position:absolute;border:0;background:transparent;color-scheme:light;z-index:4000;pointer-events:none}
 `);
 /* fundo de mesa: cobre a área de trabalho com o papel de parede (atrás de todas as peças); ligado, ele pega o clique */
@@ -93,74 +97,53 @@ async function dialogo(fn){ MB.forcarAcordado = true; MB.querAcordar(); try { re
 
 
 /* ---------- widgets da Mesa como peças do Board ---------- */
+// apps sem janela: só comandos e estado (as Chaves, as Janelas do Windows…): Mesa.app({ id, nome, comandos, estado, ativo })
+const VAPPS = new Map();
+const app = def => { if (!def?.id) throw new Error('app sem id'); VAPPS.set(def.id, def); return def; };
 const DEFS = new Map(), AGENTES = new Map(), VIVOS = new Map();   // VIVOS: id → { def, inst, W, ctx, el, corpo }
 const FORMA_DA_BORDA = { l:'left', r:'right', t:'top', b:'bottom', tl:'c-tl', tr:'c-tr', bl:'c-bl', br:'c-br' };
 const CONTROLE = 'button,input,textarea,select,a,iframe,canvas,[contenteditable],[data-fixo]';
-function criarWidget(def, ctx){
-  const W = Object.assign({ w:def.w || 320, h:def.h || 220 }, le('mesa-w-tam-' + def.id, {}));
-  const el = document.createElement('div'); el.className = 'mw mesa-v'; el.dataset.id = def.id;
-  const corpo = document.createElement('div'); corpo.className = 'w-corpo'; el.appendChild(corpo);
-  el.insertAdjacentHTML('beforeend', '<i class="w-mao"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(d => '<i class="w-borda" data-d="' + d + '" data-sem-arrasto></i>').join(''));
-  const mede = () => { el.style.width = W.w + 'px'; el.style.height = W.h + 'px'; corpo.style.width = W.w + 'px'; corpo.style.height = W.h + 'px'; };
-  mede();
-  const api = {
-    id:def.id, corpo,
-    ler:(d = {}) => le('mesa-w-' + def.id, d), salvar:v => grava('mesa-w-' + def.id, v),
-    emitir:(tipo, dado) => { bus.emit(def.id + ':' + tipo, dado); MB.anunciar(def.id + ':' + tipo, dado); }, ouvir:(tipo, fn) => bus.on(tipo, fn),
-    lugar:() => lugarDe(def.id), podePC:podePCm, ps, ajudante, host:() => desktop,
-    avisar:texto => bus.emit('mesa:aviso', { id:def.id, texto }),
-  };
-  const V = { def, W, ctx, el, corpo, inst:{} };
-  try { V.inst = def.monta(corpo, api) || {}; } catch (e) { console.warn('mesa: o widget', def.id, 'falhou ao montar', e); corpo.textContent = 'Este widget não abriu: ' + (e.message || e); }
-  V.mede = () => { mede(); try { V.inst.aoTamanho?.(lugarDe(def.id)); } catch {} };
-  // redimensionar pelas 4 bordas e 4 quinas (como na Mesa): o lado oposto fica parado, tamanho direto (sem mola), guarda ao soltar
-  for (const h of el.querySelectorAll('.w-borda')){
-    let r = null; const d = h.dataset.d;
-    h.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { h.setPointerCapture(e.pointerId); } catch {}
-      const P = ctx.P; if (P.forma !== 'livre') MB.mover(def.id, { x:P.alvo[0], y:P.alvo[1] });
-      r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:W.w, h0:W.h, px:P.alvo[0], py:P.alvo[1] };
-    });
-    h.addEventListener('pointermove', e => {
-      if (!r || e.pointerId !== r.id) return;
-      const A = area(), mw = def.minW || 160, mh = def.minH || 110, dx = e.clientX - r.x0, dy = e.clientY - r.y0;
-      let w = r.w0, hh = r.h0, x = r.px, y = r.py;
-      if (d.includes('e')) w = clamp(r.w0 + dx, mw, A.w - r.px);
-      if (d.includes('s')) hh = clamp(r.h0 + dy, mh, A.h - r.py);
-      if (d.includes('w')){ w = clamp(r.w0 - dx, mw, r.px + r.w0); x = r.px + r.w0 - w; }
-      if (d.includes('n')){ hh = clamp(r.h0 - dy, mh, r.py + r.h0); y = r.py + r.h0 - hh; }
-      W.w = Math.round(w); W.h = Math.round(hh); V.mede(); ctx.retamanho();
-      const P = ctx.P; for (const i of [2, 3]){ P.v[i] = P.ant[i] = P.alvo[i]; P.vel[i] = 0; }
-      MB.teleportar(P, Math.round(x), Math.round(y));
-    });
-    const fim = () => { if (!r) return; r = null; grava('mesa-w-tam-' + def.id, { w:W.w, h:W.h }); ctx.salvar(); bus.emit('mesa:redimensionou', { id:def.id, ...lugarDe(def.id) }); };
-    h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim); h.addEventListener('lostpointercapture', fim);
-  }
-  return {
-    el, fundo:def.id === 'video' ? 'transparent' : 'rgba(10,11,16,.92)',
-    caixa:() => ({ w:W.w, h:W.h }), tamanho:() => ({ w:W.w, h:W.h }),
-    pega:t => !t.closest(CONTROLE),
-    furos:P => { const fs = el.querySelectorAll('.furo'); if (!fs.length) return null; const b = P.fo.getBoundingClientRect(), k = P.rv[2] / Math.max(1, b.width) || 1; const ML = 8, MT = 18; return [...fs].map(f => { const r = f.getBoundingClientRect(); return { x:(r.left - b.left) * k + ML, y:(r.top - b.top) * k + MT, w:r.width * k - 2 * ML, h:r.height * k - MT - ML }; }); },
-    automacao:{ ver:() => { try { return V.inst.estado?.(); } catch { return undefined; } }, get comandos(){ return V.inst.comandos || []; }, get regras(){ return AGENTES.get(def.id) || ''; } },
-    ativar:() => { VIVOS.set(def.id, V); bus.emit('mesa:abriu', { id:def.id }); },
-    destruir:() => { if (VIVOS.get(def.id) === V) VIVOS.delete(def.id); try { V.inst.aoFechar?.(); } catch {} bus.emit('mesa:fechou', { id:def.id }); },
-  };
-}
 function define(def){
   if (!def?.id || typeof def.monta !== 'function') throw new Error('widget sem id ou sem monta()');
   DEFS.set(def.id, def);
-  MB.registrar({ id:def.id, nome:def.nome, passavel:true, persistir:true, noMenu:true, oculta:!def.deSaida,
-    inicial:{ forma:'livre', pos:a => ({ ax:.5, ay:.5, px:a.w / 2, py:a.h / 2 }) }, criar:ctx => criarWidget(def, ctx) });
+  const antigo = le('mesa-w-tam-' + def.id, null);   // tamanho da Mesa antiga vira o tamanho "interior"
+  const peca = MB.moldura({ id:def.id, nome:def.nome, noMenu:true, oculta:!def.deSaida, ancoras:def.ancoras, faixas:def.faixas, passavel:def.passavel, persistir:def.persistir ?? def.passavel,
+    tamanhos:Object.assign({ interior:antigo || { w:def.w || 320, h:def.h || 220 } }, def.tamanhos), min:{ w:def.minW || 160, h:def.minH || 110 },
+    fundo:def.id === 'video' ? 'transparent' : 'rgba(10,11,16,.92)',
+    inicial:{ forma:'livre', pos:a => ({ ax:.5, ay:.5, px:a.w / 2, py:a.h / 2 }) },
+    monta(corpo, m){
+      corpo.classList.add('w-corpo', 'mesa-v'); corpo.dataset.id = def.id;
+      corpo.parentNode.insertAdjacentHTML('beforeend', '<i class="w-mao"></i>');
+      const api = {
+        id:def.id, corpo, moldura:m,
+        ler:(d = {}) => le('mesa-w-' + def.id, d), salvar:v => grava('mesa-w-' + def.id, v),
+        emitir:(tipo, dado) => { bus.emit(def.id + ':' + tipo, dado); MB.anunciar(def.id + ':' + tipo, dado); }, ouvir:(tipo, fn) => bus.on(tipo, fn),
+        lugar:() => lugarDe(def.id), podePC:podePCm, ps, ajudante, host:() => desktop,
+        avisar:texto => bus.emit('mesa:aviso', { id:def.id, texto }),
+      };
+      const V = { def, m, corpo, inst:{} };
+      try { V.inst = def.monta(corpo, api) || {}; } catch (e) { console.warn('mesa: o widget', def.id, 'falhou ao montar', e); corpo.textContent = 'Este widget não abriu: ' + (e.message || e); }
+      return {
+        vistas:V.inst.vistas,
+        aoMudar:e => { try { V.inst.aoMudar?.(e); V.inst.aoTamanho?.(lugarDe(def.id)); } catch {} bus.emit('mesa:redimensionou', { id:def.id, ...lugarDe(def.id) }); },
+        pega:t => !t.closest(CONTROLE),
+        furos:P => { const fs = corpo.querySelectorAll('.furo'); if (!fs.length) return null; const b = P.fo.getBoundingClientRect(), k = P.rv[2] / Math.max(1, b.width) || 1; const ML = 8, MT = 18; return [...fs].map(f => { const r = f.getBoundingClientRect(); return { x:(r.left - b.left) * k + ML, y:(r.top - b.top) * k + MT, w:r.width * k - 2 * ML, h:r.height * k - MT - ML }; }); },
+        automacao:{ ver:() => { try { return V.inst.estado?.(); } catch { return undefined; } }, get comandos(){ return V.inst.comandos || []; }, get regras(){ return AGENTES.get(def.id) || ''; } },
+        ativar:() => { VIVOS.set(def.id, V); bus.emit('mesa:abriu', { id:def.id }); },
+        aoFechar:() => { if (VIVOS.get(def.id) === V) VIVOS.delete(def.id); try { V.inst.aoFechar?.(); } catch {} bus.emit('mesa:fechou', { id:def.id }); },
+      };
+    } });
+  MB.registrar(peca);
 }
 const pecaVisivel = id => { const P = MB.pecas.get(id); return P && P.visivel && !P.removendo ? P : null; };
-function lugarDe(id){ const P = MB.pecas.get(id); if (!P) return null; return { borda:P.forma === 'livre' ? '' : P.forma, x:Math.round(P.alvo[0]), y:Math.round(P.alvo[1]), w:Math.round(P.alvo[2]), h:Math.round(P.alvo[3]) }; }
+function lugarDe(id){ const P = MB.pecas.get(id); if (!P) return null; const e = VIVOS.get(id)?.m?.estado() || {}; return { borda:P.forma === 'livre' ? '' : P.forma, ancora:e.ancora, tamanho:e.classe, x:Math.round(P.alvo[0]), y:Math.round(P.alvo[1]), w:Math.round(P.alvo[2]), h:Math.round(P.alvo[3]) }; }
 function abre(id, onde){ if (HDEFS.has(id)) return abreHospede(id); if (!DEFS.has(id)) throw new Error('não existe widget "' + id + '"'); MB.mostrar(id, true); if (onde) move(id, onde); return lugarDe(id); }
 function fecha(id){ if (HOSP.has(id)) return fechaHospede(id); const P = pecaVisivel(id); if (!P) return false; MB.removerPeca(P); return true; }
 function move(id, o = {}){
   if (HOSP.has(id)){ const H = HOSP.get(id); for (const k of ['x', 'y']) if (o[k] != null) H.r[k] = H.o[k] + +o[k]; if (o.w != null) H.r.width = +o.w; if (o.h != null) H.r.height = +o.h; poeHospede(H); return { x:H.r.x - H.o.x, y:H.r.y - H.o.y, w:H.r.width, h:H.r.height }; }
   const P = pecaVisivel(id); if (!P) throw new Error('o widget "' + id + '" não está aberto');
   const V = VIVOS.get(id);
-  if (V && (o.w != null || o.h != null)){ const A = area(); if (o.w != null) V.W.w = clamp(Math.round(+o.w), V.def.minW || 160, A.w); if (o.h != null) V.W.h = clamp(Math.round(+o.h), V.def.minH || 110, A.h); grava('mesa-w-tam-' + id, { w:V.W.w, h:V.W.h }); V.mede(); V.ctx.retamanho(); }
+  if (V && (o.w != null || o.h != null)) V.m.redimensionar(o.w, o.h);
   const b = String(o.borda || '');
   if (b === 'centro'){ const A = area(); MB.mover(id, { x:(A.w - P.alvo[2]) / 2, y:(A.h - P.alvo[3]) / 2 }); }
   else if (FORMA_DA_BORDA[b]) MB.mover(id, { forma:FORMA_DA_BORDA[b], x:o.x, y:o.y });
@@ -172,14 +155,14 @@ function comandos(){
   const l = [];
   for (const P of MB.pecas.values()){ if (!P.visivel || P.removendo) continue; for (const c of P.inst.automacao?.comandos || []) l.push({ widget:P.id, nomeWidget:P.def.nome, ...c }); }
   for (const H of HOSP.values()) for (const c of H.def.comandos || []) l.push({ widget:H.id, nomeWidget:H.def.nome, ...c });
-  if (MB.chaves) for (const c of CHAVES_APP.comandos) l.push({ widget:CHAVES_APP.id, nomeWidget:CHAVES_APP.nome, ...c });
+  for (const A of VAPPS.values()) if (A.ativo?.() !== false) for (const c of A.comandos || []) l.push({ widget:A.id, nomeWidget:A.nome, ...c });
   return l;
 }
 function estado(){
   return { tela:area(), fundo:prefs.fundo,
     abertos:[...MB.pecas.values()].filter(P => P.visivel && !P.removendo && !P.efemera).map(P => { let e; try { e = P.inst.automacao?.ver?.(); } catch {} return { id:P.id, nome:P.def.nome, ...lugarDe(P.id), estado:e, comandos:(P.inst.automacao?.comandos || []).map(c => c.nome) }; }),
     apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch {} return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e, comandos:(H.def.comandos || []).map(c => c.nome) }; })
-      .concat(MB.chaves ? [{ id:CHAVES_APP.id, nome:CHAVES_APP.nome, estado:MB.chaves.situacao(), comandos:CHAVES_APP.comandos.map(c => c.nome) }] : []),
+      .concat([...VAPPS.values()].filter(A => A.ativo?.() !== false).map(A => { let e; try { e = A.estado?.(); } catch {} return { id:A.id, nome:A.nome, estado:e, comandos:(A.comandos || []).map(c => c.nome) }; })),
     fechados:[...DEFS.values()].filter(d => !pecaVisivel(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })).concat([...HDEFS.values()].filter(d => !HOSP.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:'app' }))),
     criados_pelo_morador:[], visoes:[] };
 }
@@ -323,10 +306,10 @@ MB.chaves?.declarar({ id:'spotify', nome:'Spotify', para:'a Onda escolher e toca
   campos:[{ chave:'clientId', rotulo:'Client ID', formato:'^[A-Za-z0-9]{32}$' }] });
 const clientIdSpotify = () => MB.chaves?.valor('spotify', 'clientId') || null;
 // as chaves aparecem pro Dengas como um app: ele vê o que está pronto e o que falta (nunca os valores) e abre o arquivo
-const CHAVES_APP = { id:'chaves', nome:'Chaves (credenciais)', comandos:[
+const CHAVES_APP = app({ id:'chaves', nome:'Chaves (credenciais)', ativo:() => !!MB.chaves, estado:() => MB.chaves.situacao(), comandos:[
   { nome:'situacao', descricao:'Diz quais integrações estão prontas e o que falta em cada uma (sem mostrar valores).', roda:async () => { await MB.chaves.ler(); return MB.chaves.situacao(); } },
   { nome:'abrir', descricao:'Abre o arquivo de chaves no Bloco de Notas pra pessoa preencher (com o passo a passo de cada integração dentro). Use quando faltar uma chave; nunca peça pra colar uma chave na conversa.', roda:() => MB.chaves.abrir() },
-] };
+] });
 AGENTES.set('chaves', 'Você cuida das chaves das integrações. Veja a situação; se faltar algo, abra o arquivo e diga em uma frase o que preencher e onde conseguir. Nunca peça, repita ou mostre o valor de uma chave.');
 if (PRINCIPAL){
   MB.ouvir('chaves:faltando', l => { const x = l[0]; bus.emit('mesa:aviso', { texto:'Pra ' + x.para + ' falta ' + (x.faltam.join(' e ') || 'uma chave') + '. Me pede "abre as chaves" que eu abro o arquivo e te mostro o que pôr.' }); });
@@ -339,9 +322,9 @@ if (PRINCIPAL){
 const ainda = o => () => { throw new Error('ainda não veio pro Board: ' + o); };
 const Mesa = { versao:VERSAO_MESA, define, abre, fecha, move, toca:() => {}, frente:id => { const P = pecaVisivel(id); if (P) MB.mostrarPeca(P, true); },
   aparencia, papel, fundo, dialogo, seguraCliques, criaSolto:ainda('widget criado na hora'), removeSolto:ainda('widget criado na hora'), fonteSolto:() => null, visao:ainda('visões'),
-  hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })),
+  app, apps:() => [...VAPPS.values()].map(A => ({ id:A.id, nome:A.nome })), hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })),
   estado, comandos, agente:(id, regras) => { if (regras !== undefined) AGENTES.set(String(id), String(regras)); return AGENTES.get(String(id)) || ''; },
-  bus, area, ps, diagnostico:() => {}, diagFonte:() => {},
+  bus, area, ps, ajudante, diagnostico, diagFonte:(nome, fn) => { DIAG_FONTES.set(nome, fn); },
   defs:() => [...DEFS.values()], abertos, aberto:id => !!pecaVisivel(id) || HOSP.has(id),
   caixa:id => { const P = MB.pecas.get(id); return P && P.visivel ? { x:P.rv[0], y:P.rv[1], w:P.rv[2], h:P.rv[3], pegando:!!P.drag } : null; },
   podePC:podePCm, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => [], estilo };

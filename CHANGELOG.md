@@ -4,6 +4,12 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-27
 
+### Moldura, Janelas, Dengas
+- **Moldura** (`Board.moldura` / `Board.molduraDefinir`, seção 14d do núcleo): o molde de todo widget. Âncora (interior, superior, inferior, esquerda, direita, 4 cantos), tamanho `xs`–`xl` por orientação (`h-md`, `v-lg`…), bordas que redimensionam conforme o lugar (nunca o lado fundido), tamanho guardado por âncora, lados que encostam em borda ou emenda com outro monitor, `vistas` por classe e `ancoras` pra limitar onde mora (o encaixe respeita). Ver [apps/board/moldura.md](apps/board/moldura.md).
+- A ponte da Mesa usa a moldura: `Mesa.define` vira moldura (sai o redimensionar próprio da ponte). `Mesa.app` pra apps sem janela (as Chaves viram um). `Mesa.diagnostico` grava `~/.orbita/mesa-diag.json`.
+- **Janelas** (`modelos/janelas/`): qualquer programa do Windows vira peça, sem título e moldura do Windows, com recorte da barra de rolagem; devolve ao fechar.
+- **Dengas:** a bolinha é só nos cantos; na lateral ele fica inteiro (forma da lateral a definir).
+
 ### Board unificado com a Mesa (ramo `unifica`)
 - **Novo:** API aberta e chaves centralizadas no núcleo do Board ([apps/board/](apps/board/README.md), [API aberta](apps/board/api-aberta.md), [chaves](apps/board/chaves.md)); a ponte da Mesa ([modelos/mesa/board.js](modelos/mesa/board.js)).
 - **Cada app na sua pasta:** [Dengas](apps/dengas/README.md) e [Navegador](apps/navegador/README.md) saíram dos widgets da Mesa pra `modelos/dengas/` e `modelos/navegador/`; [Assistente](apps/assistente/README.md) em `modelos/assistente/`; a Onda e a Órbita ganham `board.js` na pasta delas. Montagem dos opcionais compartilhada (`Resolve-Marcadores`).

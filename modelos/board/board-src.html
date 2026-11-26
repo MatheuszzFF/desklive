@@ -978,7 +978,7 @@ function vizinhoDoLado(s, ponta){ for (const o of geo.segs) if (o !== s && o.dis
 function alvoPara(P, rx, ry, w, h, vel){
   const dg = P.drag?.degrau || 'compacto';   // o alvo tem o tamanho com que a peça vai ficar lá
   let m = null;
-  const cand = (tipo, guia, x, y, w2, h2, forma, d, zona, score, dx, dy, ax, disp) => { if (m && score >= m.score) return; m = ALVO;
+  const cand = (tipo, guia, x, y, w2, h2, forma, d, zona, score, dx, dy, ax, disp) => { if (m && score >= m.score) return; if (P.def.formas && !P.def.formas.has(forma)) return; m = ALVO;
     ALVO.tipo = tipo; ALVO.guia = guia; ALVO.x = x; ALVO.y = y; ALVO.w = w2; ALVO.h = h2; ALVO.forma = forma; ALVO.d = d; ALVO.zona = zona; ALVO.score = score; ALVO.dx = dx; ALVO.dy = dy; ALVO.ax = ax; ALVO.disp = disp; };
   for (const c of geo.cantos){
     const cx = c.x - area.x, cy = c.y - area.y;
@@ -2083,6 +2083,7 @@ function moverApi(id, o = {}){
   const Q = pecaViva(id); if (Q.drag || Q.passando) throw new Error('a peça está sendo arrastada agora');
   const forma = o.forma ? String(o.forma) : (o.x != null || o.y != null ? 'livre' : Q.forma);
   if (!FORMAS.includes(forma)) throw new Error('formas: ' + FORMAS.join(', '));
+  if (Q.def.formas && !Q.def.formas.has(forma)) throw new Error('"' + id + '" não mora em ' + forma + '. Pode: ' + [...Q.def.formas].join(', '));
   const sz = tam(Q, forma, Q.degrau), x = clamp(Number(o.x ?? Q.alvo[CX]) || 0, 0, Math.max(0, area.w - sz.w)), y = clamp(Number(o.y ?? Q.alvo[CY]) || 0, 0, Math.max(0, area.h - sz.h));
   mudarForma(Q, forma);
   if (forma === 'livre') ancoraLivre(Q, x, y, sz.w, sz.h); else ancoraBorda(Q, forma, x, y, sz.w, sz.h);
@@ -2102,6 +2103,166 @@ function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'functi
 function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
 Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
   get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; }, alvo:fn => { ALVOS.add(fn); return () => ALVOS.delete(fn); }, menu:fn => { MENU_EXTRA.push(fn); } });
+/* ============================================================================
+   14d. MOLDURA: o molde de todo widget. Uma peça feita com Board.moldura(def) já nasce sabendo
+   ONDE está (a âncora), em que TAMANHO (xs, s, md, lg, xl, na horizontal ou na vertical), quais
+   bordas dela redimensionam naquele lugar (o lado fundido na tela não), e guarda um tamanho por
+   âncora: o mesmo widget pode ser fino na lateral, largo no topo e uma janela no meio. O motion
+   (molas, encaixe, emendas, passe entre monitores) é o do Board, igual pra todo mundo.
+     Board.moldura({ id, nome, passavel, persistir, inicial, fundo,
+       ancoras:['interior','superior','inferior','esquerda','direita','canto-sup','canto-inf'], // onde pode morar (padrão: todas)
+       tamanhos:{ interior:{w,h}, superior:{w,h}, …, 'canto-inf':{w,h} },   // de partida, por âncora
+       min:{w,h}, max:{w,h}, faixas:{ s:220, md:340, lg:520, xl:760 },     // tam = pelo lado maior
+       monta(corpo, m) -> { vistas, aoMudar(estado), automacao, menu, aoFechar } })
+   estado (m.estado(), aoMudar, vistas): { ancora, forma, orient:'h'|'v', tam, classe:'h-md', w, h, degrau,
+     lados:{ cima, baixo, esquerda, direita } → 'borda' | 'emenda' (encosta no outro monitor) | null,
+     vizinho:{ lado:'direita', monitor } quando encosta numa emenda }
+   O corpo ganha data-ancora, data-orient, data-tam, data-classe e --mw/--mh: o CSS do widget escolhe por eles.
+   vistas: { 'h-xs':fn(corpo, estado), 'v-lg':fn, md:fn, padrao:fn } — vale a mais perto (mesma orientação primeiro).
+   m: { corpo, estado(), redimensionar(w, h), ancora(nome), salvar(v), ler(d), P }
+   ============================================================================ */
+const ANCORA_DA_FORMA = { livre:'interior', top:'superior', bottom:'inferior', left:'esquerda', right:'direita', 'c-tl':'canto-sup-esq', 'c-tr':'canto-sup-dir', 'c-bl':'canto-inf-esq', 'c-br':'canto-inf-dir' };
+const FORMA_DA_ANCORA = Object.fromEntries(Object.entries(ANCORA_DA_FORMA).map(([f, a]) => [a, f]));
+const grupoAncora = a => a.startsWith('canto-sup') ? 'canto-sup' : a.startsWith('canto-inf') ? 'canto-inf' : a;
+const TAM_PADRAO = { interior:{ w:360, h:240 }, superior:{ w:560, h:150 }, inferior:{ w:560, h:150 }, esquerda:{ w:300, h:480 }, direita:{ w:300, h:480 }, 'canto-sup':{ w:300, h:260 }, 'canto-inf':{ w:300, h:260 } };
+const FAIXAS_PADRAO = { s:220, md:340, lg:520, xl:760 };
+const TAMS = ['xs', 's', 'md', 'lg', 'xl'];
+// as bordas que redimensionam em cada lugar: nunca a do lado fundido na tela
+const BORDAS_DA_FORMA = { livre:'n s e w ne nw se sw', top:'s e w se sw', bottom:'n e w ne nw', left:'e n s ne se', right:'w n s nw sw', 'c-tl':'e s se', 'c-tr':'w s sw', 'c-bl':'e n ne', 'c-br':'w n nw' };
+function formasPermitidas(ancoras){
+  if (!ancoras) return null; const s = new Set(['livre']);
+  for (const a of ancoras){ if (FORMA_DA_ANCORA[a]) s.add(FORMA_DA_ANCORA[a]); for (const [f, b] of Object.entries(ANCORA_DA_FORMA)) if (grupoAncora(b) === a) s.add(f); }
+  if (!ancoras.includes('interior')) s.delete('livre');
+  return s;
+}
+// que lados da peça encostam na beira da tela, e se essa beira é borda mesmo ou emenda com outro monitor
+function ladosDaPeca(Q){
+  const r = { cima:null, baixo:null, esquerda:null, direita:null }; let vizinho = null;
+  if (!minha || !geo?.segs) return { lados:r, vizinho };
+  const x = Q.alvo[CX] + area.x, y = Q.alvo[CY] + area.y, w = Q.alvo[CW], h = Q.alvo[CH], T = 3;
+  const NOME = { top:'cima', bottom:'baixo', left:'esquerda', right:'direita' };
+  for (const s of geo.segs){
+    if (s.disp !== minha.id) continue;
+    const borda = s.lado === 'top' ? y : s.lado === 'bottom' ? y + h : s.lado === 'left' ? x : x + w;
+    if (Math.abs(borda - s.fixo) > T) continue;
+    const a = s.hor ? x : y, b = s.hor ? x + w : y + h; if (Math.min(b, s.hi) - Math.max(a, s.lo) < 8) continue;
+    const n = NOME[s.lado], t = s.tipo === 'emenda' ? 'emenda' : 'borda';
+    if (r[n] !== 'emenda') r[n] = t;
+    if (t === 'emenda') vizinho = { lado:n, monitor:s.viz };
+  }
+  return { lados:r, vizinho };
+}
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent:`
+.mold{position:absolute;left:0;top:0;overflow:hidden;container-type:size;container-name:mold;box-sizing:border-box}
+.mold-b{position:absolute;z-index:6;touch-action:none}
+.mold-b[hidden]{display:none}
+.mold-b[data-d=n]{left:16px;right:16px;top:0;height:8px;cursor:ns-resize}.mold-b[data-d=s]{left:16px;right:16px;bottom:0;height:8px;cursor:ns-resize}
+.mold-b[data-d=w]{top:16px;bottom:16px;left:0;width:8px;cursor:ew-resize}.mold-b[data-d=e]{top:16px;bottom:16px;right:0;width:8px;cursor:ew-resize}
+.mold-b[data-d=nw]{left:0;top:0;width:16px;height:16px;cursor:nwse-resize}.mold-b[data-d=se]{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize}
+.mold-b[data-d=ne]{right:0;top:0;width:16px;height:16px;cursor:nesw-resize}.mold-b[data-d=sw]{left:0;bottom:0;width:16px;height:16px;cursor:nesw-resize}
+` }));
+function moldura(def){
+  if (!def?.id || typeof def.monta !== 'function') throw new Error('uma moldura precisa de id e de monta(corpo, m)');
+  const formasOk = formasPermitidas(def.ancoras);
+  const peca = {
+    id:def.id, nome:def.nome || def.id, passavel:def.passavel !== false, persistir:def.persistir !== false, noMenu:def.noMenu, oculta:def.oculta, interna:def.interna,
+    formas:formasOk, inicial:def.inicial || { forma:'livre', pos:a => ({ ax:.5, ay:.5, px:a.w / 2, py:a.h / 2 }) },
+    criar(ctx){
+      const chave = 'moldura-' + def.id;
+      const lerL = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? d; } catch { return d; } };
+      const gravaL = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+      const T = Object.assign({}, lerL(chave + '-tam', {}));   // tamanho escolhido por âncora (o resto vem do padrão)
+      const mn = { w:def.min?.w || 140, h:def.min?.h || 90 };
+      const tamDe = forma => { const a = ANCORA_DA_FORMA[forma] || 'interior', g = grupoAncora(a), s = T[a] || T[g] || def.tamanhos?.[a] || def.tamanhos?.[g] || TAM_PADRAO[g] || TAM_PADRAO.interior;
+        return { w:clamp(Math.round(s.w), mn.w, Math.min(def.max?.w || 1e9, area.w)), h:clamp(Math.round(s.h), mn.h, Math.min(def.max?.h || 1e9, area.h)) }; };
+      const el = document.createElement('div'); el.className = 'mold'; el.dataset.molde = def.id;
+      const corpo = document.createElement('div'); corpo.className = 'mold-corpo'; corpo.style.cssText = 'position:absolute;inset:0;overflow:hidden'; el.appendChild(corpo);
+      const alcas = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(d => { const i = document.createElement('i'); i.className = 'mold-b'; i.dataset.d = d; i.dataset.semArrasto = ''; el.appendChild(i); return i; });
+      let estadoAtual = null, chaveVista = '', inst = {};
+      const faixas = Object.assign({}, FAIXAS_PADRAO, def.faixas);
+      const classifica = (w, h) => { const orient = w >= h ? 'h' : 'v', L = Math.max(w, h); let tam = 'xs'; for (const t of TAMS.slice(1)) if (L >= faixas[t]) tam = t; return { orient, tam, classe:orient + '-' + tam }; };
+      const escolheVista = (v, e) => { if (!v) return null; if (v[e.classe]) return v[e.classe]; const i = TAMS.indexOf(e.tam);
+        for (let d = 1; d < TAMS.length; d++) for (const j of [i - d, i + d]) if (TAMS[j] && v[e.orient + '-' + TAMS[j]]) return v[e.orient + '-' + TAMS[j]];
+        if (v[e.tam]) return v[e.tam]; const o = e.orient === 'h' ? 'v' : 'h'; if (v[o + '-' + e.tam]) return v[o + '-' + e.tam]; return v.padrao || null; };
+      function atualiza(forcar){
+        const P = ctx.P, w = Math.round(P.alvo[CW]) || tamDe(P.forma).w, h = Math.round(P.alvo[CH]) || tamDe(P.forma).h;
+        const c = classifica(w, h), L = ladosDaPeca(P);
+        const e = { ancora:ANCORA_DA_FORMA[P.forma] || 'interior', forma:P.forma, ...c, w, h, degrau:P.degrau, lados:L.lados, vizinho:L.vizinho };
+        const k = [e.ancora, e.classe, w, h, e.degrau, JSON.stringify(e.lados)].join('|');
+        if (!forcar && estadoAtual && k === estadoAtual.k) return;
+        const mudouClasse = !estadoAtual || estadoAtual.classe !== e.classe || estadoAtual.ancora !== e.ancora || JSON.stringify(estadoAtual.lados) !== JSON.stringify(e.lados);
+        estadoAtual = { ...e, k };
+        Object.assign(corpo.dataset, { ancora:e.ancora, orient:e.orient, tam:e.tam, classe:e.classe });
+        corpo.style.setProperty('--mw', w + 'px'); corpo.style.setProperty('--mh', h + 'px');
+        const bs = BORDAS_DA_FORMA[P.forma] || BORDAS_DA_FORMA.livre; for (const a of alcas) a.hidden = !bs.split(' ').includes(a.dataset.d);
+        const v = escolheVista(inst.vistas, e);
+        // a vista só é redesenhada quando a escolhida muda (classe vizinha sem vista própria usa a mesma; aoMudar avisa o resto)
+        if (v && (forcar || chaveVista !== v)){ chaveVista = v; try { v(corpo, e); } catch (er) { log('moldura ' + def.id + ' vista: ' + msg(er), 'bad'); } }
+        if (mudouClasse || forcar){ try { inst.aoMudar?.(e); } catch (er) { log('moldura ' + def.id + ' aoMudar: ' + msg(er), 'bad'); } anunciar('moldura:mudou', { id:def.id, ancora:e.ancora, classe:e.classe, w, h }); }
+      }
+      // redimensionar pelas bordas: o lado oposto fica parado, tamanho direto (sem mola); guarda o tamanho DESTA âncora
+      for (const a of alcas){
+        let r = null; const d = a.dataset.d;
+        a.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { a.setPointerCapture(e.pointerId); } catch {}
+          const P = ctx.P; r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:P.alvo[CW], h0:P.alvo[CH], px:P.alvo[CX], py:P.alvo[CY] }; trazerPraFrente(P); });
+        a.addEventListener('pointermove', e => {
+          if (!r || e.pointerId !== r.id) return;
+          const P = ctx.P, dx = e.clientX - r.x0, dy = e.clientY - r.y0, Mw = Math.min(def.max?.w || 1e9, area.w), Mh = Math.min(def.max?.h || 1e9, area.h);
+          let w = r.w0, h = r.h0, x = r.px, y = r.py;
+          if (d.includes('e')) w = clamp(r.w0 + dx, mn.w, Math.min(Mw, area.w - r.px));
+          if (d.includes('s')) h = clamp(r.h0 + dy, mn.h, Math.min(Mh, area.h - r.py));
+          if (d.includes('w')){ w = clamp(r.w0 - dx, mn.w, Math.min(Mw, r.px + r.w0)); x = r.px + r.w0 - w; }
+          if (d.includes('n')){ h = clamp(r.h0 - dy, mn.h, Math.min(Mh, r.py + r.h0)); y = r.py + r.h0 - h; }
+          redimensiona(Math.round(w), Math.round(h), Math.round(x), Math.round(y));
+        });
+        const fim = () => { if (!r) return; r = null; gravaL(chave + '-tam', T); salvarEstadoLogo(); anunciar('moldura:redimensionou', { id:def.id, ...m.estado() }); };
+        a.addEventListener('pointerup', fim); a.addEventListener('pointercancel', fim); a.addEventListener('lostpointercapture', fim);
+      }
+      function redimensiona(w, h, x, y){
+        const P = ctx.P, an = ANCORA_DA_FORMA[P.forma] || 'interior';
+        T[an] = { w, h };
+        if (w > P.caixa.w - 24 || h > P.caixa.h - 24) aplicarCaixa(P);
+        x ??= P.alvo[CX]; y ??= P.alvo[CY];
+        if (P.forma === 'livre') ancoraLivre(P, x, y, w, h); else ancoraBorda(P, P.forma, x, y, w, h);
+        retarget(P);
+        for (const i of [CX, CY, CW, CH]){ P.v[i] = P.ant[i] = P.alvo[i]; P.vel[i] = 0; }
+        atualiza();
+      }
+      const m = {
+        corpo, get P(){ return ctx.P; }, ctx,
+        estado:() => { const e = estadoAtual || {}; const { k, ...resto } = e; return resto; },
+        redimensionar:(w, h) => { const P = ctx.P; redimensiona(clamp(Math.round(+w || P.alvo[CW]), mn.w, area.w), clamp(Math.round(+h || P.alvo[CH]), mn.h, area.h)); gravaL(chave + '-tam', T); salvarEstadoLogo(); return m.estado(); },
+        ancora:nome => { const f = FORMA_DA_ANCORA[nome] || (nome === 'canto-sup' ? 'c-tr' : nome === 'canto-inf' ? 'c-br' : null); if (!f) throw new Error('âncoras: ' + Object.keys(FORMA_DA_ANCORA).join(', ')); return moverApi(def.id, { forma:f }); },
+        ler:(d = {}) => lerL(chave, d), salvar:v => gravaL(chave, v),
+        atualizar:() => atualiza(true),
+      };
+      try { inst = def.monta(corpo, m) || {}; } catch (er) { log('moldura ' + def.id + ' falhou ao montar: ' + msg(er), 'bad'); corpo.textContent = 'Este widget não abriu: ' + (er.message || er); }
+      const maior = () => { let w = mn.w, h = mn.h; for (const f of FORMAS){ if (formasOk && !formasOk.has(f)) continue; const s = tamDe(f); w = Math.max(w, s.w); h = Math.max(h, s.h); } return { w:Math.min(w, area.w), h:Math.min(h, area.h) }; };
+      return {
+        el, fundo:inst.fundo || def.fundo || 'rgba(10,11,16,.92)',
+        caixa:() => { const M = maior(), P = ctx.P; return { w:Math.max(M.w, P?.alvo[CW] || 0), h:Math.max(M.h, P?.alvo[CH] || 0) }; },
+        tamanho:forma => { const s = tamDe(forma); return inst.tamanho ? (inst.tamanho(ANCORA_DA_FORMA[forma] || 'interior', s) || s) : s; },
+        raios:inst.raios, formaArrasto:inst.formaArrasto, arrastoMantemDegrau:inst.arrastoMantemDegrau,
+        pega:t => !t.closest('.mold-b') && (inst.pega ? inst.pega(t) : !t.closest('button,input,textarea,select,a,iframe,[contenteditable],[data-fixo]')),
+        clique:inst.clique, furos:inst.furos, menu:inst.menu, onHover:inst.onHover, onMostrar:inst.onMostrar, onArea:(a, P) => { atualiza(true); try { inst.onArea?.(a, P); } catch {} },
+        onSize:(w, h, P) => { el.style.width = w + 'px'; el.style.height = h + 'px'; atualiza(); try { inst.onSize?.(w, h, P); } catch {} },
+        onForma:(f, ant, P) => { atualiza(); try { inst.onForma?.(f, ant, P); } catch {} },
+        onDegrau:(dg, ant, P) => { atualiza(); try { inst.onDegrau?.(dg, ant, P); } catch {} },
+        onFase:(fase, dados, P) => { if (fase === 'encaixou' || fase === 'assentou' || fase === 'soltou') atualiza(); try { inst.onFase?.(fase, dados, P); } catch {} },
+        automacao:inst.automacao ? { get ver(){ return () => ({ moldura:m.estado(), ...(inst.automacao.ver?.() || {}) }); }, get comandos(){ return inst.automacao.comandos || []; }, get regras(){ return inst.automacao.regras || ''; } }
+          : { ver:() => ({ moldura:m.estado() }), comandos:[], regras:'' },
+        salvar:() => ({ tam:T, dados:inst.salvar?.() }), carregar:d => { if (d?.tam) Object.assign(T, d.tam); try { if (d?.dados != null) inst.carregar?.(d.dados); } catch {} },
+        estado:() => ({ tam:T, dados:inst.estado?.() }), restaurar:d => { if (d?.tam) Object.assign(T, d.tam); try { if (d?.dados != null) inst.restaurar?.(d.dados); } catch {} atualiza(true); },
+        ativar:P => { atualiza(true); try { inst.ativar?.(P); } catch {} },
+        destruir:P => { try { inst.aoFechar?.(); inst.destruir?.(P); } catch {} },
+      };
+    },
+  };
+  return peca;
+}
+B.moldura = def => moldura(def);
+B.molduraDefinir = (def, op) => definir(moldura(def), op);
+B.ANCORAS = Object.keys(FORMA_DA_ANCORA);
 /* ============================================================================
    14c. CHAVES: as credenciais de todas as integrações num arquivo só, no PC de quem usa: ~/.orbita/chaves.json
    Uma peça ou opcional declara o que precisa:
