@@ -4,7 +4,7 @@
    - widget da Mesa (Mesa.define)  → uma peça do Board (arrasto, guias, bordas, cantos, passe entre monitores)
    - app hospedado (Mesa.hospeda)  → o app original num iframe, com a "janela de mentira" da Mesa
    - o Dengas (livre, por cima)    → uma camada própria; o que tem a classe .alvo pega o mouse (Board.alvo)
-   Ainda não vieram da Mesa: aparência e papel de parede, visões e widgets criados na hora (respondem "ainda não"). */
+   Ainda não vieram da Mesa: visões e widgets criados na hora (respondem "ainda não"). */
 const MB = Board;
 const VERSAO_MESA = 'mesa no board 1';
 // com dois Boards (um por monitor), o Dengas e os apps hospedados moram só no principal; os widgets-peça passam entre os dois
@@ -57,16 +57,23 @@ estilo(`
 #camada-mesa{position:absolute;left:0;top:0;width:100%;height:100%;z-index:6;pointer-events:none}
 #camada-mesa .alvo{pointer-events:auto}
 .mesa-v textarea,.mesa-v input{user-select:text;-webkit-user-select:text}
-.mesa-v button{font:inherit;color:inherit}
+.mesa-v button,.mesa-v textarea,.mesa-v input{font:inherit;color:inherit}
+#fundo-mesa{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;opacity:0;transition:opacity .5s cubic-bezier(.2,.8,.2,1);pointer-events:none;
+  background:radial-gradient(120% 90% at 15% 110%,#3a2a4f,#141a30 46%,#07080d 82%);background-size:cover;background-position:center}
+html.fundo-mesa #fundo-mesa{opacity:1;pointer-events:auto}
 .m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);color:var(--fg);transition:background .2s,scale .2s var(--mola)}
 .m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
 .mw{position:relative;overflow:hidden}
 .mw>.w-corpo{position:absolute;left:0;top:0;container-type:size;container-name:w;overflow:hidden;box-sizing:border-box;padding-top:12px}
 .hosp{position:absolute;border:0;background:transparent;color-scheme:light;z-index:4000;pointer-events:none}
 `);
+/* fundo de mesa: cobre a área de trabalho com o papel de parede (atrás de todas as peças); ligado, ele pega o clique */
+const fundoEl = document.createElement('div'); fundoEl.id = 'fundo-mesa'; fundoEl.className = 'alvo-fundo'; document.body.prepend(fundoEl);
+const prefs = Object.assign({ fundo:'transparente' }, le('mesa-fundo', {}));
+const salvaPrefs = () => grava('mesa-fundo', prefs);
 const camadaMesa = document.createElement('div'); camadaMesa.id = 'camada-mesa'; camadaMesa.className = 'mesa-v'; document.body.appendChild(camadaMesa);
 const camada = document.createElement('div'); camada.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%'; camadaMesa.appendChild(camada);
-MB.alvo((x, y) => { const el = document.elementFromPoint(x, y); return !!el && (!!el.closest('#camada-mesa .alvo') || (el.tagName === 'IFRAME' && el.classList.contains('hosp'))); });
+MB.alvo((x, y) => { const el = document.elementFromPoint(x, y); return !!el && (!!el.closest('#camada-mesa .alvo') || (el === fundoEl && prefs.fundo === 'mesa') || (el.tagName === 'IFRAME' && el.classList.contains('hosp'))); });
 const mouseEm = { x:0, y:0 };
 addEventListener('pointermove', e => { mouseEm.x = e.clientX; mouseEm.y = e.clientY; bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY }); repassa(e); }, true);
 
@@ -134,7 +141,7 @@ function comandos(){
   return l;
 }
 function estado(){
-  return { tela:area(), fundo:'transparente',
+  return { tela:area(), fundo:prefs.fundo,
     abertos:[...MB.pecas.values()].filter(P => P.visivel && !P.removendo && !P.efemera).map(P => { let e; try { e = P.inst.automacao?.ver?.(); } catch {} return { id:P.id, nome:P.def.nome, ...lugarDe(P.id), estado:e, comandos:(P.inst.automacao?.comandos || []).map(c => c.nome) }; }),
     apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch {} return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e, comandos:(H.def.comandos || []).map(c => c.nome) }; }),
     fechados:[...DEFS.values()].filter(d => !pecaVisivel(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })).concat([...HDEFS.values()].filter(d => !HOSP.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:'app' }))),
@@ -196,9 +203,38 @@ function repassa(e){
 }
 addEventListener('resize', () => { for (const H of HOSP.values()){ H.o = origem(); poeHospede(H); H.f.contentWindow?.dispatchEvent(new Event('resize')); } bus.emit('mesa:tela', area()); });
 
+/* aparência, papel de parede e fundo: os mesmos da Mesa */
+const R = document.documentElement, BUS_DIR = '~/.mesa';
+function aparencia(o = {}){
+  const a = prefs.aparencia = Object.assign({}, prefs.aparencia, o), st = R.style, cor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
+  if (cor(a.destaque)){ st.setProperty('--coral', a.destaque); st.setProperty('--pessego', `color-mix(in srgb, ${a.destaque} 62%, white)`); }
+  if (a.vidro != null){ const v = clamp(+a.vidro || 0, .35, 1); st.setProperty('--vidro', `rgba(10,11,16,${v})`); st.setProperty('--vidro2', `rgba(22,24,33,${Math.min(1, v + .04)})`); }
+  if (Array.isArray(a.papel) && a.papel.length >= 2 && a.papel.every(cor)) fundoEl.style.backgroundImage = prefs.papelArquivo ? fundoEl.style.backgroundImage : `radial-gradient(120% 90% at 15% 110%, ${a.papel[0]}, ${a.papel[1]} 46%, ${a.papel[2] || '#07080d'} 82%)`;
+  if (a.raio != null) st.setProperty('--raio', clamp(+a.raio || 0, 0, 34) + 'px');
+  salvaPrefs(); bus.emit('mesa:aparencia', a); return a;
+}
+async function papel(origem){
+  origem = String(origem || '').trim();
+  if (!origem){ delete prefs.papelArquivo; fundoEl.style.backgroundImage = ''; aparencia({}); salvaPrefs(); return 'sem imagem'; }
+  if (!podePCm() || !desktop?.fs) throw new Error('imagem de fundo só no app instalado, com o acesso total liberado');
+  let caminho = origem;
+  if (/^https:\/\//i.test(origem)){
+    const ext = (origem.split('?')[0].match(/\.(png|jpe?g|webp|gif)$/i) || [0, 'jpg'])[1].toLowerCase();
+    caminho = BUS_DIR + '/papel.' + ext;
+    await ps("$d = Join-Path $env:USERPROFILE '.mesa'; New-Item -ItemType Directory -Force $d | Out-Null; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -UserAgent 'MesaWidget/0.8' -Uri '" + origem.replace(/'/g, "''") + "' -OutFile (Join-Path $d 'papel." + ext + "') -TimeoutSec 30; 'ok'", 45000);
+  }
+  const b64 = await desktop.fs.readFile(caminho, 'base64');
+  if (!b64 || b64.length < 200) throw new Error('não consegui ler a imagem');
+  const ext = (caminho.match(/\.(png|jpe?g|webp|gif)$/i) || [0, 'jpg'])[1].toLowerCase().replace('jpg', 'jpeg');
+  fundoEl.style.backgroundImage = `url(data:image/${ext};base64,${b64})`;
+  prefs.papelArquivo = caminho; salvaPrefs(); fundo('mesa'); return 'imagem de fundo aplicada';
+}
+function fundo(tipo){ prefs.fundo = tipo === 'mesa' ? 'mesa' : 'transparente'; R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); salvaPrefs(); if (prefs.fundo === 'mesa') MB.querAcordar(); else MB.socorro('leve'); bus.emit('mesa:fundo', prefs.fundo); }
+R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); if (prefs.aparencia) aparencia({}); if (prefs.papelArquivo && podePCm()) papel(prefs.papelArquivo).catch(() => {});
+
 const ainda = o => () => { throw new Error('ainda não veio pro Board: ' + o); };
 const Mesa = { versao:VERSAO_MESA, define, abre, fecha, move, toca:() => {}, frente:id => { const P = pecaVisivel(id); if (P) MB.mostrarPeca(P, true); },
-  aparencia:() => ({}), papel:ainda('imagem de fundo'), fundo:() => {}, dialogo, seguraCliques, criaSolto:ainda('widget criado na hora'), removeSolto:ainda('widget criado na hora'), fonteSolto:() => null, visao:ainda('visões'),
+  aparencia, papel, fundo, dialogo, seguraCliques, criaSolto:ainda('widget criado na hora'), removeSolto:ainda('widget criado na hora'), fonteSolto:() => null, visao:ainda('visões'),
   hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })),
   estado, comandos, agente:(id, regras) => { if (regras !== undefined) AGENTES.set(String(id), String(regras)); return AGENTES.get(String(id)) || ''; },
   bus, area, ps, diagnostico:() => {}, diagFonte:() => {},
