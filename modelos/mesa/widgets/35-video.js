@@ -6,19 +6,21 @@
 {
 const JANELA_PS = [
   "$ErrorActionPreference = 'SilentlyContinue'",
-  "Add-Type -Namespace M -Name W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware(); [DllImport(\"user32.dll\")] public static extern int GetWindowLong(System.IntPtr h, int i); [DllImport(\"user32.dll\")] public static extern int SetWindowLong(System.IntPtr h, int i, int v); [DllImport(\"user32.dll\")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr a, int x, int y, int w, int t, uint f);'",
+  "Add-Type -Namespace M -Name W -MemberDefinition '[DllImport(\"user32.dll\")] public static extern bool SetProcessDPIAware(); [DllImport(\"user32.dll\")] public static extern int GetWindowLong(System.IntPtr h, int i); [DllImport(\"user32.dll\")] public static extern int SetWindowLong(System.IntPtr h, int i, int v); [DllImport(\"user32.dll\")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr a, int x, int y, int w, int t, uint f); [DllImport(\"user32.dll\")] public static extern uint GetDpiForWindow(System.IntPtr h); [DllImport(\"user32.dll\")] public static extern int SetWindowRgn(System.IntPtr h, System.IntPtr r, bool d); [DllImport(\"gdi32.dll\")] public static extern System.IntPtr CreateRectRgn(int a, int b, int c, int d);'",
   "[void][M.W]::SetProcessDPIAware(); $proc = $null; $h = [IntPtr]::Zero",
-  "function Poe($x, $y, $w, $t) { if ($script:h -ne [IntPtr]::Zero) { [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$x, [int]$y, [int]$w, [int]$t, 0x0030) } }",
-  "function Fecha { if ($script:proc) { try { Stop-Process -Id $script:proc.Id -Force } catch {} }; $script:proc = $null; $script:h = [IntPtr]::Zero }",
+  // o Edge desenha a própria barra de título por dentro da janela: a janela sobe a altura da barra e é recortada (SetWindowRgn), então só o site aparece no furo
+  "function Poe($x, $y, $w, $t) { if ($script:h -ne [IntPtr]::Zero) { $d = [M.W]::GetDpiForWindow($script:h); if ($d -lt 96) { $d = 96 }; $b = [int][Math]::Round(33 * $d / 96); $q = [int]$w; $a = [int]$t; [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$x, ([int]$y - $b), $q, ($a + $b), 0x0010); if ($script:tam -ne \"$q $a\") { $script:tam = \"$q $a\"; [void][M.W]::SetWindowRgn($script:h, [M.W]::CreateRectRgn(1, $b, $q - 1, $a + $b - 1), $true) } } }",
+  // fecha tudo que for do perfil da Mesa (inclusive janela órfã de uma Mesa anterior); sem isso o Edge novo só "entrega" o endereço pro velho e some
+  "function Fecha { try { Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | Where-Object { $_.CommandLine -like '*.mesa\\edge*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force } } catch {}; $script:proc = $null; $script:h = [IntPtr]::Zero }",
   "[Console]::Out.WriteLine('ready'); [Console]::Out.Flush()",
   "while ($null -ne ($l = [Console]::In.ReadLine())) {",
   "  $p = $l.Split(' '); $id = $p[0]; $r = 'ok'",
   "  try { switch ($p[1]) {",
   "    'abre' {",
-  "      Fecha; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
-  "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
+  "      Fecha; Start-Sleep -Milliseconds 400; $url = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p[2])); $dir = Join-Path $env:USERPROFILE '.mesa\\edge'",
+  "      $script:proc = Start-Process -FilePath 'msedge.exe' -PassThru -ArgumentList @(('--app=' + $url), ('--user-data-dir=\"' + $dir + '\"'), '--no-first-run', '--no-default-browser-check', '--hide-crash-restore-bubble','--autoplay-policy=no-user-gesture-required', ('--window-position=' + $p[3] + ',' + $p[4]), ('--window-size=' + $p[5] + ',' + $p[6]))",
   "      for ($i = 0; $i -lt 60 -and $script:h -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 200; $script:proc.Refresh(); if ($script:proc.HasExited) { break }; $script:h = $script:proc.MainWindowHandle }",
-  "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); [void][M.W]::SetWindowPos($script:h, [IntPtr](-1), [int]$p[3], [int]$p[4], [int]$p[5], [int]$p[6], 0x0060) }",
+  "      if ($script:h -eq [IntPtr]::Zero) { $r = 'sem_janela' } else { $s = [M.W]::GetWindowLong($script:h, -16); [void][M.W]::SetWindowLong($script:h, -16, ($s -band (-bnot 0x00CF0000))); $script:tam = ''; Poe $p[3] $p[4] $p[5] $p[6] }",
   "    }",
   "    'move' { Poe $p[2] $p[3] $p[4] $p[5] }",
   "    'fecha' { Fecha }",
@@ -72,7 +74,7 @@ Mesa.define({
         const r = await api.ps(s, 30000); if (!r || r === 'nada' || !/^[\w-]{11}\|/.test(r)) throw new Error('não achei vídeo pra "' + q + '"');
         id = r.slice(0, 11); titulo = r.slice(12).replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\u0026/g, '&').replace(/\\(["'\\\/])/g, '$1').slice(0, 120);
       }
-      await abreUrl('https://www.youtube.com/watch_popup?v=' + id + '&autoplay=1', titulo, q);
+      await abreUrl('https://www.youtube.com/watch?v=' + id, titulo, q);
       return { tocando:titulo || id };
     }
     async function fechaJanela(){ aberta = false; await pede('fecha'); furo.classList.add('vazio'); furo.classList.remove('furo'); furo.textContent = 'Fechado. Peça outro vídeo ou site.'; }
