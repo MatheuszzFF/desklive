@@ -144,7 +144,7 @@
 - **Desde:** 2026-11-24 · **Reforçada:** 1× · **Força:** alta
 
 ### R22 — Todo refino de app é documentado no desklive
-- **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Faça só o commit local; o push vai em lote, de tempos em tempos, quando a coisa amadurecer (o dreamer sobe todo dia à noite). Não suba a cada mudança pequena ("só vamos subir regras de tempos em tempos quando for melhorando"). Só a receita, nunca o código. Antes do push, confira que não há segredos nem dados pessoais (o repo é público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
+- **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Faça **só o commit local; NÃO faça push** (nem o dreamer) até ele dizer: ele pediu pra deixar o repo local por enquanto ("por enquanto deixa local", 25/11/2026). Só a receita, nunca o código. Mesmo local, confira antes de cada commit que não há segredos nem dados pessoais (o repo vai ser público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
 - **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([[desklive-repo-documentacao]]).
 - **Exemplo:** "sempre que refinarmos apps, documentamos lá".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
@@ -184,8 +184,8 @@
 - **Exemplo:** "não podem ter widths ou heights que mudam sem alguma transição suave. se QUALQUER coisa piscar, a experiencia é arruinada".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** máxima
 
-### R26 — Todo trabalho técnico de movimento, tamanho e hover vai pra base privada
-- **Regra:** todo trabalho técnico de movimento, tamanho ou hover é registrado na base privada `desktop-tecnico` (`~\OneDrive\Documentos\Claude\desktop-tecnico\`, fora do repo: uma entrada no `diario.md` e o arquivo do assunto) e na memória, além do repo público desklive. Toda sessão delegada recebe isso no resumo.
+### R26 — Todo trabalho técnico de movimento, tamanho e hover vai pro diário do desklive
+- **Regra:** todo trabalho técnico de movimento, tamanho ou hover é registrado no repo desklive, na mesma tarefa: uma entrada em `diario/AAAA-MM.md` (data · app/versão · o que mudou · por quê · números · como foi provado), o arquivo do assunto (`referencias/ambiente/`, `referencias/motor/`, `padroes/motion/`, `padroes/hover-e-baloes.md`) e uma linha no `CHANGELOG.md`; fato-chave novo também na memória. Sem caminhos pessoais nem dados da conta (o repo vai ser público). A antiga base privada `desktop-tecnico` foi mesclada no repo em 25/11/2026 e não recebe mais nada. Toda sessão delegada recebe isso no resumo.
 - **Por quê:** ele quer dominar por completo como os apps se movem e mudam de tamanho no desktop, com o registro técnico de tudo que for feito, do jeito que foi feito.
 - **Exemplo:** "tudo que for sendo feito, seja documentado na sua memoria e docs ... sobre como esta sendo feito tecnicamente para a gente dominar completamente a movimentação e resizing de apps no ... desktop".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
@@ -203,3 +203,4 @@
 - **2026-11-24:** R8 ampliada (layout por posição e por tamanho, bordas e cantos por layout); R18 criada (apps interagem entre si).
 - **2026-11-24:** R19 criada (não mexer no mouse e no teclado do PC); R20 criada e ampliada (ilha do topo do Eco como padrão mínimo, forma e interação únicas por lado).
 - **2026-11-25 (dreamer, 1ª execução):** lidas 7 conversas de 22 a 24/11 (a principal da Órbita, Onda e Eco, as três sessões de agente por app que copiam o mesmo histórico, a do wallpaper e duas curtas). Nova: R21 (salvar as regras na hora e consultá-las sempre). Refinadas: R11 (ler o link ou print que ele manda, sem desviar do assunto), R14 (dizer o custo logo de cara, força subiu pra alta), R15 (um agente por app, com revisão dos prints). Reforçadas: R7, R10 e R16 (4× cada). Nenhuma removida.
+- **2026-11-25:** R22 alterada (commit local só, sem push até ele dizer: "por enquanto deixa local"); R26 alterada (a base técnica privada foi mesclada no desklive: registro no `diario/` + arquivo do assunto + CHANGELOG).

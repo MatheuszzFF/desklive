@@ -29,6 +29,7 @@ Em níveis, do geral pro específico:
 - **L2, cada app:** [apps/](apps/README.md), uma pasta por app, com o histórico de refinos.
 - **L3, referências profundas:** [referencias/](referencias/README.md) (constantes de mola, curvas, o motor da janela) e os arquivos de detalhe de cada app (como o shader do Eco).
 - **Modelos de doc:** [templates/](templates/README.md) (app novo, registro de refino, checklist). Mudanças no repo: [CHANGELOG.md](CHANGELOG.md).
+- **Diário técnico:** [diario/](diario/README.md), uma entrada datada por mudança de movimento, tamanho ou hover, com os números e como foi provado.
 - **Código:** [modelos/](modelos/README.md), a única pasta com código (os três apps, o motor e os helpers).
 
 Agentes começam pelo [CLAUDE.md](CLAUDE.md), que tem o mapa de o que ler pra cada tarefa.

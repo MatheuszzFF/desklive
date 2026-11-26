@@ -6,35 +6,37 @@
 
 ## Como a janela é montada (host)
 
-- **Uma `BrowserWindow` por app**, criada a partir das opções salvas pelo `setOptions`:
+- **Uma `BrowserWindow` por app**, criada a partir das opções salvas pelo `setOptions`, validadas por um esquema zod **estrito** (`frame`, `dragHeight`, `transparent`, `alwaysOnTop`, `width/height`, `min*/max*`, `resizable`, `hasShadow`, `roundedCorners`, `backgroundColor` em `#rrggbb`…; `dragHeight` é 0 ou 12–64):
   - `width` é presa entre 200 e a largura útil, e `height` entre 120 e a altura útil;
   - `minWidth = min(360, width)` e `minHeight = min(300, height)`;
   - `transparent` vira `transparent: true` + fundo `#00000000` + `fullscreenable: false` + `maximizable: false`;
   - `alwaysOnTop` não entra na criação: é aplicado logo depois com `setAlwaysOnTop(true, "floating")`.
 - **Dentro dela fica uma `WebContentsView`** (fundo `#00000000` quando transparente), com a "casca" do Claude. O **nosso HTML roda num iframe** dessa casca, em outro processo.
   - O host injeta CSS que deixa a casca transparente e põe `color-scheme: normal` no iframe.
-  - Por isso a página precisa de `color-scheme: light`. Um esquema diferente do esquema do iframe faz o Chromium pintar o fundo opaco: é o motivo real do truque em [brilho dentro da janela](../../padroes/motion/brilho-dentro-da-janela.md).
+  - Por isso a página precisa de `color-scheme: light`. Um esquema diferente do esquema do iframe faz o Chromium pintar o fundo opaco: é o motivo real do truque em [brilho dentro da janela](../../padroes/motion/brilho-dentro-da-janela.md) (a Onda faz `html.app-mode{color-scheme:light}`).
 - **`dragHeight: 0` é obrigatório.** Sem ele, numa janela transparente ou sempre no topo, o host põe por cima uma faixa de arrasto de 28 px, cinza translúcida.
 - **`resizable: false` ajuda (Electron).** No Windows, a cada `setBounds` numa janela não redimensionável, o Electron iguala mínimo = máximo = tamanho novo. Assim o `minWidth` da criação não impede encolher.
 - **`transparent` tira a moldura grossa (Electron).** Sem `WS_THICKFRAME`, a janela não tem sombra nem encaixe do Windows.
 - **Sem `skipTaskbar`, `focusable` nem `type`** (não estão na lista aceita). A janela aparece na barra do Windows e pega o foco quando é clicada.
+- **Mande sempre o mesmo objeto no `setOptions`** (a sonda e a Onda mandam igual): `{ frame:false, transparent:true, alwaysOnTop, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width, height }`. **(A conferir)** a Onda põe `width/height` do `LR` atual; se o host comparar esses campos, uma abertura com outro tamanho recarrega a página.
 
 ## Cada chamada = uma ida e volta ao processo principal (host)
 
 - `claude.use("desktop")` devolve o objeto que o preload do host expõe **na própria página**, sem `postMessage` no meio.
 - Cada método vira um `ipcRenderer.invoke` pro **processo principal do Claude**, que é o mesmo dos três apps e do app inteiro. Lá a chamada é validada (zod) e a permissão conferida (`overlay`: a cada chamada, rápido depois de concedida); então o método roda e a resposta volta.
 - **Sem fila, sem limite de taxa, sem throttle** no host. As mensagens são atendidas na ordem, e `setBounds` roda inteiro (síncrono) dentro do atendimento.
-- O atraso real é o processo principal ocupado mais o `SetWindowPos` do Windows. Os ~50–70 ms do motor saíram de uma gravação da tela, não de um cronômetro **(medir)**.
+- O atraso real é o processo principal ocupado mais o `SetWindowPos` do Windows. **Medido:** IPC vazio 0,2 ms, `setBounds` só movendo 1,2 ms (p50). Os ~50–70 ms que se supunham (de uma gravação da tela) não existem ([medições](medicoes.md)).
+- **Permissões:** `overlay` libera `window.setIgnoreMouseEvents`, `window.setVisibleOnAllWorkspaces`, `screen.getCursorScreenPoint` e `screen.getAllDisplays`; `full-access` libera `fs`, `os`, `shell` e `childProcess`.
 
 ## O que cada API faz por baixo
 
 | Chamada | Por baixo | Pegadinhas |
 |---|---|---|
-| `setBounds(r)` | campos ausentes vêm do `getBounds()`; acha o monitor de maior interseção com `r`; arredonda e prende tudo na **área útil desse monitor** ([fórmula](mover-e-redimensionar.md#a-trava-real-do-host)); chama `BrowserWindow.setBounds` | resolve `undefined` (não diz onde a janela ficou). Nunca recusa por tamanho. `EBUSY` se estiver minimizada, em tela cheia, instalando ou com diálogo do host. `EINVAL` com chave extra, `NaN` ou fora de ±100 000 |
+| `setBounds(r)` | campos ausentes vêm do `getBounds()`; acha o monitor de maior interseção com `r`; arredonda e prende tudo na **área útil desse monitor** ([fórmula](mover-e-redimensionar.md#a-trava-real-do-host)); chama `BrowserWindow.setBounds` | resolve `undefined` (não diz onde a janela ficou). Nunca recusa por tamanho. `EBUSY` se estiver minimizada, em tela cheia, instalando ou com diálogo do host. `EINVAL` com chave extra, `NaN`, fora de ±100 000 ou largura < 1. Erro "can't be moved now" nos casos do `EBUSY` |
 | `getBounds()` | `BrowserWindow.getBounds()`, em DIP | é a posição real (1 IPC) |
 | `setIgnoreMouseEvents(i, {forward})` | guarda o pedido e aplica com `BrowserWindow.setIgnoreMouseEvents` | só no app instalado. Com diálogo do host aberto, fica forçado em `false` e o último pedido é reaplicado quando o diálogo fecha ([hover](hover-e-clique-passa.md)) |
-| `screen.getAllDisplays()` | o mesmo do Electron: `id`, `label`, `bounds`, `workArea`, `size`, `workAreaSize`, `scaleFactor`, `rotation`, `internal` | em DIP; **sem evento de mudança** na API |
-| `screen.getCursorScreenPoint()` | o mesmo do Electron | 1 IPC; é a posição real do cursor |
+| `screen.getAllDisplays()` | o mesmo do Electron: `id`, `label`, `bounds`, `workArea`, `size`, `workAreaSize`, `scaleFactor`, `rotation`, `internal` | em DIP; **sem evento de mudança** na API: use o `change` do `window.screen` (dispara no host: 4 vezes na rodada da sonda) |
+| `screen.getCursorScreenPoint()` | o mesmo do Electron | 1 IPC (0,2 ms medido); é a posição real do cursor |
 | `place({anchor} ou {pin})` | calcula no host e chama o mesmo `setBounds` | `ECANCELED` se estiver escondida |
 | `setOptions(o)` | salva; se mudou algo, **reconstrói a janela e recarrega** a página | mande sempre as mesmas opções |
 
@@ -56,10 +58,11 @@
 O preload procura `app-region` na página com um `MutationObserver` em **tudo**: atributos, filhos e texto, na árvore inteira.
 - Cada mutação agenda uma varredura 50 ms depois, e há mais uma a cada 2 s.
 - Sem `app-region` no CSS, a varredura é barata. Mesmo assim, cada `style` ou classe trocado por quadro gera um registro de mutação.
-- **Regras:** nunca use `app-region`, e anime por variáveis CSS num elemento só (ou por `transform` em poucos elementos), não por dezenas de atributos por quadro.
+- **Regras:** nunca use `app-region`, e anime por variáveis CSS num elemento só (ou por `transform` em poucos elementos), não por dezenas de atributos por quadro. E só escreva quando o valor muda.
+- **Exemplo (Onda):** escreve `--ax --ay --ww --wh --px --py --tilt --sa --sx --sy --grab --gox --goy` no `<html>`, e a função `css()` guarda o último valor por elemento e só escreve se mudou.
 
 ## Fontes
 
-- Pacote instalado do app Claude (só leitura): o preload da janela de app e o módulo de apps de artefato do processo principal.
+- Pacote instalado do app Claude (só leitura, extraído do `app.asar` com um leitor que não altera nada): o preload da janela de app, o módulo de janelas de app do processo principal (minificado) e a API `desktop` do runtime da página.
 - Electron, [native_window_views.cc](https://github.com/electron/electron/blob/main/shell/browser/native_window_views.cc): `SetBounds`, `SetAlwaysOnTop`, `thickFrame`.
 - [Electron `disable_hidden.patch`](https://github.com/electron/electron/blob/main/patches/chromium/disable_hidden.patch) e [Rectangle](https://www.electronjs.org/docs/latest/api/structures/rectangle).

@@ -28,7 +28,8 @@ v += a·h ;  x += v·h        h = dt / n_subpassos
 | [sentir-o-arrasto.md](sentir-o-arrasto.md) | inclinar, esticar, levantar e amassar (o `feel` de cada app) | 7 |
 | [sensor-de-borda-e-encaixe.md](sensor-de-borda-e-encaixe.md) | sentir o lado antes de encostar, ímã, prévia, limiares do gesto | 8 |
 | [troca-de-forma.md](troca-de-forma.md) | como uma forma vira a outra ao trocar de lado (FLIP, molas, variáveis CSS) | 9 |
-| [janela-sem-tremer.md](janela-sem-tremer.md) | redimensionar a janela sem tremer (commit atômico) | 10 |
+| [janela-sem-tremer.md](janela-sem-tremer.md) | redimensionar a janela sem tremer (commit atômico, tetos) e **nada pisca** (R25: quadro velho, por que esconder é proibido, técnicas permitidas, prova) | 10 |
+| [ponto-de-pega.md](ponto-de-pega.md) | o ponto que você segurou fica embaixo do mouse nas trocas de forma (fração na peça, `nudge` no mesmo quadro, meta ≤ 2 px, como medir) | — |
 | [brilho-dentro-da-janela.md](brilho-dentro-da-janela.md) | brilho e sombra nunca cortados (R4) | 11 |
 | [movimento-reduzido.md](movimento-reduzido.md) | `prefers-reduced-motion` | 12 |
 
@@ -42,7 +43,9 @@ No L3:
 | [referencias/motor/motor-de-movimento.md](../../referencias/motor/motor-de-movimento.md) | seção "Motor de movimento": estados, molas, limiares, `setBounds` por quadro, commit de tamanho | — |
 | [referencias/motor/bugs-evitados.md](../../referencias/motor/bugs-evitados.md) | bugs de movimento e como o motor evita cada um | — |
 | [referencias/motor/tamanho-e-borda.md](../../referencias/motor/tamanho-e-borda.md) | motor v2.2: app grande arrastando pros lados, parede, freio, teto de tamanho, auditoria de colar e descolar | — |
-| [referencias/motor/motor-piloto.md](../../referencias/motor/motor-piloto.md) | motor-piloto da Onda: trava do host, portal na emenda, quadro velho escondido | — |
+| [referencias/motor/motor-piloto.md](../../referencias/motor/motor-piloto.md) | motor-piloto da Onda: trava do host, portal na emenda, quadro velho escondido (proibido pela R25), `nudge` | — |
+| [referencias/motor/bugs-e-licoes.md](../../referencias/motor/bugs-e-licoes.md) | os 30 bugs de movimento, tamanho e hover em ordem, com a situação, e as lições | — |
+| [referencias/ambiente/como-medir.md](../../referencias/ambiente/como-medir.md) | sonda, modo de registro e vídeo quadro a quadro: como provar que nada pisca | — |
 | [templates/checklist-novo-app.md](../../templates/checklist-novo-app.md) | o checklist pra um app novo | 14 |
 
 Assunto novo de motion que vale pra todos os apps entra aqui como um arquivo novo (e uma linha nesta tabela). Número novo de mola ou curva entra no L3.

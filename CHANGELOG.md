@@ -4,6 +4,21 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Base técnica de movimento, tamanho e hover trazida pro repo (R26) + diário
+- **Novo:**
+  - [diario/](diario/README.md): índice, modelo da entrada (data · app/versão · o que mudou · por quê · números · como foi provado) e [2026-11](diario/2026-11.md) com as entradas de 24 e 25/11;
+  - [como medir](referencias/ambiente/como-medir.md): contadores do motor, a sonda (testes e como rodar), o modo de registro por quadro (saiu de `tempo-e-medicao.md`) e a análise de vídeo quadro a quadro;
+  - [ponto de pega](padroes/motion/ponto-de-pega.md): o ponto pego fica embaixo do mouse nas trocas de forma (meta ≤ 2 px, `nudge`, `grabtest`);
+  - [bugs e lições](referencias/motor/bugs-e-licoes.md): os 30 bugs em ordem, com a situação, e as lições.
+- **Atualizado:**
+  - [medições](referencias/ambiente/medicoes.md): todos os n, redimensionar pela direita e pela esquerda, trava caso a caso, `forward` e corrida por halo, gravações e o vídeo da Onda v20;
+  - [janela sem tremer](padroes/motion/janela-sem-tremer.md): seção "Nada pisca (R25)" (por que esconder é proibido, técnicas permitidas, prova), corte contra o destino, tetos;
+  - [host](referencias/ambiente/host.md), [tempo](referencias/ambiente/tempo-e-medicao.md), [mover e redimensionar](referencias/ambiente/mover-e-redimensionar.md), [hover e clique passa](referencias/ambiente/hover-e-clique-passa.md), [receitas](referencias/ambiente/receitas-recomendadas.md) e o [índice do ambiente](referencias/ambiente/README.md): números medidos no lugar dos "(medir)"; o "~50–70 ms" corrigido também em [motor de movimento](referencias/motor/motor-de-movimento.md), [bugs evitados](referencias/motor/bugs-evitados.md) e [janela sem tremer](padroes/motion/janela-sem-tremer.md);
+  - [motor-piloto](referencias/motor/motor-piloto.md): a bomba, o portal, paredes, `nudge` da v21, âncora e zonas da Onda, o esconder proibido e o que o vídeo mostrou; [tamanho e borda](referencias/motor/tamanho-e-borda.md);
+  - [hover e balões](padroes/hover-e-baloes.md): ressincronizar pelo cursor, `lostpointercapture` como fim, área de toque maior que o traço, sem arrastar;
+  - [regras](regras/regras-de-trabalho.md) (cópia da memória): R22 só commit local, sem push até ele dizer; R26 aponta pro `diario/` + arquivo do assunto;
+  - [CLAUDE.md](CLAUDE.md) (nível Diário, mapa, convenção R26, repo local por enquanto), [README](README.md), índices de [motion](padroes/motion/README.md), [motor](referencias/motor/README.md), [padrões](padroes/README.md), [referências](referencias/README.md), [regras](regras/README.md) e o [glossário](visao/glossario.md) (análise quadro a quadro, diário técnico, modo de registro, motor-piloto, ponto de pega, quadro velho).
+
 ### Onda v20: app piloto (R24) com o motor-piloto
 - **Novo:** [referencias/motor/motor-piloto.md](referencias/motor/motor-piloto.md) (trava igual à do host, emenda como portal, teto de um monitor, quadro velho escondido, telas e movimento reduzido ao vivo; simulador que imita o host).
 - **Atualizado:** [refinos da Onda](apps/onda/refinos.md), [interação da Onda](apps/onda/interacao.md) (H1–H4), o Testado da [Onda](apps/onda/README.md) e os índices de [motor](referencias/motor/README.md) e [motion](padroes/motion/README.md).

@@ -6,7 +6,7 @@ Cada app resolve a troca de um jeito diferente, de acordo com o que ele é:
 
 - **Órbita: FLIP com Web Animations.** Mede onde cada item está (`getBoundingClientRect`), troca as classes de lado com `.nomotion` ligada (sem transições), mede de novo e anima cada item do lugar antigo pro novo com `el.animate([{transform:translate(dx,dy)}, {transform:none}])` na curva `MORPH`.
   - Quando a largura ou a altura de um item muda mais de 10 px, o delta é medido **pelo lado da borda**, e não pelo centro: o ícone fica no lugar e o resto cresce pra dentro.
-  - Durante o arrasto, o item que você segura continua embaixo do mouse: a diferença vira `regrab`, e a mola leva a janela até lá.
+  - Durante o arrasto, o item que você segura continua embaixo do mouse: a diferença vira `regrab`, e a mola leva a janela até lá (nesses quadros o ponto sai de baixo do mouse; a receita sem escorregar está em [ponto de pega](ponto-de-pega.md)).
   - Fora do arrasto (`jump`), a janela pula na hora pra compensar.
   - A ilha é deslocada pelo mesmo tanto (`island.shift`) e escorre até o formato novo.
 - **Onda: tudo é mola.** Não existe FLIP. Cada peça (capa, texto, controles, onda, barras, arco, lista, progresso) tem x, y, largura, altura, opacidade e raio, cada um numa mola que persegue o alvo da tabela de arranjos.
