@@ -2,6 +2,10 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.14: o Dengas envia e-mail
+- **Pedido do dono:** "Dengas pode" enviar e responder. Entram `send_message`, `reply` e `forward` do Gmail na publicação; a regra manda enviar só quando ele pedir pra enviar, senão rascunho, e dizer pra quem foi.
+- **Não testado:** nenhuma chamada real.
+
 ## 2026-11-26 · Mesa 0.13: Gmail, Agenda e Drive
 - **O que:** a publicação passa a declarar Gmail (buscar, ler, rascunhos), Google Agenda (listar, buscar, sugerir horário, criar, alterar, responder convite) e Google Drive (buscar, recentes, ler, criar arquivo). De propósito ficaram de fora: enviar, responder e encaminhar e-mail, e tudo que apaga ou compartilha. O Dengas usa pela mesma ferramenta `conector`.
 - **Não testado:** nenhuma chamada real (só no app).
