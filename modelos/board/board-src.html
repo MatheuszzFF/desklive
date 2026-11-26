@@ -382,10 +382,16 @@ const W = SIM ? Wh : new Proxy(Wh, { get(o, k){
   const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } });
 const FS = desktop.fs;
 let perms = await desktop.permissions?.state?.().catch(() => null);
+/* a cada versão nova publicada o app do Claude esquece o "Permitir" e volta a perguntar (regra do host). Enquanto ele
+   ainda não sabe a versão, o estado vem "unavailable": espera um pouco. Se vier "prompt", pede uma vez sozinho, em
+   um diálogo só; a tela com o botão fica só pra quando isso não deu. */
+const LISTA_PERMS = ['overlay', 'full-access', 'notifications', 'menu-bar', 'shortcuts'];
+for (let i = 0; i < 20 && perms && perms.overlay === 'unavailable'; i++){ await sleep(500); perms = await desktop.permissions.state().catch(() => perms); }
+if (perms && perms.overlay === 'prompt'){ try { perms = await desktop.permissions.request(LISTA_PERMS); } catch {} }
 if (perms && perms.overlay !== 'granted'){
   await new Promise(res => {
     const pedir = async () => {
-      try { perms = await desktop.permissions.request(['overlay', 'full-access', 'notifications', 'menu-bar', 'shortcuts']); } catch { $('fora-msg').textContent = 'Não deu pra pedir as permissões agora. Clique de novo.'; return; }
+      try { perms = await desktop.permissions.request(LISTA_PERMS); } catch { $('fora-msg').textContent = 'Não deu pra pedir as permissões agora. Clique de novo.'; return; }
       if (perms?.overlay === 'granted') res(); else telaFora('Sem a permissão "overlay" o Board não consegue ficar por cima nem deixar o clique passar.', [botao('Abrir permissões', () => desktop.permissions.manage().then(() => location.reload()).catch(() => {}))]);
     };
     telaFora('Falta um passo: deixar o Board cobrir o monitor sem pegar o clique, salvar em ~/.orbita, ficar na bandeja e ouvir o atalho.', [botao('Ativar o Board', pedir)]);
