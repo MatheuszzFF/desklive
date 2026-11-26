@@ -22,7 +22,7 @@ html.fundo-mesa #fundo{opacity:1;pointer-events:auto}
 html.previa #fundo{opacity:1}
 
 /* ---------- widget: a moldura é da Mesa, o miolo é de cada widget ---------- */
-.w{position:absolute;left:0;top:0;display:flex;flex-direction:column;box-sizing:border-box;min-width:0;
+.w{position:absolute;left:0;top:0;box-sizing:border-box;min-width:0;
   background:linear-gradient(rgba(255,255,255,.055),rgba(255,255,255,.012)) , var(--vidro);
   border:1px solid var(--line);border-radius:var(--raio,20px);box-shadow:0 18px 44px -16px rgba(0,0,0,.72),inset 0 1px 0 rgba(255,255,255,.07);
   transition:border-radius .35s var(--mola),box-shadow .25s,opacity .25s,scale .35s var(--mola);will-change:transform}
@@ -37,21 +37,26 @@ html.previa #fundo{opacity:1}
 .w[data-borda*=r]{border-top-right-radius:0;border-bottom-right-radius:0;border-right-color:transparent}
 .w[data-borda*=t]{border-top-left-radius:0;border-top-right-radius:0;border-top-color:transparent}
 .w[data-borda*=b]{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-color:transparent}
-.w-pega{flex:none;display:flex;align-items:center;gap:8px;height:34px;padding:0 8px 0 14px;cursor:grab;touch-action:none}
-.w.pegando .w-pega{cursor:grabbing}
-.w-ico{width:16px;height:16px;color:var(--pessego);flex:none;display:grid;place-items:center}
-.w-ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.w-nome{flex:1;min-width:0;font:600 12px/1 var(--titulo);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.w-x{flex:none;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:var(--faint);cursor:pointer;font-size:16px;line-height:1;opacity:0;transition:opacity .2s,background .2s}
-.w:hover .w-x,.w-x:focus-visible{opacity:1}
-.w-x:hover{background:rgba(255,255,255,.1);color:var(--fg)}
-.w-corpo{flex:1;min-height:0;position:relative;container-type:size;container-name:w;overflow:hidden;border-radius:0 0 19px 19px}
-.w-alca{position:absolute;width:22px;height:22px;right:0;bottom:0;cursor:nwse-resize;touch-action:none;opacity:0;transition:opacity .2s}
-.w:hover .w-alca{opacity:1}
-.w-alca::before{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;border-right:2.5px solid var(--pessego);border-bottom:2.5px solid var(--pessego);border-radius:0 0 7px 0}
-.w[data-alca=bl] .w-alca{right:auto;left:0;cursor:nesw-resize;transform:scaleX(-1)}
-.w[data-alca=tr] .w-alca{bottom:auto;top:0;cursor:nesw-resize;transform:scaleY(-1)}
-.w[data-alca=tl] .w-alca{right:auto;left:0;bottom:auto;top:0;transform:scale(-1,-1)}
+/* sem cara de janela: nada de barra de título. O X e a mãozinha de pegar só aparecem com o mouse em cima,
+   flutuando; as bordas e as quinas redimensionam. */
+.w-corpo{position:absolute;inset:0;container-type:size;container-name:w;overflow:hidden;border-radius:inherit;padding-top:12px;box-sizing:border-box}
+.w-mao{position:absolute;left:28px;right:44px;top:0;height:16px;cursor:grab;touch-action:none;z-index:3}
+.w-mao::after{content:"";position:absolute;left:50%;top:6px;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:rgba(244,245,248,.5);opacity:0;transition:opacity .2s,width .3s var(--mola),margin .3s var(--mola)}
+.w:hover .w-mao::after{opacity:.55}
+.w-mao:hover::after,.w.pegando .w-mao::after{opacity:1;width:54px;margin-left:-27px;background:var(--pessego)}
+.w.pegando,.w.pegando *{cursor:grabbing!important}
+.w-x{position:absolute;right:8px;top:8px;z-index:4;width:26px;height:26px;border:0;border-radius:50%;background:var(--vidro2);color:var(--fg);cursor:pointer;font-size:16px;line-height:1;display:grid;place-items:center;
+  box-shadow:0 4px 12px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.1);opacity:0;scale:.7;pointer-events:none;transition:opacity .2s,scale .3s var(--mola),background .2s}
+.w:hover .w-x,.w-x:focus-visible{opacity:1;scale:1;pointer-events:auto}
+.w-x:hover{background:var(--coral);color:#fff}
+.w-borda{position:absolute;z-index:2;touch-action:none}
+.w-borda[data-d=n]{left:14px;right:14px;top:-4px;height:9px;cursor:ns-resize}.w-borda[data-d=s]{left:14px;right:14px;bottom:-4px;height:9px;cursor:ns-resize}
+.w-borda[data-d=w]{top:14px;bottom:14px;left:-4px;width:9px;cursor:ew-resize}.w-borda[data-d=e]{top:14px;bottom:14px;right:-4px;width:9px;cursor:ew-resize}
+.w-borda[data-d=nw]{left:-4px;top:-4px;width:18px;height:18px;cursor:nwse-resize}.w-borda[data-d=se]{right:-4px;bottom:-4px;width:18px;height:18px;cursor:nwse-resize}
+.w-borda[data-d=ne]{right:-4px;top:-4px;width:18px;height:18px;cursor:nesw-resize}.w-borda[data-d=sw]{left:-4px;bottom:-4px;width:18px;height:18px;cursor:nesw-resize}
+.w.medindo{box-shadow:0 0 0 1.5px var(--pessego),0 18px 44px -16px rgba(0,0,0,.72);transition:none}
+/* nenhuma barra de rolagem, em lugar nenhum (o conteúdo rola com a rodinha e o toque) */
+*{scrollbar-width:none}::-webkit-scrollbar{display:none;width:0;height:0}
 /* peças prontas para os widgets usarem */
 .m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);transition:background .2s,scale .2s var(--mola)}
 .m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
@@ -68,7 +73,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.6';
+const VERSAO = '0.7';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -132,7 +137,6 @@ function pinta(W){ W.el.style.transform = `translate3d(${W.x.toFixed(1)}px,${W.y
 function bordaDe(W, x = W.tx, y = W.ty){ const A = area(); return (x <= .5 ? 'l' : '') + (x + W.w >= A.w - .5 ? 'r' : '') + (y <= .5 ? 't' : '') + (y + W.h >= A.h - .5 ? 'b' : ''); }
 function marcaBorda(W){
   const b = bordaDe(W);
-  W.el.dataset.alca = (b.includes('b') && !b.includes('t') ? 't' : 'b') + (b.includes('r') && !b.includes('l') ? 'l' : 'r');
   if (b === W.borda) return;
   W.borda = b; W.el.dataset.borda = b;
   try { W.inst.aoLugar?.(lugar(W)); } catch (e) { console.warn(e); }
@@ -164,9 +168,8 @@ function abre(id, onde){
   if (ABERTOS.has(id)){ const W = ABERTOS.get(id); frente(W); if (onde) move(id, onde); return W; }
   const A = area(), s = Object.assign({}, prefs.widgets[id], onde);
   const el = document.createElement('section'); el.className = 'w alvo nasce'; el.dataset.id = id; el.setAttribute('aria-label', def.nome);
-  el.innerHTML = '<header class="w-pega"><span class="w-ico"></span><span class="w-nome"></span><button class="w-x" type="button" aria-label="Fechar">×</button></header><div class="w-corpo"></div><span class="w-alca" aria-label="Redimensionar"></span>';
-  el.querySelector('.w-nome').textContent = def.nome;
-  if (def.icone) el.querySelector('.w-ico').innerHTML = `<svg viewBox="0 0 24 24">${def.icone}</svg>`;
+  el.innerHTML = '<div class="w-corpo"></div><div class="w-mao"></div><button class="w-x" type="button" aria-label="Fechar">×</button>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(d => '<i class="w-borda" data-d="' + d + '"></i>').join('');
+  el.querySelector('.w-mao').title = def.nome; el.querySelector('.w-x').title = 'Fechar ' + def.nome;
   const W = { id, def, el, corpo:el.querySelector('.w-corpo'), w:s.w || def.w || 320, h:s.h || def.h || 220, vx:0, vy:0, borda:'', pega:null, inst:{} };
   W.tx = s.x ?? Math.round((A.w - W.w) / 2 + (ABERTOS.size % 5) * 28 - 56); W.ty = s.y ?? Math.round((A.h - W.h) / 2 + (ABERTOS.size % 5) * 24 - 48);
   cabe(W); W.x = W.tx; W.y = W.ty;
@@ -208,16 +211,17 @@ function move(id, o = {}){
 function toca(id){ const W = ABERTOS.get(id); if (!W) return; W.el.classList.remove('tocado'); void W.el.offsetWidth; W.el.classList.add('tocado'); }
 
 function ligaGestos(W){
-  const pega = W.el.querySelector('.w-pega'), alca = W.el.querySelector('.w-alca');
   W.el.addEventListener('pointerdown', () => frente(W), true);
   W.el.querySelector('.w-x').addEventListener('click', () => fecha(W.id));
-  // arrastar pela faixa de cima: só vira arrasto depois de 4 px (o × continua recebendo o clique)
+  // arrastar: pela mãozinha de cima ou por qualquer parte do corpo que não seja um controle. Só vira arrasto depois
+  // de 4 px, e só então segura o ponteiro (assim os botões continuam recebendo o clique).
+  const CONTROLE = 'button,input,textarea,select,a,iframe,canvas,[contenteditable],[data-fixo],.w-borda,.w-x';
   let g = null;
-  pega.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('.w-x')) return; g = { id:e.pointerId, x0:e.clientX, y0:e.clientY, on:false }; });
-  pega.addEventListener('pointermove', e => {
+  W.el.addEventListener('pointerdown', e => { if (e.button !== 0 || (e.target.closest(CONTROLE) && !e.target.closest('.w-mao'))) return; g = { id:e.pointerId, x0:e.clientX, y0:e.clientY, on:false }; });
+  W.el.addEventListener('pointermove', e => {
     if (!g || e.pointerId !== g.id) return;
-    if (e.buttons === 0) return solta(e);
-    if (!g.on){ if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < 4) return; g.on = true; try { pega.setPointerCapture(g.id); } catch {} W.pega = { dx:g.x0 - W.x, dy:g.y0 - W.y }; W.el.classList.add('pegando'); bus.emit('mesa:pegou', { id:W.id }); }
+    if (e.buttons === 0) return solta();
+    if (!g.on){ if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < 4) return; g.on = true; try { W.el.setPointerCapture(g.id); } catch {} W.pega = { dx:g.x0 - W.x, dy:g.y0 - W.y }; W.el.classList.add('pegando'); bus.emit('mesa:pegou', { id:W.id }); }
     const A = area();
     W.tx = clamp(e.clientX - W.pega.dx, 0, A.w - W.w); W.ty = clamp(e.clientY - W.pega.dy, 0, A.h - W.h);
     agita(W);
@@ -232,25 +236,28 @@ function ligaGestos(W){
     if (W.ty < SNAP) W.ty = 0; else if (W.ty + W.h > A.h - SNAP) W.ty = A.h - W.h;
     W.pega = null; W.el.classList.remove('pegando'); agita(W); bus.emit('mesa:soltou', { id:W.id });
   }
-  pega.addEventListener('pointerup', solta); pega.addEventListener('pointercancel', solta); pega.addEventListener('lostpointercapture', solta);
-  // redimensionar: a alça fica na quina de dentro da tela e puxa a partir do lado oposto
-  let r = null;
-  alca.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { alca.setPointerCapture(e.pointerId); } catch {}
-    const q = W.el.dataset.alca || 'br';
-    r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:W.w, h0:W.h, tx0:W.tx, ty0:W.ty, sx:q[1] === 'l' ? -1 : 1, sy:q[0] === 't' ? -1 : 1 };
-  });
-  alca.addEventListener('pointermove', e => {
-    if (!r || e.pointerId !== r.id) return;
-    const A = area(), mw = W.def.minW || 160, mh = W.def.minH || 110;
-    let w = r.w0 + (e.clientX - r.x0) * r.sx, h = r.h0 + (e.clientY - r.y0) * r.sy;
-    w = clamp(w, mw, r.sx > 0 ? A.w - r.tx0 : r.tx0 + r.w0); h = clamp(h, mh, r.sy > 0 ? A.h - r.ty0 : r.ty0 + r.h0);
-    W.w = Math.round(w); W.h = Math.round(h);
-    if (r.sx < 0) W.tx = W.x = r.tx0 + r.w0 - W.w; if (r.sy < 0) W.ty = W.y = r.ty0 + r.h0 - W.h;
-    pinta(W); try { W.inst.aoTamanho?.(lugar(W)); } catch (err) { console.warn(err); }
-  });
-  const fimR = () => { if (!r) return; r = null; marcaBorda(W); guarda(W); bus.emit('mesa:redimensionou', { id:W.id, ...lugar(W) }); };
-  alca.addEventListener('pointerup', fimR); alca.addEventListener('pointercancel', fimR);
+  W.el.addEventListener('pointerup', solta); W.el.addEventListener('pointercancel', solta); W.el.addEventListener('lostpointercapture', solta);
+  // redimensionar: pelas quatro bordas e pelas quatro quinas; o lado oposto fica parado
+  for (const b of W.el.querySelectorAll('.w-borda')){
+    let r = null; const d = b.dataset.d;
+    b.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { b.setPointerCapture(e.pointerId); } catch {}
+      r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:W.w, h0:W.h, tx0:W.tx, ty0:W.ty }; W.el.classList.add('medindo');
+    });
+    b.addEventListener('pointermove', e => {
+      if (!r || e.pointerId !== r.id) return;
+      const A = area(), mw = W.def.minW || 160, mh = W.def.minH || 110, dx = e.clientX - r.x0, dy = e.clientY - r.y0;
+      let w = r.w0, h = r.h0, x = r.tx0, y = r.ty0;
+      if (d.includes('e')) w = clamp(r.w0 + dx, mw, A.w - r.tx0);
+      if (d.includes('s')) h = clamp(r.h0 + dy, mh, A.h - r.ty0);
+      if (d.includes('w')){ w = clamp(r.w0 - dx, mw, r.tx0 + r.w0); x = r.tx0 + r.w0 - w; }
+      if (d.includes('n')){ h = clamp(r.h0 - dy, mh, r.ty0 + r.h0); y = r.ty0 + r.h0 - h; }
+      W.w = Math.round(w); W.h = Math.round(h); W.tx = W.x = Math.round(x); W.ty = W.y = Math.round(y);
+      pinta(W); try { W.inst.aoTamanho?.(lugar(W)); } catch (err) { console.warn(err); }
+    });
+    const fim = () => { if (!r) return; r = null; W.el.classList.remove('medindo'); marcaBorda(W); guarda(W); bus.emit('mesa:redimensionou', { id:W.id, ...lugar(W) }); };
+    b.addEventListener('pointerup', fim); b.addEventListener('pointercancel', fim);
+  }
 }
 addEventListener('resize', () => { for (const W of ABERTOS.values()){ const b = W.borda, A = area(); cabe(W); if (b.includes('r')) W.tx = A.w - W.w; if (b.includes('b')) W.ty = A.h - W.h; agita(W); } bus.emit('mesa:tela', area()); });
 
@@ -343,7 +350,7 @@ const BASE_SOLTO = '<meta charset="utf-8"><style>'
   + '*{box-sizing:border-box}button,input,textarea,select{font:inherit;color:inherit}'
   + ':root{--coral:#d97757;--pessego:#f0a98a;--fg:#f4f5f8;--muted:rgba(244,245,248,.62);--faint:rgba(244,245,248,.38);--line:rgba(255,255,255,.09);--chapa:rgba(255,255,255,.055);--mola:cubic-bezier(.2,.9,.25,1.12);--suave:cubic-bezier(.2,.8,.2,1)}'
   /* kit: as mesmas peças dos widgets de fábrica, pra todo widget novo nascer no mesmo estilo */
-  + '.pad{padding:4px 16px 14px;height:100%;display:flex;flex-direction:column;gap:10px}'
+  + '.pad{padding:18px 16px 14px;height:100%;display:flex;flex-direction:column;gap:10px}*{scrollbar-width:none}::-webkit-scrollbar{display:none}'
   + '.titulo{font:600 20px/1.2 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.01em;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
   + '.num{font:600 44px/1 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.03em;font-variant-numeric:tabular-nums}'
   + '.sub{color:var(--muted);font-size:12.5px}.rotulo{font:600 10px/1 system-ui;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}'

@@ -1,6 +1,6 @@
 /* Notas: um bloco de texto que fica guardado. O morador lê e escreve nele por comando. */
 Mesa.estilo(`
-.nt{position:absolute;inset:0 0 0 0;width:100%;height:100%;box-sizing:border-box;border:0;outline:0;resize:none;background:transparent;padding:4px 16px 16px;font:400 14.5px/1.55 var(--corpo);user-select:text;-webkit-user-select:text;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.nt{position:absolute;inset:0 0 0 0;width:100%;height:100%;box-sizing:border-box;border:0;outline:0;resize:none;background:transparent;padding:20px 16px 16px;font:400 14.5px/1.55 var(--corpo);user-select:text;-webkit-user-select:text;scrollbar-width:none}
 .nt::placeholder{color:var(--faint)}
 `);
 Mesa.define({

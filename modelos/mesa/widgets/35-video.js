@@ -3,7 +3,7 @@
    o player é o do próprio YouTube, embutido. Também aceita um link ou o id direto. */
 {
 Mesa.estilo(`
-.vd{position:absolute;inset:0;display:flex;flex-direction:column;background:#000;border-radius:0 0 19px 19px;overflow:hidden}
+.vd{position:absolute;inset:0;display:flex;flex-direction:column;background:#000;border-radius:inherit;overflow:hidden}
 .vd iframe{flex:1;width:100%;border:0;display:block;background:#000}
 .vd-vazio{flex:1;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:13px;line-height:1.5;background:radial-gradient(120% 120% at 50% 0,#1c1622,#07080d)}
 .vd-b{flex:none;display:flex;gap:8px;padding:8px 10px;background:var(--vidro)}

@@ -2,6 +2,11 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.7: sem cara de Windows
+- **O que:** os widgets perdem a barra de título (faixa de 34 px com ícone e nome) e toda barra de rolagem (`scrollbar-width: none` na casca e no kit dos soltos). **Fechar:** um X flutuante de 26 px no canto de cima à direita, que só aparece com o mouse em cima do widget. **Redimensionar:** pelas quatro bordas (zona de 9 px) e pelas quatro quinas (18 px); o lado oposto fica parado; some a alça antiga. **Arrastar:** por qualquer parte do corpo que não seja um controle (botão, campo, iframe, canvas) ou pela mãozinha de cima (zona de 16 px com um traço de 38 × 4 px que aparece com o mouse); continua virando arrasto só depois de 4 px.
+- **Por quê:** a Mesa existe pra tirar a cara do Windows; nada de barra superior nem de rolagem.
+- **Testado:** no navegador: sem barra, X escondido em repouso, arrasto pelo corpo do relógio, redimensionar pela borda direita e pela quina de cima à esquerda, console sem erro. **Não testado:** no app instalado; widgets que são um iframe inteiro (vídeo, criados pelo morador) só arrastam pela mãozinha.
+
 ## 2026-11-26 · Mesa 0.6
 - **Vídeo** (`35-video.js`, de fábrica): toca YouTube dentro da Mesa. A busca por assunto é feita pelo PC (PowerShell lê a página de resultados e pega o primeiro `videoId`, que vem escrito com `\x22` no lugar das aspas); o player é o embutido do YouTube, com `pausar`, `continuar`, `parar`, `mudo`, `som`. Comandos `video_tocar` e `video_controlar`.
 - **Imagem de fundo:** `Mesa.papel(caminho ou https)`: arquivo do PC lido em base64, ou endereço baixado pra `~/.mesa/papel.<ext>`; a Mesa guarda só o caminho. Entrou em `mesa_aparencia` (campo `imagem`).
