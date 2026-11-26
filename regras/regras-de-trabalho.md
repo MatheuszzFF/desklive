@@ -9,6 +9,7 @@
 3. Teste no ambiente real e em resolução real antes de dizer "pronto"; confira por print.
 4. Verifique antes de afirmar uma limitação; quando um caminho pesa ou trava, pare e simplifique.
 5. Delegue tarefas paralelas (um agente por app); escreva em português informal e curto, dizendo o custo de cara.
+5b. **Pediu, faz (R28):** quando ele pede algo concreto, construa; não empilhe propostas, sondas e perguntas antes. E não infle o que ele só explicou (R27).
 6. "Isso é regra" → grave aqui na hora e consulte este documento antes de toda tarefa (R21).
 
 ## Design e visual
@@ -55,10 +56,10 @@
 - **Regra:** arrastar e reposicionar apps tem mola, embalo e assentamento suave, sem pulo seco nem tremida, inclusive entre monitores. Isso vale também para encaixar, desencaixar, expandir, recolher e trocar de tela.
 - **Por quê:** ele pediu fluidez no arrasto e no posicionamento, com cuidado.
 - **Exemplo:** "é pra ser feito com esmero".
-- **Desde:** 2026-11-24 · **Reforçada:** 4× (última 2026-11-24, "com motion extra cuidadoso") · **Força:** alta
+- **Desde:** 2026-11-24 · **Reforçada:** 6× (última 2026-11-25, "state of art bem fluido e sem bug" · "controle ... extremamente fino") · **Força:** alta
 
 ### R8 — Layout por posição e por tamanho, com bordas e cantos próprios
-- **Regra:** todo app de desktop novo muda de layout de verdade conforme o lado da tela (coluna nas laterais, abre pra dentro da tela, topo especial) e conforme o tamanho (degraus ao redimensionar). Cada combinação de posição × tamanho tem comportamento próprio nas bordas e nos cantos, movimento com física e muito polimento (detalhes em [[apps-desktop-encaixe-nas-bordas]]).
+- **Regra:** todo app de desktop novo muda de layout de verdade conforme o lado da tela (coluna nas laterais, abre pra dentro da tela, topo especial) e conforme o tamanho (degraus ao redimensionar). Cada combinação de posição × tamanho tem comportamento próprio nas bordas e nos cantos, movimento com física e muito polimento (detalhes em [layout por posição e tamanho](../padroes/layout-posicao-e-tamanho.md)).
 - **Por quê:** pedido explícito pra todos os apps futuros; ele rejeitou a leitura de "só esconder numa aba na borda".
 - **Exemplo:** "pra cada layout tem que ter um tipo de comportamento nos cantos, movimentos e etc. isso também é regra de desenvolvimento de qualquer app".
 - **Desde:** 2026-11-24 · **Reforçada:** 3× · **Força:** alta
@@ -67,10 +68,10 @@
 - **Regra:** em toda borda e todo canto, o app se FUNDE à borda da tela (ombros côncavos ligando a forma à borda), cresce a partir dela num layout próprio daquele lado e se descola como líquido ao ser puxado pra longe. Isso vale pra todos os apps, todos os lados, cantos e tamanhos, com o mesmo acabamento da ilha do topo do Eco (v12). "Só se esconder numa aba" é inaceitável. E cada lado tem uma FORMA DIFERENTE, não a mesma peça fundida em outro lugar nem só girada: por exemplo, a Onda na direita vira coluna vertical, no topo vira letreiro e no canto vira quarto de disco. Na troca de lado, uma forma se transforma na outra com motion ("não quero preguiça de fazer interatividade"). A INTERAÇÃO também é única por lado: como reage ao mouse, como abre, o gesto e o micro-movimento, nada genérico copiado ("a interatividade é pra ser unica"). Refinar o que ele aprovou em vez de refazer do zero; as sugestões são ponto de partida, não receita. O TAMANHO MÍNIMO de cada app também é trabalhado com o mesmo capricho: único em cada lado e canto, interativo e vivo, nunca uma versão encolhida e pobre ("os tamanhos minimos dos apps precisam ser trabalhados bem feito também"). Antes de publicar, mostrar prints de cada lado e canto (em repouso, com o mouse em cima e aberto).
 - **Por quê:** ele aprovou a ilha do topo e rejeitou os outros lados, que só escondiam o app.
 - **Exemplo:** "ISSO AQUI É O MINIMO DE QUALIDADE QUE TEM QUE TER ... em todos os lados ... do resto dos lados ele tipo só se esconde tlgd. mó lixo ... STATE OF ART. isso é regra".
-- **Desde:** 2026-11-24 · **Reforçada:** 4× · **Força:** máxima
+- **Desde:** 2026-11-24 · **Reforçada:** 5× (última 2026-11-25, tamanhos mínimos únicos e interativos) · **Força:** máxima
 
 ### R18 — Os apps conversam e interagem entre si
-- **Regra:** todo app novo entra no barramento ~/.orbita (publica o próprio estado e lê o dos outros) e interage com os outros: grudar um no outro, desviar em vez de sobrepor, arrastar coisas de um pro outro, reagir juntos (cor, batida, "pensando"), aceitar comandos do Eco e respeitar modos (foco, jogo, tela cheia) (detalhes em [[apps-interagem-entre-si]]).
+- **Regra:** todo app novo entra no barramento ~/.orbita (publica o próprio estado e lê o dos outros) e interage com os outros: grudar um no outro, desviar em vez de sobrepor, arrastar coisas de um pro outro, reagir juntos (cor, batida, "pensando"), aceitar comandos do Eco e respeitar modos (foco, jogo, tela cheia) (detalhes em [interação entre apps](../padroes/interacao-entre-apps.md)).
 - **Por quê:** pedido explícito, valendo como regra de desenvolvimento.
 - **Exemplo:** "simm!! faz tbm isso ... e isso é regra tbm em".
 - **Desde:** 2026-11-24 · **Reforçada:** 1× · **Força:** alta
@@ -84,10 +85,10 @@
 ## Como executar e testar
 
 ### R10 — Testar de verdade antes de dizer "pronto"
-- **Regra:** confira o visual em resolução real (Chrome dele via localhost, ou print da tela) e, quando possível, o comportamento no app instalado. Diga claramente o que não foi testado.
-- **Por quê:** vários bugs só apareceram no app instalado (a transparência, o corte da janela, a voz).
-- **Exemplo:** "ta todo bugado o layout do voice".
-- **Desde:** 2026-11-24 · **Reforçada:** 4× (última 2026-11-24, "o botão de parar não para") · **Força:** alta
+- **Regra:** confira o visual em resolução real (Chrome dele via localhost, ou print da tela) e, quando possível, o comportamento no app instalado. Diga claramente o que não foi testado. Vale também pra mudanças no Windows (ícones, barra de tarefas): depois do comando, confira o resultado (estado do sistema ou um print) antes de dizer que funcionou; se o primeiro jeito não pegar, tente outro em vez de devolver o passo a passo manual.
+- **Por quê:** vários bugs só apareceram no app instalado (a transparência, o corte da janela, a voz); e os ícones da área de trabalho foram dados como escondidos duas vezes sem conferir, e ele teve que dizer "ainda estao".
+- **Exemplo:** "ta todo bugado o layout do voice" · "ainda estao".
+- **Desde:** 2026-11-24 · **Reforçada:** 5× (última 2026-11-25, ícones da área de trabalho) · **Força:** alta
 
 ### R11 — Verificar antes de afirmar uma limitação
 - **Regra:** antes de dizer "não dá" ou "você não tem permissão", confira a documentação ou o sistema. Quando ele mandar um link ou um print, leia de verdade e responda sobre aquilo, sem puxar um assunto vizinho.
@@ -104,8 +105,8 @@
 ### R13 — Fazer por ele quando ele pede
 - **Regra:** quando ele diz "faz tudo" ou "confere no meu PC", execute você mesmo, usando o navegador dele, prints e comandos, dentro dos limites de segurança, em vez de passar instruções.
 - **Por quê:** ele prefere resultado a tutorial.
-- **Exemplo:** "faz tudo aipra mim po agora".
-- **Desde:** 2026-11-24 · **Reforçada:** 2× · **Força:** média
+- **Exemplo:** "faz tudo aipra mim po agora" · "faz ai fi" (depois de receber instruções manuais pra esconder os ícones).
+- **Desde:** 2026-11-24 · **Reforçada:** 3× (última 2026-11-25) · **Força:** alta
 
 ## Comunicação
 
@@ -121,13 +122,26 @@
 - **Exemplo:** "isso é regra e eu ja falei 3 ou 4 vezes".
 - **Desde:** 2026-11-24 · **Reforçada:** 2× (última 2026-11-24) · **Força:** máxima
 
+### R27 — Não inflar o que ele só explicou; confirmar o entendimento em poucas linhas
+- **Regra:** quando ele dá contexto ("vai ser open source", "o foco é informação"), absorva e ajuste o que já está sendo feito, sem abrir frentes novas (licença, reescrita, mais etapas). Quando ele lança uma visão nova e grande, devolva em 3–5 linhas o que entendeu antes de começar, e só isso.
+- **Por quê:** o Claude transformou uma explicação sobre o repo em mudanças de escopo e ele cortou; antes disso ele pediu pra ouvir o entendimento primeiro.
+- **Exemplo:** "não não, n exagera, só to explicando" · "primeiro me explica oq eu quero pra eu ver se vc entendeu".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** média
+
+### R28 — Pediu, faz: menos etapas e perguntas, mais construção
+- **Regra:** quando ele pede algo concreto, construa a coisa (mesmo numa primeira versão simples) em vez de propor uma sequência de sondas, fases e perguntas de confirmação. Pergunte só o que bloqueia de verdade. Quando uma ação mexer no PC dele (esconder a barra, fechar apps), diga em uma linha o que mudou e como desfazer, sem misturar com a próxima proposta.
+- **Por quê:** depois de várias rodadas explicando o Board, a sonda e a ordem das etapas, ele se irritou; e ficou confuso sobre o que tinha sido feito na barra de tarefas.
+- **Exemplo:** "mano faz logo a porra do board com só a sonda dentro" · "calma, oq ce fez".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+
 ## Delegar e sessões
 
 ### R15 — Delegar tarefas paralelas
 - **Regra:** pedidos independentes (como achar um wallpaper ou um recurso novo grande) vão pra outra sessão, com um bom resumo; ajustes posteriores vão pra sessão que já tem o contexto. Trabalho que mexe em vários apps vira um agente por app (Órbita, Onda, Eco), e a sessão principal revisa os prints de cada um antes de mostrar pra ele.
 - **Por quê:** ele pediu explicitamente, e depois pediu um agente por app pra trabalhar com cuidado.
-- **Exemplo:** "delega essas tarefas bixo" · "um agent por app".
-- **Desde:** 2026-11-24 · **Reforçada:** 3× (última 2026-11-24) · **Força:** alta
+- **Exemplo:** "delega essas tarefas bixo" · "um agent por app" · "Coloca um opus 5.5 extra high" (pro pesquisador do ambiente).
+- **Nota:** pesquisa técnica funda (o ambiente do host, medições) vai pra um agente dedicado, com o modelo mais forte e esforço alto quando ele pedir.
+- **Desde:** 2026-11-24 · **Reforçada:** 4× (última 2026-11-25) · **Força:** alta
 
 ## Apps de desktop
 
@@ -145,9 +159,9 @@
 
 ### R22 — Todo refino de app é documentado no desklive
 - **Regra:** sempre que um app for criado ou refinado (forma, interação, motion, visual, motor), atualize na mesma tarefa o repo desklive, seguindo o `CLAUDE.md` dele: `apps/<app>/` (README, visual e uma entrada em `refinos.md`), `padroes/motion/` e `referencias/` (molas, motor), mais uma linha no `CHANGELOG.md`, sempre com os números reais. Faça **só o commit local; NÃO faça push** (nem o dreamer) até ele dizer: ele pediu pra deixar o repo local por enquanto ("por enquanto deixa local", 25/11/2026). Só a receita, nunca o código. Mesmo local, confira antes de cada commit que não há segredos nem dados pessoais (o repo vai ser público). Toda sessão delegada que mexe em app recebe essa regra no resumo.
-- **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([[desklive-repo-documentacao]]).
-- **Exemplo:** "sempre que refinarmos apps, documentamos lá".
-- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+- **Por quê:** ele quer o repo como o livro de receitas vivo do projeto ([o CLAUDE.md do repo](../CLAUDE.md)).
+- **Exemplo:** "sempre que refinarmos apps, documentamos lá" · "só vamos subir regras de tempos em tempos" · "faz no desklive sim ... mas por enquanto deixa local".
+- **Desde:** 2026-11-25 · **Reforçada:** 3× (última 2026-11-25) · **Força:** alta
 
 ### R23 — Interação limpa: hover estável, balão por cima, sem sobra de espaço
 - **Regra:** em todo app:
@@ -156,16 +170,17 @@
   - **Hover:** com histerese de entrada e saída. Não pisca quando a forma muda embaixo do mouse, não liga e desliga o "ignorar mouse" no meio do gesto, e nada foge do ponteiro.
   - **Troca de degrau:** só por ação clara (a alça), nunca ao encostar o mouse e nunca no mesmo alvo de outro gesto (girar, deslizar).
   - **Degraus grandes e cantos:** o corpo fica proporcional ao conteúdo, sem área vazia exagerada, com uma área de pega clara pra mover, separada dos gestos.
+  - **Camadas e clique (zero bug de z-index):** só as partes visíveis dos apps recebem clique, hover e scroll; fora delas tudo chega no que está embaixo, e o clique-passa nunca fica preso. Guias, prévias e fundos são `pointer-events:none`; a peça arrastada ou clicada fica por cima das outras.
   - Antes de publicar, testar hover e clique reais no simulador.
 - **Por quê:** no app instalado, o balão da Órbita ficou por baixo dos ícones, o relógio aparecia selecionado, a Onda no canto tinha um quarto de disco enorme e vazio (mal dava pra mover) e trocava de tamanho ao encostar na capa.
-- **Exemplo:** "o comportamento de hover [ta] bem bugado, isso é geral ... o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos".
-- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+- **Exemplo:** "o comportamento de hover [ta] bem bugado, isso é geral ... o espaço ao redor dele fica tao grande exagerado q mal consigo mover ele. Isso pra todos" · "não pode ter bug de z-index".
+- **Desde:** 2026-11-25 · **Reforçada:** 3× (última 2026-11-25, Board: só os mini apps interagíveis) · **Força:** alta
 
 ### R24 — Um app piloto primeiro, depois replicar
 - **Regra:** mudanças grandes de base (motor, hover, tamanhos, movimento, ambiente) são feitas primeiro num app só, até ficar redondo e ele aprovar no app instalado. Só depois a receita vai pros outros apps, adaptada a cada um. Não abrir os três apps em paralelo pra mesma mudança de base.
 - **Por quê:** rodadas em paralelo nos três espalharam bugs parecidos e ele precisou testar tudo três vezes.
-- **Exemplo:** "o ideal é construir num app só extramamente bem feito antes e dps mandar pros outros quando 1 tiver redondo".
-- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+- **Exemplo:** "o ideal é construir num app só extramamente bem feito antes e dps mandar pros outros quando 1 tiver redondo" · "e eu tiver validado". Piloto atual: a Onda.
+- **Desde:** 2026-11-25 · **Reforçada:** 2× (última 2026-11-25) · **Força:** alta
 
 ### R25 — Nada pisca: toda mudança de tamanho, posição ou visibilidade é suave
 - **Regra:** nenhuma largura, altura, posição, recorte ou visibilidade muda de um quadro pro outro sem transição suave. Valem pra isso:
@@ -190,6 +205,24 @@
 - **Exemplo:** "tudo que for sendo feito, seja documentado na sua memoria e docs ... sobre como esta sendo feito tecnicamente para a gente dominar completamente a movimentação e resizing de apps no ... desktop".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
 
+### R29 — Emenda entre monitores é borda e canto; funciona com qualquer número de monitores
+- **Regra:** a divisão entre dois monitores conta como borda de cada um, e as pontas dela como cantos: o app reconhece, gruda, funde e muda de forma ali como numa borda externa, e continua dando pra atravessar pro outro monitor (empurrando além do limiar ou passando rápido), sem travar nem piscar. A lógica vale pra quantos monitores a pessoa tiver, em qualquer arranjo, escala ou degrau desalinhado. Os limites dos cantos têm que ficar bonitos e claros.
+- **Por quê:** os apps não reconheciam o canto na emenda dos dois monitores dele.
+- **Exemplo:** "Essa divisão dos monitores tem que ser considerada canto" · "tem que conectar perfeitamente com quantos monitores a pessoa tiver".
+- **Desde:** 2026-11-25 · **Reforçada:** 2× (última 2026-11-25) · **Força:** alta
+
+### R30 — O ponto de pega fica embaixo do mouse; precisão máxima no arrasto
+- **Regra:** durante o arrasto, o ponto onde ele clicou fica sob o ponteiro mesmo quando o app muda de tamanho, de forma ou inverte a ordem (row-reverse) no meio do gesto; gestos internos (arrastar o tempo da música) nunca deixam o clique preso. Mire no máximo de precisão: erro de pega ≤ 0,5 px, atraso mínimo em relação ao mouse e zero tremida com o mouse parado, medidos e anotados.
+- **Por quê:** testando a Onda, o app escorregava em relação ao mouse nas trocas de forma e o clique ficou preso no arrastar do tempo; e ele vai "botar o motion pra foder" em cima desse controle.
+- **Exemplo:** "a posição do app em relação ao meu mouse ... ta mudando muito" · "o mais preciso que puder deixar, deixa".
+- **Desde:** 2026-11-25 · **Reforçada:** 2× (última 2026-11-25) · **Força:** alta
+
+### R31 — Medir com cuidado em vez de adivinhar; vídeo é analisado quadro a quadro
+- **Regra:** quando ele mandar vídeo de um bug, analise quadro a quadro (tremidas de 1 quadro contam) e diga os tempos exatos. Pra bugs de movimento, prefira instrumentar (modo de registro, sonda) e ler os números a supor a causa.
+- **Por quê:** os bugs da Onda só ficaram claros com a análise fina do vídeo e com o registro de eventos.
+- **Exemplo:** "olha os videos com muito cuidado em pq tem uns frame que fica tremendo".
+- **Desde:** 2026-11-25 · **Reforçada:** 2× (última 2026-11-25, "seria legal medirmos com mais cuidado") · **Força:** alta
+
 ## Segurança e permissões
 
 ### R17 — Não desligar proteções por ele
@@ -204,3 +237,4 @@
 - **2026-11-24:** R19 criada (não mexer no mouse e no teclado do PC); R20 criada e ampliada (ilha do topo do Eco como padrão mínimo, forma e interação únicas por lado).
 - **2026-11-25 (dreamer, 1ª execução):** lidas 7 conversas de 22 a 24/11 (a principal da Órbita, Onda e Eco, as três sessões de agente por app que copiam o mesmo histórico, a do wallpaper e duas curtas). Nova: R21 (salvar as regras na hora e consultá-las sempre). Refinadas: R11 (ler o link ou print que ele manda, sem desviar do assunto), R14 (dizer o custo logo de cara, força subiu pra alta), R15 (um agente por app, com revisão dos prints). Reforçadas: R7, R10 e R16 (4× cada). Nenhuma removida.
 - **2026-11-25:** R22 alterada (commit local só, sem push até ele dizer: "por enquanto deixa local"); R26 alterada (a base técnica privada foi mesclada no desklive: registro no `diario/` + arquivo do assunto + CHANGELOG).
+- **2026-11-25 (dreamer, 2ª execução):** lidas 5 conversas com mensagens novas (a principal "Artefatos como apps", os agentes da Onda e do Eco, e duas curtas sobre fone e ícones/barra do Windows), 73 mensagens. Novas: R27 (não inflar o que ele só explicou), R28 (pediu, faz), R29 (emenda entre monitores é borda e canto, qualquer número de monitores), R30 (ponto de pega sob o mouse, precisão máxima), R31 (medir e ver vídeo quadro a quadro). Refinadas: R10 (conferir mudanças no Windows antes de afirmar), R13 (força subiu pra alta), R15 (pesquisa funda num agente dedicado e forte), R23 (zero bug de z-index, só as peças recebem clique). Reforçadas: R7 (6×), R20 (5×), R22 (3×), R24 (2×). Nenhuma removida.

@@ -4,6 +4,9 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Dreamer: regras R27–R31 e espelhos do dia
+- **Atualizado:** [regras de trabalho](regras/regras-de-trabalho.md) (novas R27 não inflar o que ele só explicou, R28 pediu faz, R29 emenda entre monitores é borda e canto, R30 ponto de pega e precisão, R31 medir e ver vídeo quadro a quadro; R10, R13, R15 e R23 refinadas), espelhos [layout](padroes/layout-posicao-e-tamanho.md), [interação entre apps](padroes/interacao-entre-apps.md) (Board, piloto, fila) e [design](padroes/design.md), agora com título.
+
 ### Onda v21.1: tremida quadro a quadro, emenda como borda, dois passos
 - **Atualizado:** [janela sem tremer](padroes/motion/janela-sem-tremer.md) (técnica 6: dois passos), [sensor de borda](padroes/motion/sensor-de-borda-e-encaixe.md) (a emenda é borda), [motor-piloto](referencias/motor/motor-piloto.md) (histerese do monitor, portal junto do commit), [como medir](referencias/ambiente/como-medir.md) (maior bloco, detector de vai e volta, fps real), [bugs e lições](referencias/motor/bugs-e-licoes.md) (26, 27, 33, 34), [diário](diario/2026-11.md), [refinos da Onda](apps/onda/refinos.md) e o Testado da [Onda](apps/onda/README.md).
 
