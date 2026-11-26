@@ -2,7 +2,7 @@
 
 A Mesa é um artefato do Claude instalado como app, que cobre a área de trabalho com uma janela só. Dentro dela
 moram os widgets e o Dengas, o assistente. Este documento diz onde cada coisa fica e por quê, no estado da
-**Mesa 0.16** (piloto). O histórico de cada mudança, com o que foi e o que não foi testado, está em
+**Mesa 0.17** (piloto). O histórico de cada mudança, com o que foi e o que não foi testado, está em
 `apps/mesa/refinos.md`.
 
 ## As quatro camadas
@@ -101,6 +101,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File modelos\mesa\build.ps1 -SemT
 Sai em `modelos/saida/mesa.html` (fora do git). No navegador, por `localhost`, dá pra conferir a casca, os widgets
 e os ganchos `window.Mesa` e `window.__mesa`. O que depende do app instalado (Claude, PC, conectores, a janela do
 Edge alinhada ao furo) só se confere lá: cada entrada do `refinos.md` diz o que ficou sem testar.
+
+## Diagnóstico
+
+O que só acontece no app instalado não dá pra ver de fora, então a casca grava `~/.mesa/diagnostico.json`: telas, janela pedida e obtida, medidas da página, widgets abertos e o que cada fonte registrada com `Mesa.diagFonte(nome, fn)` contar. Grava ao ocupar a tela, a cada `resize`, quando o Dengas é solto e pelo menu. Todo widget que tenha comportamento de posição deve registrar uma fonte.
 
 ## Próximos passos
 

@@ -73,10 +73,11 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.16';
+const VERSAO = '0.17';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
+const DIAG = { tentativas:[], fontes:new Map(), pedida:null };   // diagnóstico: quem quiser contar seu estado registra uma fonte
 const $ = id => document.getElementById(id);
 const R = document.documentElement, camada = $('camada');
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -494,7 +495,7 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('mouseleave', () => { if (!apertado && ![...HOSP.values()].some(H => !H.ignora)) setPassa(true); });
 
 /* a Mesa, pra widgets e pro morador */
-const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, papel, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, agente, fundo, bus, area, ps,
+const Mesa = { versao:VERSAO, define, abre, fecha, move, toca, aparencia, papel, dialogo, seguraCliques, criaSolto, removeSolto, fonteSolto, visao, hospeda, abreHospede, fechaHospede, hospedes:() => [...HDEFS.values()].map(d => ({ id:d.id, nome:d.nome, aberto:HOSP.has(d.id) })), frente:id => { const W = ABERTOS.get(id); if (W) frente(W); }, estado, comandos, agente, fundo, bus, area, ps, diagnostico:diagLogo, diagFonte:(nome, fn) => DIAG.fontes.set(nome, fn),
   defs:() => [...DEFS.values()], abertos:() => [...ABERTOS.values()].map(W => ({ id:W.id, nome:W.def.nome, ...lugar(W) })), aberto:id => ABERTOS.has(id),
   caixa:id => { const W = ABERTOS.get(id); return W ? { x:W.x, y:W.y, w:W.w, h:W.h, pegando:!!W.pega } : null; },
   podePC:() => podePC, sample:() => sampleFn, host:() => desktop, camada, le, grava, quadro, menu:() => menuItens(),
@@ -516,19 +517,47 @@ function menuItens(){
     ...(telas.length > 1 ? [{ label:'Levar pro outro monitor', click:() => ocupa((monitor + 1) % telas.length) }] : []),
     { label:'Segurar os cliques por 20 s (pra clicar num aviso do app)', click:() => seguraCliques(20000) },
     { label:'Recarregar a Mesa', click:() => location.reload() },
+    { label:'Gravar diagnóstico agora', click:() => diagnostico('menu') },
     { label:'Permissões…', click:() => dialogo(() => desktop.permissions.manage()).catch(() => {}) },
     { type:'separator' },
     { label:`Mesa ${VERSAO} · escala ${escala.toFixed(2)} · ${innerWidth}×${innerHeight}`, enabled:false },
   ];
 }
-// a janela cobre a área de trabalho de um monitor (nas unidades do host, sem conversão) e nunca mais se mexe
+// a janela cobre o MONITOR inteiro (bounds, não a área de trabalho: a Mesa não reserva faixa pra barra do Windows).
+// Depois de pedir, confere: se a página não ficou do tamanho da tela (o host e a página podem medir em unidades
+// diferentes), pede de novo na proporção certa. Tudo fica anotado no diagnóstico.
+const espera = ms => new Promise(r => setTimeout(r, ms));
 async function ocupa(i){
   telas = await desktop.screen.getAllDisplays().catch(() => telas); if (!telas.length) return;
   monitor = clamp(i, 0, telas.length - 1); prefs.monitor = monitor; salva();
-  const a = telas[monitor].workArea;
-  await desktop.window.setBounds({ x:a.x, y:a.y, width:a.width, height:a.height }).catch(() => {});
-  setTimeout(() => { escala = a.width / Math.max(1, innerWidth); }, 400);
+  const a = telas[monitor].bounds || telas[monitor].workArea; let p = { x:a.x, y:a.y, width:a.width, height:a.height };
+  DIAG.tentativas = [];
+  for (let n = 0; n < 3; n++){
+    DIAG.pedida = p; await desktop.window.setBounds(p).catch(e => { DIAG.tentativas.push({ erro:String(e?.message || e) }); });
+    await espera(450);
+    const sw = screen.width, sh = screen.height, dw = innerWidth - sw, dh = innerHeight - sh;
+    DIAG.tentativas.push({ pedida:{ ...p }, pagina:[innerWidth, innerHeight], tela:[sw, sh] });
+    if (Math.abs(dw) <= 6 && Math.abs(dh) <= 6) break;
+    if (innerWidth < 50 || innerHeight < 50) break;
+    p = { x:a.x, y:a.y, width:Math.round(p.width * sw / innerWidth), height:Math.round(p.height * sh / innerHeight) };
+  }
+  escala = (DIAG.pedida?.width || a.width) / Math.max(1, innerWidth);
+  diagnostico('ocupou');
 }
+// retrato da tela, da janela e dos moradores, gravado em ~/.mesa/diagnostico.json pra conferir fora do app
+let tDiag = 0;
+async function diagnostico(motivo){
+  if (!podePC || !desktop?.fs) return null;
+  const d = { hora:new Date().toISOString(), versao:VERSAO, motivo, monitor, telas:telas.map(t => ({ id:t.id, bounds:t.bounds, workArea:t.workArea, scaleFactor:t.scaleFactor })),
+    pedida:DIAG.pedida, janela:await desktop.window.getBounds().catch(e => ({ erro:String(e?.message || e) })), tentativas:DIAG.tentativas,
+    pagina:{ innerWidth, innerHeight, dpr:devicePixelRatio, screen:[screen.width, screen.height], avail:[screen.availWidth, screen.availHeight], screenXY:[window.screenX, window.screenY] },
+    passa, fundo:prefs.fundo, abertos:[...ABERTOS.values()].map(W => ({ id:W.id, ...lugar(W) })), fontes:{} };
+  for (const [nome, fn] of DIAG.fontes){ try { d.fontes[nome] = fn(); } catch (e) { d.fontes[nome] = { erro:String(e?.message || e) }; } }
+  try { await desktop.fs.writeFile(BUS_DIR + '/diagnostico.json', JSON.stringify(d, null, 1), 'utf8'); } catch (e) { console.warn('mesa: diagnóstico', e); }
+  return d;
+}
+function diagLogo(motivo){ clearTimeout(tDiag); tDiag = setTimeout(() => diagnostico(motivo), 600); }
+addEventListener('resize', () => diagLogo('resize'));
 async function entra(perms){
   let res;
   try { res = await desktop.window.setOptions(OPTS); } catch (e) { diz('O sistema não deixou a janela flutuar: ' + String(e.message || e)); return; }

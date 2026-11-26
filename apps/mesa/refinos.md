@@ -2,6 +2,13 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-27 · Mesa 0.17: monitor inteiro e diagnóstico em arquivo
+- **Queixa do dono (app instalado):** ocultou a barra do Windows, então a Mesa pode desconsiderá-la; e o Dengas "não está reagindo aos cantos".
+- **O que:** `ocupa()` passa a cobrir os `bounds` do monitor (não a `workArea`) e confere o resultado: se a página não ficou do tamanho de `screen.width × screen.height`, pede de novo na proporção (até 3 tentativas). A casca grava `~/.mesa/diagnostico.json` (telas, janela pedida e obtida, medidas da página, widgets, e as fontes registradas com `Mesa.diagFonte`; o Dengas registra posição, limites e onde foi solto) ao ocupar, a cada `resize`, quando o Dengas é solto e pelo menu "Gravar diagnóstico agora".
+- **Medido neste PC (fora do app):** monitor principal 2560×1440 a 100%, segundo monitor 1080×1920 em pé à direita, barra em auto-ocultar (área de trabalho igual ao monitor).
+- **Cantos:** causa ainda NÃO encontrada; a Mesa nunca teve reação a canto no Dengas (isso é do app Eco). Falta o diagnóstico do app e o dono dizer o que esperava ver.
+- **Testado:** no navegador, a Mesa sobe sem erro (um erro de ordem de declaração do diagnóstico foi pego aí e corrigido). **Não testado:** tudo que é do app instalado.
+
 ## 2026-11-26 · Mesa 0.16: mini agente em cada app
 - **Direção do dono:** cada app com o próprio harness e um mini agente que conversa com o Dengas; o Dengas vê e manipula tudo sem carregar o conhecimento de cada app.
 - **O que:** a casca ganha `Mesa.agente(id, regras)`. O Dengas ganha a ferramenta `agente(app, pedido)`: outra chamada ao Claude, com as regras do app, o estado dele, o espaço da tela (caixa dele e dos vizinhos) e, como ferramentas, os comandos do app mais `caixa` (mover e redimensionar a si mesmo). Os comandos de cada app deixam de ser ferramentas do Dengas (ficava acima do teto); `widget_comando` continua pro comando direto. Regras escritas pros seis apps (navegador, relógio, notas, Onda, Órbita, Estante); widget sem regras ganha agente só pelas descrições.

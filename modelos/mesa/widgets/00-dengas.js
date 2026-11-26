@@ -76,6 +76,8 @@ function superficies(){
 }
 function superficieAbaixo(x, y){ let m = null; for (const s of superficies()) if (x >= s.x0 - 20 && x <= s.x1 + 20 && s.y >= y - 6 && (!m || s.y < m.y)) m = s; return m || superficies()[0]; }
 function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y) }); }
+const RASTRO = { arrasto:null, andou:null };
+Mesa.diagFonte('dengas', () => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, alvo:D.alvo, area:area(), chao:chao(), limites:{ x:[30, area().w - 30], y:[110, chao()] }, mouse:D.mouse, ...RASTRO }));
 
 /* ---------- animação ---------- */
 let clipes = [], atual = null, chave = '', extraEm = performance.now() + 6000;
@@ -175,6 +177,7 @@ hit.addEventListener('pointermove', e => {
 function larga(){
   if (!gesto) return; const era = gesto.on; gesto = null;
   if (!era){ D.aberto ? fecha() : abre(); return; }
+  RASTRO.arrasto = { soltou:[Math.round(D.x), Math.round(D.y)], area:area(), quando:new Date().toISOString() }; Mesa.diagnostico('dengas solto');
   D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null; guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
 }
 hit.addEventListener('pointerup', larga); hit.addEventListener('pointercancel', larga);
