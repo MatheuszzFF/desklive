@@ -4,6 +4,13 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-26
 
+### Modelos: o Board v2, do jeito publicado
+- **Novo:** [modelos/board/](modelos/board/README.md): `board-src.html` (o Board v2 com a Sonda e a Afinação), `build.ps1` (grava `board.html` e `board-2.html`, que só mudam no título, com o mesmo conteúdo dos dois artefatos publicados), o simulador em [teste/](modelos/board/teste/) e as medições do PC em [scripts/](modelos/board/scripts/) (caminhos relativos à pasta). README com publicar e instalar os dois, atalhos, o que foi e o que não foi testado e os docs do Board.
+- **Atualizado:** [modelos/](modelos/README.md) (linha do Board), mapa do [CLAUDE.md](CLAUDE.md) ("Usar o Board"), [diário](diario/2026-11.md).
+
+### Merge: a Mesa (PR #1)
+- **Trazido:** [modelos/mesa/](modelos/mesa/README.md) e [apps/mesa/](apps/mesa/README.md), Mesa 0.1 a 0.17, sem mudança.
+
 ### Board v2: Sonda original, motion fino, monitor 2, Telas e conexão
 - **Novo:** [board-telas](referencias/ambiente/board-telas.md) (host + Windows + vsync medido, espaços de coordenada, leitura real do PC) e [board-conexao](referencias/ambiente/board-conexao.md) (canais medidos, relay de pipes, protocolo do passe, linha do tempo comum, provas). **Atualizado:** [board](referencias/ambiente/board.md), [board-pecas](referencias/ambiente/board-pecas.md), [board-motor](referencias/ambiente/board-motor.md) (molas finais, contatos, números), [bugs e lições](referencias/motor/bugs-e-licoes.md) (35–46), [índice do ambiente](referencias/ambiente/README.md), [glossário](visao/glossario.md), mapa do [CLAUDE.md](CLAUDE.md), [diário](diario/2026-11.md).
 

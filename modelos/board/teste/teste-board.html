@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Simulador do Board</title>
+<style>
+  html,body{margin:0;background:#0a0b10;color:#dfe3ea;font:12px system-ui,sans-serif;overflow:hidden}
+  #mesa{position:absolute;left:0;top:0;transform-origin:0 0}
+  .mon{position:absolute;box-sizing:border-box;border:2px solid #2a2f3d;background:linear-gradient(135deg,#1a2133,#262035)}
+  .mon .barra{position:absolute;left:0;right:0;bottom:0;background:#11131a;border-top:1px solid #2a2f3d}
+  .mon b{position:absolute;left:24px;top:20px;font-size:40px;color:#3a4256}
+  .app{position:absolute;padding:30px 40px;border-radius:14px;background:#2b3247;color:#cfd6e6;font-size:34px;border:2px solid #3c4560}
+  iframe{position:absolute;border:0;background:transparent;color-scheme:light;transform-origin:0 0}
+  #cursor{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:4px solid #ff5d5d;pointer-events:none;z-index:9}
+  #grafico{position:absolute;right:8px;bottom:8px;background:#0d0f16;border:1px solid #2a2f3d;display:none;z-index:20}
+</style>
+</head>
+<body>
+<div id="mesa"></div><canvas id="grafico" width="760" height="380"></canvas>
+<script>
+'use strict';
+/* relógio do simulador: o navegador estrangula setTimeout quando a janela fica atrás de outras (~4 por segundo).
+   Aqui os timers rodam por MessageChannel (não estrangulado), na janela do harness e na de cada Board (só no simulador). */
+window.__simRelogio = function(win){
+  if (win.__relogioSim) return; win.__relogioSim = true;
+  const P = win.performance, fila = []; let seq = 1, ligado = false;
+  const ch = new win.MessageChannel();
+  const bomba = () => { if (!ligado){ ligado = true; ch.port2.postMessage(0); } };
+  ch.port1.onmessage = () => {
+    ligado = false; const t = P.now();
+    for (let i = 0; i < fila.length; i++){ const T = fila[i]; if (T.t <= t){ if (T.iv){ T.t = t + T.ms; } else { fila.splice(i, 1); i--; } try { T.fn(...T.args); } catch (e) { setTimeout0(() => { throw e; }); } } }
+    if (fila.length) bomba();
+  };
+  const setTimeout0 = win.setTimeout.bind(win);
+  win.setTimeout = (fn, ms = 0, ...args) => { if (typeof fn !== 'function') return setTimeout0(fn, ms); const id = seq++; fila.push({ id, fn, args, t:P.now() + (+ms || 0), ms:+ms || 0, iv:false }); bomba(); return id; };
+  win.setInterval = (fn, ms = 0, ...args) => { const id = seq++; fila.push({ id, fn, args, t:P.now() + Math.max(4, +ms || 0), ms:Math.max(4, +ms || 0), iv:true }); bomba(); return id; };
+  win.clearTimeout = win.clearInterval = id => { const i = fila.findIndex(T => T.id === id); if (i >= 0) fila.splice(i, 1); };
+};
+__simRelogio(window);
+/* Simulador do host, em PIXELS FÍSICOS como o Windows: cada monitor tem o retângulo físico (fis) e o DIP do host (bounds).
+   A janela de cada Board mora no DIP do seu monitor, estendido linearmente (é assim que o ponteiro capturado chega fora dela). */
+const Q = new URLSearchParams(location.search);
+const CFG = {
+  real:[   // o PC dele hoje: barra só no monitor 1 (área útil 1032), monitor 2 com 1080; escala 1; 60 Hz
+    { id:101, label:'Monitor 1', bounds:{ x:0, y:0, width:1920, height:1080 }, workArea:{ x:0, y:0, width:1920, height:1032 }, scaleFactor:1, fis:{ x:0, y:0, w:1920, h:1080 }, hz:60, prim:true },
+    { id:102, label:'Monitor 2', bounds:{ x:1920, y:0, width:1920, height:1080 }, workArea:{ x:1920, y:0, width:1920, height:1080 }, scaleFactor:1, fis:{ x:1920, y:0, w:1920, h:1080 }, hz:60 } ],
+  misto:[  // DPI e Hz diferentes: monitor 2 com 2560×1440 a 1,5 (1707×960 DIP), 144 Hz, 300 px físicos mais alto
+    { id:1, label:'Monitor 1', bounds:{ x:0, y:0, width:1920, height:1080 }, workArea:{ x:0, y:0, width:1920, height:1032 }, scaleFactor:1, fis:{ x:0, y:0, w:1920, h:1080 }, hz:60, prim:true },
+    { id:2, label:'Monitor 2', bounds:{ x:1920, y:-200, width:1707, height:960 }, workArea:{ x:1920, y:-200, width:1707, height:912 }, scaleFactor:1.5, fis:{ x:1920, y:-300, w:2560, h:1440 }, hz:144 } ],
+};
+const NOME_CFG = Q.get('cfg') || 'real';
+let ds = JSON.parse(JSON.stringify(CFG[NOME_CFG]));
+const mesa = document.getElementById('mesa');
+const LIM = () => { const xs = ds.map(d => [d.fis.x, d.fis.x + d.fis.w]).flat(), ys = ds.map(d => [d.fis.y, d.fis.y + d.fis.h]).flat(); return { x:Math.min(...xs), y:Math.min(...ys), w:Math.max(...xs) - Math.min(...xs), h:Math.max(...ys) - Math.min(...ys) }; };
+let MIN = LIM();
+function geral(){ MIN = LIM(); const e = Math.min(innerWidth / MIN.w, innerHeight / MIN.h); mesa.style.transform = `scale(${e}) translate(${-MIN.x}px,${-MIN.y}px)`; }
+function foco(x, y, w, h){ const e = Math.min(innerWidth / w, innerHeight / h); mesa.style.transform = `scale(${e}) translate(${-x}px,${-y}px)`; }
+const FSMAP = new Map(), LOG = [], DESK = { cliques:[], moves:0 };
+const monDe = d => ds.find(m => m.id === d.id);
+function desenharMonitores(){
+  mesa.querySelectorAll('.mon,.app').forEach(e => e.remove());
+  for (const d of ds){
+    const m = document.createElement('div'); m.className = 'mon'; const f = d.fis, s = d.scaleFactor;
+    Object.assign(m.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px' });
+    m.innerHTML = `<b>${d.label} · @${s} · ${d.hz} Hz</b><div class="barra" style="height:${(d.bounds.height - d.workArea.height) * s}px"></div>`; mesa.prepend(m);
+  }
+  for (const [nome, x, y] of [['App A', 300, 500], ['App B', 1300, 820], ['App C', 2600, 300]]){
+    const a = document.createElement('div'); a.className = 'app'; a.textContent = nome; a.dataset.app = nome; a.style.left = x + 'px'; a.style.top = y + 'px';
+    a.addEventListener('click', () => DESK.cliques.push(nome)); mesa.appendChild(a);
+  }
+}
+desenharMonitores(); geral();
+const cursor = document.createElement('div'); cursor.id = 'cursor'; mesa.appendChild(cursor);
+const delay = ms => new Promise(r => setTimeout(r, ms));
+const inter = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+const V = (e, t, n) => Math.min(Math.max(Math.round(e), t), Math.max(t, n));
+const b64dec = s => { const bin = atob(s); let o = ''; for (let i = 0; i < bin.length; i += 2) o += String.fromCharCode(bin.charCodeAt(i) | (bin.charCodeAt(i + 1) << 8)); return o; };
+
+const FR = [];
+function monDaJanela(F){ let best = ds[0], bi = -1; for (const d of ds){ const i = inter(F.win, d.bounds); if (i > bi){ bi = i; best = d; } } return best; }
+function novoBoard(nome, win, arquivo = 'board.html'){
+  const el = document.createElement('iframe'); el.dataset.nome = nome;
+  const F = { nome, el, win:{ ...win }, ignore:null, visivel:true, trocasCP:[], hovered:false, atalhos:new Set(), menus:[] };
+  const aplicar = () => { const M = monDaJanela(F), s = M.scaleFactor; F.mon = M;
+    Object.assign(el.style, { left:M.fis.x + (F.win.x - M.bounds.x) * s + 'px', top:M.fis.y + (F.win.y - M.bounds.y) * s + 'px', width:F.win.width + 'px', height:F.win.height + 'px', transform:`scale(${s})`, visibility:F.visivel ? 'visible' : 'hidden' }); };
+  F.aplicar = aplicar; aplicar();
+  const fs = {
+    mkdir:async () => { await delay(1); },
+    writeFile:async (p, d) => { await delay(2); FSMAP.set(p, String(d)); },
+    readFile:async p => { await delay(1); if (!FSMAP.has(p)) throw new Error('ENOENT ' + p); return FSMAP.get(p); },
+    readdir:async p => { await delay(1); const pre = p.replace(/\/$/, '') + '/'; return [...FSMAP.keys()].filter(k => k.startsWith(pre) && !k.slice(pre.length).includes('/')).map(k => ({ name:k.slice(pre.length), isFile:true })); },
+    rename:async (a, b) => { await delay(1); if (!FSMAP.has(a)) throw new Error('ENOENT'); FSMAP.set(b, FSMAP.get(a)); FSMAP.delete(a); },
+    exists:async p => FSMAP.has(p),
+  };
+  F.desktop = {
+    __sim:{ get relogio(){ return 1000 / (F.mon?.hz || 60); }, semBC:Q.has('semBC') },
+    install:{ state:async () => 'installed' },
+    permissions:{ state:async () => ({ overlay:'granted', 'full-access':'granted', notifications:'granted', 'menu-bar':'granted', shortcuts:'granted' }), request:async () => ({ overlay:'granted' }), manage:async () => {} },
+    window:{
+      setOptions:async o => ({ applied:'now', reloading:false, options:o }),
+      getBounds:async () => { await delay(1); return { ...F.win }; },
+      setBounds:async r => { await delay(2);
+        const a = { x:r.x ?? F.win.x, y:r.y ?? F.win.y, width:r.width ?? F.win.width, height:r.height ?? F.win.height };
+        let best = ds[0], bi = -1; for (const d of ds){ const i = inter(a, d.bounds); if (i > bi){ bi = i; best = d; } }
+        const A = best.workArea, w = V(a.width, Math.min(40, A.width), A.width), h = V(a.height, Math.min(40, A.height), A.height);
+        F.win = { x:V(a.x, A.x, A.x + A.width - w), y:V(a.y, A.y, A.y + A.height - h), width:w, height:h }; aplicar(); },
+      setIgnoreMouseEvents:async v => { await delay(3); F.ignore = !!v; F.trocasCP.push([performance.now(), v]); },
+      show:async () => { F.visivel = true; aplicar(); }, hide:async () => { F.visivel = false; aplicar(); LOG.push(F.nome + ' escondeu'); },
+    },
+    screen:{ getAllDisplays:async () => { await delay(1); return JSON.parse(JSON.stringify(ds)).map(d => { delete d.fis; delete d.hz; delete d.prim; return d; }); }, getCursorScreenPoint:async () => { await delay(1); const [x, y] = fisParaDip(M.x, M.y); return { x:Math.round(x), y:Math.round(y) }; } },
+    fs, app:{ dock:{ setIcon:async () => ({}) } },
+    tray:{ set:async () => ({}), remove:async () => {} },
+    Menu:{ popup:async items => { F.menus.push(items.map(i => i.label)); } },
+    globalShortcut:{ register:async k => { if (FR.some(o => o !== F && o.atalhos.has(k))) throw new Error('já registrado'); F.atalhos.add(k); }, unregisterAll:async () => F.atalhos.clear() },
+    notification:{ show:async () => {} },
+    // o Windows imitado: responde ao script de Telas (EnumDisplayMonitors/EnumDisplaySettings/GetDpiForMonitor) com os monitores físicos
+    childProcess:{ exec:async cmd => { await delay(40); const m = cmd.match(/-EncodedCommand (\S+)/); const src = m ? b64dec(m[1]) : '';
+      if (src.includes('TelasW')) return { stdout:JSON.stringify(ds.map((d, i) => { const s = d.scaleFactor, f = d.fis; return { dev:'\\\\.\\DISPLAY' + (i + 1), x:f.x, y:f.y, w:f.w, h:f.h, wx:Math.round(f.x + (d.workArea.x - d.bounds.x) * s), wy:Math.round(f.y + (d.workArea.y - d.bounds.y) * s), ww:Math.round(d.workArea.width * s), wh:Math.round(d.workArea.height * s), prim:!!d.prim, hz:d.hz, rw:f.w, rh:f.h, px:f.x, py:f.y, ori:0, dpi:Math.round(96 * s) }; })), stderr:'', code:0 };
+      throw new Error('sem PowerShell no simulador'); } },
+  };
+  FR.push(F);
+  el.src = arquivo + '?sim&b=' + nome;
+  mesa.insertBefore(el, cursor);
+  return F;
+}
+window.__simDesktop = w => FR.find(F => F.el.contentWindow === w)?.desktop;
+function fechar(nome){ const i = FR.findIndex(F => F.nome === nome); if (i < 0) return; FR[i].el.remove(); FR.splice(i, 1); LOG.push(nome + ' fechado'); }
+
+/* mouse virtual em pixels físicos; cada janela recebe no DIP do seu monitor estendido linearmente */
+const M = { x:-100, y:-100, cap:null, capEl:null, downEl:null, botao:0 };
+function monFis(x, y){ return ds.find(d => x >= d.fis.x && x < d.fis.x + d.fis.w && y >= d.fis.y && y < d.fis.y + d.fis.h) || null; }
+function fisParaDip(x, y){ const d = monFis(x, y) || ds[0]; return [d.bounds.x + (x - d.fis.x) / d.scaleFactor, d.bounds.y + (y - d.fis.y) / d.scaleFactor]; }
+function dipParaFis(d, gx, gy){ return [d.fis.x + (gx - d.bounds.x) * d.scaleFactor, d.fis.y + (gy - d.bounds.y) * d.scaleFactor]; }
+function local(F, x, y){ const d = F.mon, s = d.scaleFactor; return [d.bounds.x + (x - d.fis.x) / s - F.win.x, d.bounds.y + (y - d.fis.y) / s - F.win.y]; }
+function frameEm(x, y){ for (let i = FR.length - 1; i >= 0; i--){ const F = FR[i]; if (!F.visivel) continue; const [lx, ly] = local(F, x, y); if (lx >= 0 && ly >= 0 && lx < F.win.width && ly < F.win.height && monFis(x, y) === F.mon) return F; } return null; }
+function ev(F, tipo, alvo, lx, ly, buttons, button){
+  const W = F.el.contentWindow; if (!W) return;
+  const Ctor = tipo === 'click' || tipo === 'contextmenu' ? W.MouseEvent : W.PointerEvent;
+  const e = new Ctor(tipo, { bubbles:tipo !== 'pointerrawupdate', cancelable:true, composed:true, clientX:lx, clientY:ly, pointerId:1, pointerType:'mouse', isPrimary:true, button:button ?? (tipo.endsWith('move') || tipo === 'pointerrawupdate' ? -1 : 0), buttons });
+  (tipo === 'pointerrawupdate' ? W : alvo)?.dispatchEvent(e);
+}
+function alvoEm(F, lx, ly){ const d = F.el.contentDocument; return d?.elementFromPoint(lx, ly) || d?.documentElement; }
+function mover(x, y){
+  M.x = x; M.y = y; cursor.style.left = x + 'px'; cursor.style.top = y + 'px';
+  if (M.cap){ const F = M.cap; if (!F.el.isConnected){ M.cap = null; return; } const [lx, ly] = local(F, x, y); ev(F, 'pointerrawupdate', null, lx, ly, 1); ev(F, 'pointermove', M.capEl, lx, ly, 1); return; }
+  const F = frameEm(x, y);
+  for (const G of FR) if (G !== F && G.hovered){ G.hovered = false; G.el.contentDocument?.documentElement.dispatchEvent(new G.el.contentWindow.MouseEvent('mouseleave', { bubbles:false })); }
+  if (F){ F.hovered = true; const [lx, ly] = local(F, x, y); ev(F, 'pointerrawupdate', null, lx, ly, 0); ev(F, 'pointermove', alvoEm(F, lx, ly), lx, ly, 0); if (F.ignore === true) DESK.moves++; }
+  else DESK.moves++;
+}
+function appEm(x, y){ for (const a of mesa.querySelectorAll('.app')){ const l = parseFloat(a.style.left), t = parseFloat(a.style.top); if (x >= l && x <= l + a.offsetWidth && y >= t && y <= t + a.offsetHeight) return a; } return null; }
+function apertar(botao = 0){
+  const F = frameEm(M.x, M.y);
+  if (F && F.ignore !== true){ const [lx, ly] = local(F, M.x, M.y), t = alvoEm(F, lx, ly); M.cap = F; M.capEl = t; M.downEl = t; M.botao = botao; ev(F, 'pointerdown', t, lx, ly, botao === 2 ? 2 : 1, botao); return { foi:'board', board:F.nome, alvo:t?.className || t?.tagName }; }
+  const a = appEm(M.x, M.y); M.cap = null; M.deskDown = a; return { foi:'desktop', app:a?.dataset.app || 'área de trabalho' };
+}
+function soltar(){
+  if (M.cap){ const F = M.cap; M.cap = null; if (!F.el.isConnected) return { foi:'fechado' }; const [lx, ly] = local(F, M.x, M.y); ev(F, 'pointerup', M.capEl, lx, ly, 0, M.botao);
+    const t = alvoEm(F, lx, ly); if (M.botao === 0 && t && M.downEl && (t === M.downEl || M.downEl.contains(t) || t.contains(M.downEl))) ev(F, 'click', M.downEl, lx, ly, 0);
+    if (M.botao === 2) ev(F, 'contextmenu', M.downEl, lx, ly, 0, 2);
+    M.capEl = null; return { foi:'board' }; }
+  const a = appEm(M.x, M.y); if (a && a === M.deskDown) a.click(); M.deskDown = null; return { foi:'desktop' };
+}
+async function clicar(x, y, botao = 0){ mover(x, y); await delay(40); const r = apertar(botao); await delay(30); soltar(); await delay(30); return r; }
+async function caminho(pts, passoMs = 16){ for (const [x, y] of pts){ mover(x, y); await delay(passoMs); } }
+function linha(a, b, n){ const o = []; for (let i = 1; i <= n; i++) o.push([a[0] + (b[0] - a[0]) * i / n, a[1] + (b[1] - a[1]) * i / n]); return o; }
+async function arrastar(de, para, n = 40, opts = {}){
+  mover(de[0], de[1]); await delay(60); apertar(); await delay(20);
+  await caminho(linha(de, [de[0] + 8, de[1] + 8], 3));
+  await caminho(linha([de[0] + 8, de[1] + 8], para, n), opts.passoMs || 16);
+  if (opts.parar) await delay(opts.parar);
+  if (opts.segurar) return;
+  soltar(); await delay(opts.depois ?? 900);
+}
+const bd = nome => FR.find(F => F.nome === nome)?.el.contentWindow?.__board;
+function onde(){ const r = {}; for (const F of FR){ const b = bd(F.nome); if (!b) continue; const P = b.pecas.get('sonda'); r[F.nome] = { monitor:b.minha()?.id, area:b.area(), cp:F.ignore, sonda:P ? { forma:P.forma, degrau:P.degrau, x:+P.rv[0].toFixed(2), y:+P.rv[1].toFixed(2), w:+P.rv[2].toFixed(2), h:+P.rv[3].toFixed(2), estado:P.estado, epoca:P.epoca || 0 } : null, fantasmas:[...b.fantasmas.keys()], erros:b.erros.slice() }; } return r; }
+/* a Sonda em coordenadas FÍSICAS globais (no Board dono) */
+function sondaGlobal(){ for (const F of FR){ const b = bd(F.nome), P = b?.pecas.get('sonda'); if (P){ const d = monDe(b.minha()), a = b.area(), [x, y] = dipParaFis(d, P.rv[0] + a.x, P.rv[1] + a.y); return { F, b, P, x, y, w:P.rv[2] * d.scaleFactor, h:P.rv[3] * d.scaleFactor, s:d.scaleFactor }; } } return null; }
+function grafico(series, titulo){   // desenha curvas (t, valor) pra conferir continuidade
+  const c = document.getElementById('grafico'), g = c.getContext('2d'); c.style.display = 'block'; g.fillStyle = '#0d0f16'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#cfd6e6'; g.font = '14px system-ui'; g.fillText(titulo, 12, 20);
+  const n = series.length, h = (c.height - 40) / n;
+  series.forEach((s, i) => { const xs = s.pts.map(p => p[0]), ys = s.pts.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), top = 32 + i * h;
+    g.strokeStyle = '#2a2f3d'; g.strokeRect(10, top, c.width - 20, h - 10); g.fillStyle = '#9aa1b2'; g.fillText(`${s.nome}  [${y0.toFixed(1)} … ${y1.toFixed(1)}]`, 16, top + 16);
+    g.strokeStyle = s.cor; g.lineWidth = 2; g.beginPath(); s.pts.forEach((p, k) => { const X = 10 + (p[0] - x0) / Math.max(1e-9, x1 - x0) * (c.width - 20), Y = top + h - 14 - (p[1] - y0) / Math.max(1e-9, y1 - y0) * (h - 34); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }); g.stroke(); });
+}
+window.SIM = { foco, geral, FR, M, CFG, get ds(){ return ds; }, set ds(v){ ds = v; desenharMonitores(); geral(); for (const F of FR) F.aplicar(); }, FSMAP, DESK, LOG, mover, apertar, soltar, clicar, caminho, linha, arrastar, bd, onde, sondaGlobal, delay, fechar, novoBoard, fisParaDip, dipParaFis, monDe, grafico, NOME_CFG };
+(async () => {
+  const B2 = Q.has('b2') ? 'board-2.html' : 'board.html';
+  if (Q.has('juntos')){ novoBoard('A', { x:300, y:100, width:1200, height:800 }); novoBoard('B', { x:2200, y:0, width:1200, height:700 }, B2); }
+  else { novoBoard('A', { x:300, y:100, width:1200, height:800 }); await delay(400); novoBoard('B', { x:2200, y:0, width:1200, height:700 }, B2); }
+})();
+</script>
+<script src="testes.js"></script>
+<script src="testes2.js"></script>
+<script src="testes3.js"></script>
+</body>
+</html>
