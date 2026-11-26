@@ -10,6 +10,7 @@
 | **área útil** | a `workArea` de um monitor (a tela menos a barra do Windows fixa); é nela que o host prende a janela, um monitor de cada vez | [mover e redimensionar](../referencias/ambiente/mover-e-redimensionar.md) |
 | **balão** | o nome, número ou aviso que aparece com o mouse em cima (tooltip); um só por app, numa camada por cima de tudo | [hover e balões](../padroes/hover-e-baloes.md) |
 | **barramento** | a pasta `~/.orbita`, por onde os apps trocam estado e comandos em arquivos | [interação entre apps](../padroes/interacao-entre-apps.md), [arquitetura](../padroes/arquitetura.md) |
+| **Board** | proposta de arquitetura: uma janela transparente, sempre no topo e do tamanho da área útil por monitor, com os apps dentro como peças movidas só por `transform`; um app instalado por monitor | [board](../referencias/ambiente/board.md) |
 | **"clique passa"** | fora da parte visível, o clique vai pra área de trabalho (`setIgnoreMouseEvents` com `forward`); liga com atraso e nunca com o botão pressionado | [hover e balões](../padroes/hover-e-baloes.md), [arquitetura](../padroes/arquitetura.md) |
 | **commit atômico** | tamanho + deslocamento + CSS da janela aplicados juntos, só quando chega o `resize` | [janela sem tremer](../padroes/motion/janela-sem-tremer.md) |
 | **degrau** | um tamanho do app (ex.: mínima, compacta, expandida, grande); cada um tem layout próprio em cada lado | [layout](../padroes/layout-posicao-e-tamanho.md) |

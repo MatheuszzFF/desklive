@@ -28,6 +28,7 @@ Pesquisa de 25/11/2026, feita **só lendo**: o pacote instalado do app Claude (6
 | [como-medir.md](como-medir.md) | os contadores do motor, a sonda (testes e como rodar), o modo de registro por quadro (`<app>-trace.json`) e a análise de vídeo quadro a quadro (mediana, bbox, centroide) |
 | [medicoes.md](medicoes.md) | **números medidos no app instalado** (vale mais que o inferido): tempo, redimensionar pela direita e pela esquerda, trava, hover e corrida do clique, gravações e o vídeo da Onda v20 |
 | [receitas-recomendadas.md](receitas-recomendadas.md) | o que mudar no motor e nos apps, em ordem, com por quê, ganho e risco |
+| [board.md](board.md) | **proposta:** o Board (uma janela transparente em tela cheia por monitor, apps como peças movidas por `transform`), o que as typings permitem (uma janela por app), N monitores com emendas, cantos e degraus, guias de encaixe, passe entre Boards, riscos, a sonda e o fundo no Wallpaper Engine |
 
 ## Os achados que mais mudam o trabalho
 
