@@ -305,6 +305,7 @@ function regras(){
     conectores.length ? 'Conectores da conta do dono que você pode usar com a ferramenta conector: ' + JSON.stringify(conectores).slice(0, 5000) : '',
     'E-mail: você pode enviar, responder e encaminhar pelo Gmail, mas só quando o dono pedir pra enviar. Se ele pediu só pra escrever ou não disse pra quem, faça rascunho (create_draft) e avise. Depois de enviar, diga pra quem foi e o assunto.',
     'WhatsApp e páginas logadas: você lê o que está na tela do navegador da Mesa com o comando ler_tela do widget video. Pro WhatsApp: abrir_site com https://web.whatsapp.com, depois ler_tela com espera 8 (se vier só a tela de QR, peça pro dono escanear uma vez). Pra ir além da lista (abrir uma conversa e ler), delegue ao agente do video; abrir uma conversa marca as mensagens como lidas, então só quando o dono pedir aquela conversa. Ninguém envia mensagem no WhatsApp. Leia o WhatsApp só quando o dono pedir, e resuma em vez de despejar tudo.',
+    'Você só lê o que está no Board: os widgets, os apps e o que eles mostram (mesa_estado). Não leia nem liste o que está fora dele (janelas e programas do Windows). Coisas do Windows (abrir programa, trazer ou fechar janela, abrir site) só quando o dono pedir nesta conversa; o app pergunta pra ele antes e, se ele disser não, deixe quieto.',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
     'A Mesa agora (posições em px, origem no canto de cima à esquerda): ' + JSON.stringify(e).slice(0, 3500),
@@ -377,7 +378,7 @@ function ferramentas(atos){
           'Espaço: a tela tem ' + e.tela.w + ' x ' + e.tela.h + ' px. Sua caixa agora: ' + JSON.stringify({ x:eu.x, y:eu.y, w:eu.w, h:eu.h }) + '. Outros na Mesa (não cubra sem motivo): ' + JSON.stringify(todos.filter(q => q.id !== app).map(q => ({ id:q.id, x:q.x, y:q.y, w:q.w, h:q.h }))).slice(0, 900) + (Mesa.aberto(app) ? '. Pra mudar de lugar ou de tamanho use a ferramenta caixa.' : '.'),
           'Seu estado agora: ' + JSON.stringify(eu.estado ?? null).slice(0, 1500),
         ].join('\n');
-        const fs = cmds.map(c => ({ name:String(c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60), description:c.descricao, inputSchema:c.esquema, execute:async (en, ctx) => { const r = await c.roda(en || {}, ctx); return r === undefined ? 'feito' : r; } }));
+        const fs = cmds.map(c => ({ name:String(c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60), description:c.descricao, inputSchema:c.esquema, execute:async (en, ctx) => { await guardaFora(app + '.' + c.nome, en || {}); const r = await c.roda(en || {}, ctx); return r === undefined ? 'feito' : r; } })).filter(f => !FORA_LER.has(app + '.' + f.name));
         if (Mesa.aberto(app)) fs.push({ name:'caixa', description:'Move ou redimensiona o seu próprio widget na Mesa. x, y, w, h em px; borda encosta: l, r, t, b, tl, tr, bl, br ou centro. Devolve a caixa nova.',
           inputSchema:{ type:'object', properties:{ x:{ type:'number' }, y:{ type:'number' }, w:{ type:'number' }, h:{ type:'number' }, borda:{ type:'string', enum:['l','r','t','b','tl','tr','bl','br','centro'] } } }, execute:en => Mesa.move(app, en || {}) });
         try {
@@ -390,7 +391,8 @@ function ferramentas(atos){
       async execute({ widget, comando, args }, ctx){
         const todos = Mesa.comandos(), c = todos.find(q => q.widget === widget && q.nome === comando);
         if (!c) throw new Error('não achei "' + comando + '" em "' + widget + '". Disponíveis: ' + (todos.filter(q => q.widget === widget).map(q => q.nome).join(', ') || 'nenhum (o widget está aberto?)'));
-        visita(c.widget); Mesa.toca(c.widget); const r = await c.roda(args && typeof args === 'object' ? args : {}, ctx); nota('• ' + c.nomeWidget + ': ' + c.nome); return r === undefined ? 'feito' : r;
+        const a0 = args && typeof args === 'object' ? args : {}; await guardaFora(c.widget + '.' + c.nome, a0);
+        visita(c.widget); Mesa.toca(c.widget); const r = await c.roda(a0, ctx); nota('• ' + c.nomeWidget + ': ' + c.nome); return r === undefined ? 'feito' : r;
       } },
     { name:'mesa_aparencia', description:'Muda a cara da Mesa. destaque: cor de destaque em #rrggbb; vidro: opacidade dos widgets de 0.35 a 1; raio: arredondamento dos widgets em px (0 a 34); papel: 2 ou 3 cores #rrggbb do papel de parede (de dentro pra fora); imagem: caminho de um arquivo de imagem do PC ou endereço https de uma imagem, que vira o plano de fundo (vazio tira a imagem); fundo: "mesa" cobre a área de trabalho com o papel de parede, "transparente" deixa ver o Windows.',
       inputSchema:{ type:'object', properties:{ destaque:{ type:'string' }, vidro:{ type:'number' }, raio:{ type:'number' }, papel:{ type:'array', items:{ type:'string' } }, imagem:{ type:'string' }, fundo:{ type:'string', enum:['mesa','transparente'] } } },
@@ -469,22 +471,45 @@ function ferramentas(atos){
   if (Mesa.podePC()) l.push(
     { name:'abrir_site', description:'Abre no navegador do PC um endereço https completo, ou um atalho de app (spotify:, steam:, discord:, ms-settings:).',
       inputSchema:{ type:'object', properties:{ alvo:{ type:'string' } }, required:['alvo'] },
-      async execute({ alvo }){ const t = String(alvo || '').trim(); if (!/^https:\/\/[^\s'"<>]+$/i.test(t) && !/^(spotify|steam|discord|ms-settings):[^\s'"<>]*$/i.test(t)) throw new Error('só abro endereços https e os atalhos spotify:, steam:, discord: e ms-settings:'); await Mesa.ps("Start-Process -FilePath '" + t.replace(/'/g, "''") + "'"); nota('↗ ' + t.slice(0, 40)); return 'aberto'; } });
+      async execute({ alvo }){ const t = String(alvo || '').trim(); if (!/^https:\/\/[^\s'"<>]+$/i.test(t) && !/^(spotify|steam|discord|ms-settings):[^\s'"<>]*$/i.test(t)) throw new Error('só abro endereços https e os atalhos spotify:, steam:, discord: e ms-settings:'); await guardaFora('abrir_site', { alvo:t }); await Mesa.ps("Start-Process -FilePath '" + t.replace(/'/g, "''") + "'"); nota('↗ ' + t.slice(0, 40)); return 'aberto'; } });
   return l;
 }
 // vai até o widget em que está mexendo (se estiver no chão, para embaixo dele)
 function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto && !D.bolinha) vai(w.x + w.w / 2, w.y); }
+/* ---------- fora do Board ----------
+   O Dengas só LÊ o que está no Board (widgets, apps e o que eles mostram). Coisas do Windows continuam possíveis,
+   mas só com o dono: abrir programa, trazer ou fechar janela e abrir site perguntam antes, no próprio chat, e
+   listar as janelas do Windows ele não faz (não lê o que está fora do quadro). */
+const dlog = (n, m, d) => window.Board?.diario?.('dengas', n, m, d);
+const FORA_LER = new Set(['janelas.listar_janelas']);
+const FORA_AGIR = { 'janelas.trazer_janela':a => 'trazer "' + (a.janela || '?') + '" pro Board', 'janelas.abrir_programa':a => 'abrir ' + (a.programa || a.alvo || a.caminho || JSON.stringify(a).slice(0, 60)) + ' no PC', 'janelas.fechar_programa':a => 'fechar ' + (a.janela || '?'), 'abrir_site':a => 'abrir ' + String(a.alvo || '').slice(0, 60) };
+function pedePermissao(oque){
+  return new Promise(ok => {
+    abre(); const el = msg('ele', 'Posso ' + oque + '?'), box = document.createElement('div'); box.className = 'dg-atos';
+    let feito = false; const fim = v => { if (feito) return; feito = true; clearTimeout(t); box.remove(); el.append(v ? ' Pode.' : ' Deixa.'); ok(v); };
+    for (const [txt, v] of [['Pode', true], ['Agora não', false]]){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = txt; b.addEventListener('click', () => fim(v)); box.appendChild(b); }
+    el.appendChild(box); msgsEl.scrollTop = msgsEl.scrollHeight;
+    const t = setTimeout(() => fim(false), 60000); ctl?.signal?.addEventListener('abort', () => fim(false));
+  });
+}
+async function guardaFora(chave, args){
+  if (FORA_LER.has(chave)){ dlog('aviso', 'barrado (leitura fora do Board): ' + chave); throw new Error('não leio as janelas do Windows, só o que está no Board. Se o dono quer trazer um programa, use o nome dele (trazer_janela ou abrir_programa).'); }
+  const f = FORA_AGIR[chave]; if (!f) return;
+  const sim = await pedePermissao(f(args || {})); dlog(sim ? 'info' : 'aviso', (sim ? 'liberado: ' : 'negado: ') + chave, args);
+  if (!sim) throw new Error('o dono não deixou agora (fora do Board só com o sim dele). Não insista.');
+}
 const ERRO = { not_granted:'Você não liberou o Claude pra mim. Dá pra liberar em Permissões.', sampling_disabled:'O Claude não está disponível nessa conta.', rate_limited:'Cansei um pouquinho… tenta de novo daqui a pouco.', session_expired:'Sua sessão do Claude caiu. Entra de novo e me chama.', refused:'Disso eu prefiro não falar.', empty_completion:'Me deu um branco. Pergunta de outro jeito?' };
 let ctl = null, turnos = [], comFerramentas = true, tetoFerramentas = 16;
 const corta = (t, bytes) => { let r = String(t || ''); while (new TextEncoder().encode(r).length > bytes) r = r.slice(0, Math.floor(r.length * .92)); return r; };
 // as ferramentas da casca vêm primeiro; se passar do teto da view, os comandos de widget do fim ficam de fora
 const DEPOIS = ['widget_fonte', 'widget_remover', 'mesa_visao', 'mesa_app', 'lembrar', 'abrir_site', 'notas_limpar', 'orbita_procurar_app', 'onda_listar'];
-function dentroDosLimites(l){ l = [...l.filter(t => !DEPOIS.includes(t.name)), ...l.filter(t => DEPOIS.includes(t.name))]; const nomes = new Set(); return l.filter(t => /^[A-Za-z0-9_-]{1,128}$/.test(t.name) && !nomes.has(t.name) && nomes.add(t.name)).slice(0, tetoFerramentas).map(t => ({ ...t, description:corta(t.description, 1000) })); }
+function comDiario(t){ return { ...t, execute:async (en, ctx) => { const t0 = performance.now(); try { const r = await t.execute(en, ctx); dlog('info', 'ferramenta ' + t.name, { args:en, ms:Math.round(performance.now() - t0), r:typeof r === 'string' ? r.slice(0, 200) : r }); return r; } catch (e) { dlog('erro', 'ferramenta ' + t.name, { args:en, ms:Math.round(performance.now() - t0), erro:String(e?.message || e).slice(0, 300) }); throw e; } } }; }
+function dentroDosLimites(l){ l = [...l.filter(t => !DEPOIS.includes(t.name)), ...l.filter(t => DEPOIS.includes(t.name))]; const nomes = new Set(); return l.filter(t => /^[A-Za-z0-9_-]{1,128}$/.test(t.name) && !nomes.has(t.name) && nomes.add(t.name)).slice(0, tetoFerramentas).map(t => comDiario({ ...t, description:corta(t.description, 1000) })); }
 async function pergunta(texto){
   texto = String(texto || '').trim(); if (!texto || ctl) return;
   abre(); qEl.value = ''; qEl.style.height = '22px';
   const sample = Mesa.sample();
-  msg('eu', texto);
+  msg('eu', texto); dlog('info', 'pedido', { texto:texto.slice(0, 300) });
   if (!sample){ msg('erro', 'Aqui eu ainda não tenho o Claude: abra a Mesa pelo app do Claude.'); return; }
   turnos.push({ role:'user', content:texto }); while (turnos.length > 14) turnos.splice(0, 2);
   const ele = msg('ele pensa', 'Pensando…'), atos = [];
