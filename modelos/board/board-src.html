@@ -389,7 +389,9 @@ let perms = await desktop.permissions?.state?.().catch(() => null);
    um diálogo só; a tela com o botão fica só pra quando isso não deu. */
 const LISTA_PERMS = ['overlay', 'full-access', 'notifications', 'menu-bar', 'shortcuts'];
 for (let i = 0; i < 20 && perms && perms.overlay === 'unavailable'; i++){ await sleep(500); perms = await desktop.permissions.state().catch(() => perms); }
-if (perms && perms.overlay === 'prompt'){ try { perms = await desktop.permissions.request(LISTA_PERMS); } catch {} perms = await desktop.permissions.state().catch(() => perms); }
+// como a Mesa: se QUALQUER uma voltou a "prompt" (versão nova), pede de novo, num diálogo só. Com o "flutuar" já
+// liberado e o acesso total pendente, o Board ficava sem disco e sem PowerShell (sem batimento, sem internet, sem fundo)
+if (perms && LISTA_PERMS.some(k => perms[k] === 'prompt')){ try { perms = Object.assign({}, perms, await desktop.permissions.request(LISTA_PERMS)); } catch {} perms = Object.assign({}, perms, await desktop.permissions.state().catch(() => ({}))); }
 /* numa versão nova o estado pode continuar "prompt" mesmo depois do Permitir (o host só pergunta de novo na chamada que
    precisa). Então só para aqui se a pessoa disse NÃO; nos outros casos segue: o setOptions logo abaixo pede, e se o host
    recusar, a tela mostra o motivo e os estados. */
