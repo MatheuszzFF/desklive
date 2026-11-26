@@ -240,6 +240,7 @@ function regras(){
     'O widget video é também o navegador da Mesa, com as contas do dono conectadas (Google, YouTube). Quando ele pedir pra pesquisar, ver ou abrir algo, além de responder curto, MOSTRE: abra o widget video e use abrir_site com a melhor página que você achou, ou com https://www.google.com/search?q=<busca codificada> pra ele ver os resultados.',
     'O que um widget solto NÃO consegue: acessar a internet, tocar vídeo de site, ler arquivos ou mexer no PC. Pra isso existem as suas ferramentas, widgets de fábrica e apps: vídeo do YouTube e qualquer site dentro da Mesa é o widget video (comandos tocar, abrir_site e fechar_janela); música é a Onda; abrir programas é a Órbita; imagem de fundo é mesa_aparencia com imagem. Nunca diga que não dá sem antes conferir esses.',
     'Se o widget que você precisa está fechado, abra com mesa_widget (a resposta traz os comandos dele) e, no MESMO pedido, use widget_comando pra fazer o que foi pedido. Nunca peça pro dono clicar ou digitar algo que um comando faz.',
+    conectores.length ? 'Conectores da conta do dono que você pode usar com a ferramenta conector: ' + JSON.stringify(conectores).slice(0, 2500) : '',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
     'A Mesa agora (posições em px, origem no canto de cima à esquerda): ' + JSON.stringify(e).slice(0, 3500),
@@ -263,6 +264,20 @@ $h=$h -replace '(?is)<(script|style|noscript|svg|head)\b.*?</\1>',' '; $x=Limpa 
   return base + String.raw`$h=Pega ('https://html.duckduckgo.com/html/?kl=br-pt&q=' + [uri]::EscapeDataString($q)); $n=0
 foreach($m in [regex]::Matches($h,'(?s)class="result__a" href="([^"]+)"[^>]*>(.*?)</a>.*?class="result__snippet"[^>]*>(.*?)</a>')){ $u=[Net.WebUtility]::HtmlDecode($m.Groups[1].Value); $d=[regex]::Match($u,'uddg=([^&]+)'); if($d.Success){ $u=[uri]::UnescapeDataString($d.Groups[1].Value) }; if($u -notmatch '^https://'){ continue }; (Limpa $m.Groups[2].Value) + ' | ' + $u + ' | ' + (Limpa $m.Groups[3].Value); $n++; if($n -ge 6){ break } }`;
 }
+// conectores do Claude do dono (Spotify, e Gmail/Agenda/Drive quando ele ligar): a página só alcança os que estão
+// declarados na publicação do artefato; a lista vem pronta de listTools e o app pede a permissão no primeiro uso.
+let mcp = null, conectores = [], conectoresEm = 0;
+async function carregaConectores(){
+  if (performance.now() - conectoresEm < 60000 && conectoresEm) return;
+  try {
+    mcp = mcp || await Promise.race([window.claude?.use?.('mcp'), new Promise(r => setTimeout(() => r(null), 4000))]);
+    if (!mcp) return;
+    const r = await mcp.listTools();
+    conectores = (r.servers || []).filter(v => v.kind !== 'artifact' && v.tools?.length).map(v => ({ servidor:v.server, estado:v.authStatus, ferramentas:v.tools.map(t => ({ nome:t.name, o_que_faz:String(t.description || '').slice(0, 140) })) }));
+    conectoresEm = performance.now();
+  } catch (e) { console.warn('mesa: conectores', e); }
+}
+const ERRO_MCP = { needs_reauth:'o dono precisa reconectar esse conector em claude.ai, Configurações, Conectores', server_not_connected:'esse conector não está ligado na conta do dono (claude.ai, Configurações, Conectores)', selection_required:'o dono tem mais de um conector com esse nome e precisa escolher um', not_in_manifest:'esse conector ou ferramenta não está liberado pra Mesa', approval_required:'o dono não aprovou essa chamada', blocked_by_policy:'bloqueado pela política da conta', not_granted:'o dono não liberou os conectores pra Mesa', cancelled:'cancelado' };
 function ferramentas(atos){
   const nota = t => atos.push(t);
   const ids = Mesa.defs().map(d => d.id);
@@ -296,6 +311,18 @@ function ferramentas(atos){
         const r = String(await Mesa.ps(psInternet(acao, t), 40000) || '').trim(); nota('⌕ ' + t.slice(0, 30));
         if (!r) throw new Error(acao === 'ler' ? 'a página veio vazia' : 'não achei nada pra "' + t + '"');
         return acao === 'ler' ? r.slice(0, 5200) : r.split(/\r?\n/).filter(Boolean).slice(0, 6);
+      } }] : []),
+    ...(conectores.length ? [{ name:'conector', description:'Usa um conector da conta do dono (os disponíveis e as ferramentas de cada um estão nas instruções). acao "descrever": devolve os argumentos que a ferramenta aceita (faça isso antes da primeira chamada de uma ferramenta que você não conhece). acao "chamar": executa com args e devolve a resposta. Pra ações que mudam algo (salvar, apagar, enviar), só chame quando o dono pediu isso.',
+      inputSchema:{ type:'object', properties:{ acao:{ type:'string', enum:['descrever','chamar'] }, servidor:{ type:'string' }, ferramenta:{ type:'string' }, args:{ type:'object' } }, required:['acao','servidor','ferramenta'] },
+      async execute({ acao, servidor, ferramenta, args }){
+        const c = conectores.find(q => q.servidor === servidor); if (!c) throw new Error('conectores disponíveis: ' + conectores.map(q => q.servidor).join(', '));
+        if (!c.ferramentas.some(f => f.nome === ferramenta)) throw new Error('ferramentas de ' + servidor + ': ' + c.ferramentas.map(f => f.nome).join(', '));
+        try {
+          if (acao === 'descrever'){ const d = await Mesa.dialogo(() => mcp.describeTool(servidor, ferramenta)); return JSON.stringify({ o_que_faz:d.description, args:d.inputSchema }).slice(0, 6000); }
+          const r = await Mesa.dialogo(() => mcp.callTool(servidor, ferramenta, args && typeof args === 'object' ? args : {}, { cache:false })); nota('⇆ ' + servidor);
+          const p = r.payload !== undefined ? r.payload : (r.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+          return (typeof p === 'string' ? p : JSON.stringify(p)).slice(0, 6000) || 'feito';
+        } catch (e) { throw new Error(ERRO_MCP[e?.code] || (e?.code === 'tool_error' ? 'o conector respondeu com erro: ' + String(e.message || '').slice(0, 300) : 'não deu agora (' + (e?.code || 'erro') + '): ' + String(e?.message || '').slice(0, 200))); }
       } }] : []),
     { name:'widget_criar', description:'Cria na hora um widget novo na Mesa, ou troca um que você criou (mesmo id). html: o miolo do widget, um documento pequeno com <style> e <script> se precisar. Devolve o id e o nome. As regras de como escrever o html estão nas instruções.',
       inputSchema:{ type:'object', properties:{ id:{ type:'string' }, nome:{ type:'string' }, descricao:{ type:'string' }, html:{ type:'string' }, w:{ type:'number' }, h:{ type:'number' } }, required:['id','nome','html'] },
@@ -345,6 +372,7 @@ async function pergunta(texto){
   const mostra = t => { D.pensando = false; D.falandoAte = performance.now() + 500; ele.classList.remove('pensa'); ele.textContent = t.replace(/\*\*(.+?)\*\*/g, '$1');
     if (atos.length){ const box = document.createElement('div'); box.className = 'dg-atos'; for (const a of atos){ const s = document.createElement('span'); s.className = 'dg-ato'; s.textContent = a; box.appendChild(s); } ele.appendChild(box); } msgsEl.scrollTop = msgsEl.scrollHeight; };
   const opts = { model:MODELO, modelTier:'quick', cache:false, signal:c.signal, onText:({ text }) => mostra(text) };
+  await carregaConectores();
   if (comFerramentas){
     const lim = await sample.limits?.().catch(() => null);
     if (lim && !lim.tools) comFerramentas = false; else { if (lim?.tools?.maxCount) tetoFerramentas = lim.tools.maxCount; opts.tools = dentroDosLimites(ferramentas(atos)); }

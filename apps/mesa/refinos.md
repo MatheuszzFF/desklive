@@ -2,6 +2,15 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.11: conectores do Claude
+- **O que:** o Dengas ganha a ferramenta `conector` (descrever / chamar), que usa os conectores da conta do dono pela capacidade `mcp` do artefato. A lista vem de `listTools()` e entra nas instruções; os erros viram frase pelo código. A página só alcança o que está declarado na publicação (`capabilities.mcp.servers`); hoje só o Spotify, o único ligado na conta.
+- **Não testado:** nenhuma chamada real foi feita (só dá no app). Gmail, Agenda e Drive dependem do dono ligar os conectores em claude.ai.
+
+## 2026-11-26 · Mesa 0.10: navegador da Mesa
+- **Achado no app:** a janela do Edge abriu no lugar, mas com a barra de título dela e com o "Erro 153" do YouTube (o player reduzido `watch_popup` recusa sem saber de onde é chamado).
+- **O que:** abre a página normal do vídeo; a janela sobe a altura da barra (33 px na escala 100%, pelo DPI da janela) e é recortada com `SetWindowRgn`; antes de abrir, fecha todo Edge do perfil `~/.mesa/edge` (janela órfã fazia o Edge novo entregar o endereço pro velho e sumir). O perfil guarda o login do dono. O Dengas passa a mostrar a pesquisa no navegador.
+- **Testado:** abrir, mover e fechar neste PC (`janela_teste.js`). **Não testado:** o recorte e o vídeo no app instalado.
+
 ## 2026-11-26 · Mesa 0.9: o Dengas ganha internet
 - **Queixa:** o Dengas respondeu que não conseguia pesquisar na internet e pediu um link de imagem pro dono.
 - **O que:** ferramenta `internet` (uma só, pra não gastar o teto de ferramentas), só com o acesso ao PC liberado, pelo PowerShell: `pesquisar` (DuckDuckGo em HTML, até 6 resultados), `imagens` (API aberta do Wikimedia Commons, fotos largas de 1600 px pra cima) e `ler` (título e texto de uma página https, até 5 mil letras). O texto do Claude vai em base64, nunca vira código. O download do papel de parede passou a mandar um User-Agent. As regras mandam ele buscar sozinho e só dizer que fez depois da ferramenta confirmar.
