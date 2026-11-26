@@ -371,15 +371,17 @@ async function medirZoom(ds){
   return ZOOM;
 }
 const zr = r => r && { ...r, x:r.x / ZOOM, y:r.y / ZOOM, width:r.width / ZOOM, height:r.height / ZOOM };
-const S = SIM ? Sh : new Proxy(Sh, { get(o, k){
-  if (k === 'getAllDisplays') return async () => { const ds = await Sh.getAllDisplays(); await medirZoom(ds); if (ZOOM === 1) return ds;
-    return ds.map(d => ({ ...d, bounds:zr(d.bounds), workArea:zr(d.workArea), size:d.size && { width:d.size.width / ZOOM, height:d.size.height / ZOOM }, workAreaSize:d.workAreaSize && { width:d.workAreaSize.width / ZOOM, height:d.workAreaSize.height / ZOOM }, scaleFactor:(d.scaleFactor || 1) * ZOOM, zoom:ZOOM })); };
-  if (k === 'getCursorScreenPoint') return async () => { const p = await Sh.getCursorScreenPoint(); return ZOOM === 1 ? p : { x:p.x / ZOOM, y:p.y / ZOOM }; };
-  const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } });
-const W = SIM ? Wh : new Proxy(Wh, { get(o, k){
-  if (k === 'setBounds') return b => { if (ZOOM === 1) return Wh.setBounds(b); const r = {}; for (const q of ['x', 'y', 'width', 'height']) if (b[q] != null) r[q] = Math.round(b[q] * ZOOM); return Wh.setBounds(r); };
-  if (k === 'getBounds') return async () => { const b = await Wh.getBounds(); return ZOOM === 1 ? b : zr(b); };
-  const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } });
+// os objetos do host são congelados (um Proxy em volta deles quebra): a cópia leva cada método ligado ao original
+const copia = (o, troca) => { const r = {}; for (const k in o){ const v = o[k]; r[k] = typeof v === 'function' ? v.bind(o) : v; } return Object.assign(r, troca); };
+const S = SIM ? Sh : copia(Sh, {
+  getAllDisplays:async () => { const ds = await Sh.getAllDisplays(); await medirZoom(ds); if (ZOOM === 1) return ds;
+    return ds.map(d => ({ ...d, bounds:zr(d.bounds), workArea:zr(d.workArea), size:d.size && { width:d.size.width / ZOOM, height:d.size.height / ZOOM }, workAreaSize:d.workAreaSize && { width:d.workAreaSize.width / ZOOM, height:d.workAreaSize.height / ZOOM }, scaleFactor:(d.scaleFactor || 1) * ZOOM, zoom:ZOOM })); },
+  getCursorScreenPoint:async () => { const p = await Sh.getCursorScreenPoint(); return ZOOM === 1 ? p : { x:p.x / ZOOM, y:p.y / ZOOM }; },
+});
+const W = SIM ? Wh : copia(Wh, {
+  setBounds:b => { if (ZOOM === 1) return Wh.setBounds(b); const r = {}; for (const q of ['x', 'y', 'width', 'height']) if (b[q] != null) r[q] = Math.round(b[q] * ZOOM); return Wh.setBounds(r); },
+  getBounds:async () => { const b = await Wh.getBounds(); return ZOOM === 1 ? b : zr(b); },
+});
 const FS = desktop.fs;
 let perms = await desktop.permissions?.state?.().catch(() => null);
 /* a cada versão nova publicada o app do Claude esquece o "Permitir" e volta a perguntar (regra do host). Enquanto ele
