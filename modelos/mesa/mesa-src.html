@@ -424,8 +424,8 @@ function visao(acao, nome){
 /* o que o morador (e qualquer widget) enxerga da mesa inteira */
 function estado(){
   return { tela:area(), fundo:prefs.fundo,
-    abertos:[...ABERTOS.values()].map(W => { let e; try { e = W.inst.estado?.(); } catch { e = undefined; } return { id:W.id, nome:W.def.nome, ...lugar(W), estado:e }; }),
-    apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch { e = undefined; } return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e }; }),
+    abertos:[...ABERTOS.values()].map(W => { let e; try { e = W.inst.estado?.(); } catch { e = undefined; } return { id:W.id, nome:W.def.nome, ...lugar(W), estado:e, comandos:(W.inst.comandos || []).map(c => c.nome) }; }),
+    apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch { e = undefined; } return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e, comandos:(H.def.comandos || []).map(c => c.nome) }; }),
     fechados:[...DEFS.values()].filter(d => !ABERTOS.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })),
     criados_pelo_morador:Object.keys(SOLTOS), visoes:Object.keys(prefs.visoes || {}) };
 }
