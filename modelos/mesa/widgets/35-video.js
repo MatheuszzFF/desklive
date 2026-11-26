@@ -7,6 +7,7 @@ Mesa.estilo(`
 .vd iframe{flex:1;width:100%;border:0;display:block;background:#000}
 .vd-vazio{flex:1;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:13px;line-height:1.5;background:radial-gradient(120% 120% at 50% 0,#1c1622,#07080d)}
 .vd-b{flex:none;display:flex;gap:8px;padding:8px 10px;background:var(--vidro)}
+.vd-aviso{flex:none;padding:8px 12px;background:#2a1512;color:#ffb4a2;font-size:12.5px;line-height:1.4;user-select:text;-webkit-user-select:text}
 .vd-b input{flex:1;min-width:0;height:30px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.05);padding:0 12px;font:400 13px var(--corpo);outline:0;user-select:text;-webkit-user-select:text}
 .vd-b input:focus{border-color:rgba(240,169,138,.45)}
 @container w (max-height:170px){.vd-b{display:none}}
@@ -19,13 +20,24 @@ Mesa.define({
   monta(corpo, api){
     corpo.innerHTML = '<div class="vd"><div class="vd-vazio">Peça um vídeo pro Dengas<br>ou digite aqui embaixo.</div><div class="vd-b"><input placeholder="Buscar e tocar: show do Linkin Park…" spellcheck="false" aria-label="Buscar vídeo"><button class="m-bot" type="button">Tocar</button></div></div>';
     const caixa = corpo.querySelector('.vd'), campo = corpo.querySelector('input'), bot = corpo.querySelector('.m-bot');
-    let atual = api.ler({}).atual || null, quadro = null, tocando = false;
+    let atual = api.ler({}).atual || null, quadro = null, tocando = false, bloqueio = '';
+    // se o app barrar o player embutido (política de segurança da página), o motivo aparece no widget e no estado
+    const aviso = t => { bloqueio = t; let el = caixa.querySelector('.vd-aviso'); if (!el){ el = document.createElement('div'); el.className = 'vd-aviso'; caixa.insertBefore(el, caixa.querySelector('.vd-b')); } el.textContent = t; };
+    const barrado = e => { const u = String(e.blockedURI || ''); if (/youtube|ytimg|googlevideo/.test(u) || /frame-src|child-src/.test(String(e.violatedDirective || ''))) aviso('O app bloqueou o player embutido (' + (e.violatedDirective || 'política da página') + ').'); };
+    document.addEventListener('securitypolicyviolation', barrado);
     function poe(id, titulo, busca){
       atual = { id, titulo:titulo || '', busca:busca || '' }; api.salvar({ atual });
       caixa.querySelector('.vd-vazio')?.remove(); quadro?.remove();
       quadro = document.createElement('iframe'); quadro.title = titulo || 'Vídeo';
       quadro.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; quadro.setAttribute('allowfullscreen', '');
-      quadro.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&enablejsapi=1&playsinline=1';
+      quadro.referrerPolicy = 'strict-origin-when-cross-origin';   // o YouTube recusa o player quando não sabe de onde vem o pedido
+      const origem = /^https?:/.test(location.origin) ? '&origin=' + encodeURIComponent(location.origin) : '';
+      quadro.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&enablejsapi=1&playsinline=1' + origem;
+      bloqueio = ''; caixa.querySelector('.vd-aviso')?.remove();
+      // se em 6 s o player não der sinal de vida, avisa (a página do YouTube manda mensagens quando carrega)
+      const esteQuadro = quadro; let vivo = false; const ouve = e => { if (e.source === esteQuadro.contentWindow) vivo = true; }; addEventListener('message', ouve);
+      esteQuadro.addEventListener('load', () => { try { esteQuadro.contentWindow.postMessage(JSON.stringify({ event:'listening', id:1 }), '*'); } catch {} });
+      setTimeout(() => { removeEventListener('message', ouve); if (!vivo && quadro === esteQuadro && !bloqueio) aviso('O player do YouTube não respondeu aqui dentro. Origem da página: ' + location.origin); }, 6000);
       caixa.insertBefore(quadro, caixa.firstChild); tocando = true; api.emitir('tocando', atual);
     }
     const manda = func => quadro?.contentWindow?.postMessage(JSON.stringify({ event:'command', func, args:'' }), '*');
@@ -44,7 +56,7 @@ Mesa.define({
     bot.addEventListener('click', vai); campo.addEventListener('keydown', e => { if (e.key === 'Enter') vai(); });
     if (atual?.id){ caixa.querySelector('.vd-vazio').innerHTML = 'Último vídeo: ' + (atual.titulo || atual.busca || atual.id).replace(/[<>&]/g, '') + '<br>Peça outro ou clique em Tocar.'; campo.value = atual.busca || ''; }
     return {
-      estado:() => atual ? { video:atual.titulo || atual.busca || atual.id, id:atual.id, tocando } : { video:null },
+      estado:() => atual ? { video:atual.titulo || atual.busca || atual.id, id:atual.id, tocando:tocando && !bloqueio, problema:bloqueio || undefined } : { video:null },
       comandos:[
         { nome:'tocar', descricao:'Acha e toca um vídeo do YouTube dentro da Mesa. busca: o assunto (ex.: "Linkin Park show ao vivo completo"), um link do YouTube ou o id do vídeo. Devolve o título que começou a tocar.',
           esquema:{ type:'object', properties:{ busca:{ type:'string' } }, required:['busca'] },
@@ -53,7 +65,7 @@ Mesa.define({
           esquema:{ type:'object', properties:{ acao:{ type:'string', enum:['pausar','continuar','parar','mudo','som'] } }, required:['acao'] },
           roda({ acao }){ if (!quadro) throw new Error('não tem vídeo aberto'); manda({ pausar:'pauseVideo', continuar:'playVideo', parar:'stopVideo', mudo:'mute', som:'unMute' }[acao] || 'pauseVideo'); tocando = acao === 'continuar' || (tocando && (acao === 'mudo' || acao === 'som')); return 'feito'; } },
       ],
-      aoFechar(){ quadro?.remove(); },
+      aoFechar(){ quadro?.remove(); document.removeEventListener('securitypolicyviolation', barrado); },
     };
   },
 });
