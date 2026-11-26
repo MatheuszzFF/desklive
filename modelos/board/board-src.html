@@ -387,8 +387,11 @@ let perms = await desktop.permissions?.state?.().catch(() => null);
    um diálogo só; a tela com o botão fica só pra quando isso não deu. */
 const LISTA_PERMS = ['overlay', 'full-access', 'notifications', 'menu-bar', 'shortcuts'];
 for (let i = 0; i < 20 && perms && perms.overlay === 'unavailable'; i++){ await sleep(500); perms = await desktop.permissions.state().catch(() => perms); }
-if (perms && perms.overlay === 'prompt'){ try { perms = await desktop.permissions.request(LISTA_PERMS); } catch {} }
-if (perms && perms.overlay !== 'granted'){
+if (perms && perms.overlay === 'prompt'){ try { perms = await desktop.permissions.request(LISTA_PERMS); } catch {} perms = await desktop.permissions.state().catch(() => perms); }
+/* numa versão nova o estado pode continuar "prompt" mesmo depois do Permitir (o host só pergunta de novo na chamada que
+   precisa). Então só para aqui se a pessoa disse NÃO; nos outros casos segue: o setOptions logo abaixo pede, e se o host
+   recusar, a tela mostra o motivo e os estados. */
+if (perms && perms.overlay === 'denied'){
   await new Promise(res => {
     const pedir = async () => {
       try { perms = await desktop.permissions.request(LISTA_PERMS); } catch { $('fora-msg').textContent = 'Não deu pra pedir as permissões agora. Clique de novo.'; return; }
@@ -403,7 +406,7 @@ try {
   const res = await W.setOptions(OPTS);
   if (res.reloading) return;
   if (res.applied === 'next_open'){ telaFora('As opções foram salvas pra próxima abertura: feche o Board e abra de novo pelo menu Iniciar.'); return; }
-} catch (e) { telaFora('O host recusou as opções da janela (' + msg(e) + '). O Board precisa da permissão "overlay".', [botao('Abrir permissões', () => desktop.permissions.manage().then(() => location.reload()).catch(() => {}))]); return; }
+} catch (e) { const est = await desktop.permissions?.state?.().catch(() => null); telaFora('O host recusou as opções da janela (' + msg(e) + '). O Board precisa da permissão "overlay". Estados agora: ' + (est ? Object.entries(est).map(([k, v]) => k + ' ' + v).join(', ') : '?'), [botao('Tentar de novo', () => location.reload()), botao('Abrir permissões', () => desktop.permissions.manage().then(() => location.reload()).catch(() => {}), '')]); return; }
 function desenharIcone(n){
   const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'), k = n / 256;
   g.fillStyle = '#0e0f14'; g.beginPath(); g.roundRect(16 * k, 16 * k, 224 * k, 224 * k, 48 * k); g.fill();
