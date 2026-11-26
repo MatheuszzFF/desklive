@@ -62,6 +62,7 @@ estilo(`
 #fundo-mesa{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;opacity:0;transition:opacity .5s cubic-bezier(.2,.8,.2,1);pointer-events:none;
   background:radial-gradient(120% 90% at 15% 110%,#3a2a4f,#141a30 46%,#07080d 82%);background-size:cover;background-position:center}
 html.fundo-mesa #fundo-mesa{opacity:1;pointer-events:auto}
+html.fundo-mesa.fundo-suspenso #fundo-mesa{opacity:0;pointer-events:none}
 .m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);color:var(--fg);transition:background .2s,scale .2s var(--mola)}
 .m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
 .mw{position:relative;overflow:hidden}
@@ -74,7 +75,7 @@ const prefs = Object.assign({ fundo:'transparente' }, le('mesa-fundo', {}));
 const salvaPrefs = () => grava('mesa-fundo', prefs);
 const camadaMesa = document.createElement('div'); camadaMesa.id = 'camada-mesa'; camadaMesa.className = 'mesa-v'; document.body.appendChild(camadaMesa);
 const camada = document.createElement('div'); camada.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%'; camadaMesa.appendChild(camada);
-MB.alvo((x, y) => { const el = document.elementFromPoint(x, y); return !!el && (!!el.closest('#camada-mesa .alvo') || (el === fundoEl && prefs.fundo === 'mesa') || (el.tagName === 'IFRAME' && el.classList.contains('hosp'))); });
+MB.alvo((x, y) => { const el = document.elementFromPoint(x, y); return !!el && (!!el.closest('#camada-mesa .alvo') || (el === fundoEl && prefs.fundo === 'mesa' && !R.classList.contains('fundo-suspenso')) || (el.tagName === 'IFRAME' && el.classList.contains('hosp'))); });
 const mouseEm = { x:0, y:0 };
 addEventListener('pointermove', e => { mouseEm.x = e.clientX; mouseEm.y = e.clientY; bus.emit('mesa:mouse', { x:e.clientX, y:e.clientY }); repassa(e); }, true);
 
@@ -82,6 +83,7 @@ addEventListener('pointermove', e => { mouseEm.x = e.clientX; mouseEm.y = e.clie
 let trava = 0;
 function seguraCliques(ms){ trava = performance.now() + ms; MB.forcarAcordado = true; MB.querAcordar(); setTimeout(() => { if (performance.now() >= trava){ MB.forcarAcordado = false; MB.socorro('leve'); } }, ms + 60); }
 async function dialogo(fn){ MB.forcarAcordado = true; MB.querAcordar(); try { return await fn(); } finally { MB.forcarAcordado = false; MB.socorro('leve'); } }
+
 
 /* ---------- widgets da Mesa como peças do Board ---------- */
 const DEFS = new Map(), AGENTES = new Map(), VIVOS = new Map();   // VIVOS: id → { def, inst, W, ctx, el, corpo }
@@ -139,12 +141,14 @@ function comandos(){
   const l = [];
   for (const P of MB.pecas.values()){ if (!P.visivel || P.removendo) continue; for (const c of P.inst.automacao?.comandos || []) l.push({ widget:P.id, nomeWidget:P.def.nome, ...c }); }
   for (const H of HOSP.values()) for (const c of H.def.comandos || []) l.push({ widget:H.id, nomeWidget:H.def.nome, ...c });
+  if (MB.chaves) for (const c of CHAVES_APP.comandos) l.push({ widget:CHAVES_APP.id, nomeWidget:CHAVES_APP.nome, ...c });
   return l;
 }
 function estado(){
   return { tela:area(), fundo:prefs.fundo,
     abertos:[...MB.pecas.values()].filter(P => P.visivel && !P.removendo && !P.efemera).map(P => { let e; try { e = P.inst.automacao?.ver?.(); } catch {} return { id:P.id, nome:P.def.nome, ...lugarDe(P.id), estado:e, comandos:(P.inst.automacao?.comandos || []).map(c => c.nome) }; }),
-    apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch {} return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e, comandos:(H.def.comandos || []).map(c => c.nome) }; }),
+    apps:[...HOSP.values()].map(H => { let e; try { e = H.def.estado?.(); } catch {} return { id:H.id, nome:H.def.nome, x:Math.round(H.r.x - H.o.x), y:Math.round(H.r.y - H.o.y), w:H.r.width, h:H.r.height, estado:e, comandos:(H.def.comandos || []).map(c => c.nome) }; })
+      .concat(MB.chaves ? [{ id:CHAVES_APP.id, nome:CHAVES_APP.nome, estado:MB.chaves.situacao(), comandos:CHAVES_APP.comandos.map(c => c.nome) }] : []),
     fechados:[...DEFS.values()].filter(d => !pecaVisivel(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:d.descricao || '' })).concat([...HDEFS.values()].filter(d => !HOSP.has(d.id)).map(d => ({ id:d.id, nome:d.nome, o_que_faz:'app' }))),
     criados_pelo_morador:[], visoes:[] };
 }
@@ -155,7 +159,7 @@ window.__mesaHosp = {};
 const origem = () => ({ x:window.screenX || 0, y:window.screenY || 0 });
 function hospeda(def){ if (!PRINCIPAL) return; HDEFS.set(def.id, def);
   if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'tocar_uri')) def.comandos.push({ nome:'tocar_uri', descricao:'Toca EXATAMENTE uma faixa, álbum, playlist ou artista do Spotify pela uri (spotify:track:…, spotify:album:…). Prefira isto: ache a uri certa com o conector do Spotify (search) e mande tocar aqui, em vez de deixar a Onda adivinhar pela busca.', esquema:{ type:'object', properties:{ uri:{ type:'string' } }, required:['uri'] }, roda:({ uri }) => tocarUri(uri) });
-  if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'conectar_spotify')) def.comandos.push({ nome:'conectar_spotify', descricao:'Conecta a Onda ao Spotify da pessoa: abre o login do Spotify no navegador (ela só autoriza, uma vez; depois fica salvo no PC). Use quando a Onda disser que não está conectada, e avise que é só autorizar na página que abriu.', roda:async () => (await spotifyConectado()) ? 'o Spotify já está conectado na Onda' : conectarSpotify() }); if (hprefs.includes(def.id)) setTimeout(() => abreHospede(def.id), 300); }
+  if (def.id === 'onda' && !def.comandos.some(c => c.nome === 'conectar_spotify')) def.comandos.push({ nome:'conectar_spotify', descricao:'Conecta a Onda ao Spotify da pessoa: abre o login do Spotify no navegador (ela só autoriza, uma vez; depois fica salvo no PC). Use quando a Onda disser que não está conectada, e avise que é só autorizar na página que abriu.', roda:async () => (await spotifyConectado()) ? 'o Spotify já está conectado na Onda' : conectarSpotify() }); if (hprefs.includes(def.id)) setTimeout(async () => { try { await MB.chaves?.ler(); } catch {} abreHospede(def.id); }, 300); }
 function poeHospede(H){
   const A = area(), o = H.o, r = H.r;
   if (r.width <= A.w) r.x = clamp(r.x, o.x, o.x + A.w - r.width); if (r.height <= A.h) r.y = clamp(r.y, o.y, o.y + A.h - r.height);
@@ -190,7 +194,9 @@ function abreHospede(id){
     childProcess:pc ? real.childProcess : { spawn:proc, exec:() => ok({ stdout:'', stderr:'' }) },
     os:real?.os || { platform:() => ok('win32'), arch:() => ok('x64') },
   };
-  f.srcdoc = '<script>window.claude={use:function(n){return Promise.resolve(n==="desktop"?parent.__mesaHosp[' + JSON.stringify(id) + ']:null)}};<' + '/script>' + def.html;
+  let html = def.html;
+  if (id === 'onda'){ H.cid = clientIdSpotify(); if (H.cid) html = html.replace("const CLIENT_ID = 'SEU_CLIENT_ID';", "const CLIENT_ID = '" + H.cid + "';"); }   // a chave vem das chaves, não do build
+  f.srcdoc = '<script>window.claude={use:function(n){return Promise.resolve(n==="desktop"?parent.__mesaHosp[' + JSON.stringify(id) + ']:null)}};<' + '/script>' + html;
   HOSP.set(id, H); poeHospede(H); camada.appendChild(f); salvaHosp(); bus.emit('mesa:abriu', { id });
   return H;
 }
@@ -199,6 +205,7 @@ function abreHospede(id){
 const spotifyConectado = async () => { try { return !!(podePCm() && await desktop.fs.exists('~/.orbita/spotify-token.json')); } catch { return false; } };
 async function conectarSpotify(){
   if (!HDEFS.has('onda')) throw new Error('a Onda não está neste Board');
+  if (!clientIdSpotify()){ await MB.chaves?.abrir(); return 'falta o Client ID do Spotify: abri o arquivo de chaves, com o passo a passo; depois de salvar, peça pra conectar de novo'; }
   const H = abreHospede('onda');
   for (let i = 0; i < 40; i++){ const b = H.f.contentDocument?.getElementById('connect'); if (b){ b.click(); return 'abri o login do Spotify no navegador: é só autorizar lá (uma vez só; depois fica salvo no PC)'; } await new Promise(r => setTimeout(r, 250)); }
   throw new Error('a Onda não abriu a tempo; tente de novo');
@@ -278,6 +285,25 @@ setInterval(() => {
   fundoEl.style.clipPath = rs.length ? `path(evenodd, 'M0 0 H${W} V${H} H0 Z ${rs.map(r => `M${Math.round(r.left)} ${Math.round(r.top)} h${Math.round(r.width)} v${Math.round(r.height)} h${-Math.round(r.width)} Z`).join(' ')}')` : '';
 }, 120);
 R.classList.toggle('fundo-mesa', prefs.fundo === 'mesa'); if (prefs.aparencia) aparencia({}); if (prefs.papelArquivo && podePCm()) papel(prefs.papelArquivo).catch(() => {});
+
+/* ---------- chaves (Board.chaves): as integrações da Mesa declaram o que precisam ---------- */
+MB.chaves?.declarar({ id:'spotify', nome:'Spotify', para:'a Onda escolher e tocar as suas músicas no Spotify',
+  como:'1) Entre em https://developer.spotify.com/dashboard e crie um app (Create app). 2) Em Redirect URIs ponha http://127.0.0.1:8977/callback e marque Web API. 3) Copie o Client ID (32 letras e números) e cole em clientId. Não precisa de segredo.',
+  campos:[{ chave:'clientId', rotulo:'Client ID', formato:'^[A-Za-z0-9]{32}$' }] });
+const clientIdSpotify = () => MB.chaves?.valor('spotify', 'clientId') || null;
+// as chaves aparecem pro Dengas como um app: ele vê o que está pronto e o que falta (nunca os valores) e abre o arquivo
+const CHAVES_APP = { id:'chaves', nome:'Chaves (credenciais)', comandos:[
+  { nome:'situacao', descricao:'Diz quais integrações estão prontas e o que falta em cada uma (sem mostrar valores).', roda:async () => { await MB.chaves.ler(); return MB.chaves.situacao(); } },
+  { nome:'abrir', descricao:'Abre o arquivo de chaves no Bloco de Notas pra pessoa preencher (com o passo a passo de cada integração dentro). Use quando faltar uma chave; nunca peça pra colar uma chave na conversa.', roda:() => MB.chaves.abrir() },
+] };
+AGENTES.set('chaves', 'Você cuida das chaves das integrações. Veja a situação; se faltar algo, abra o arquivo e diga em uma frase o que preencher e onde conseguir. Nunca peça, repita ou mostre o valor de uma chave.');
+if (PRINCIPAL){
+  MB.ouvir('chaves:faltando', l => { const x = l[0]; bus.emit('mesa:aviso', { texto:'Pra ' + x.para + ' falta ' + (x.faltam.join(' e ') || 'uma chave') + '. Me pede "abre as chaves" que eu abro o arquivo e te mostro o que pôr.' }); });
+  MB.ouvir('chaves:editando', on => R.classList.toggle('fundo-suspenso', !!on));
+  MB.ouvir('chaves:mudou', () => { const H = HOSP.get('onda'); if (H && H.cid !== clientIdSpotify()){ fechaHospede('onda'); abreHospede('onda'); } });   // a Onda pega o Client ID novo
+  MB.menu(() => [{ label:'Chaves das integrações…', click:() => MB.chaves.abrir().catch(e => bus.emit('mesa:aviso', { texto:String(e.message || e) })) }]);
+}
+
 
 const ainda = o => () => { throw new Error('ainda não veio pro Board: ' + o); };
 const Mesa = { versao:VERSAO_MESA, define, abre, fecha, move, toca:() => {}, frente:id => { const P = pecaVisivel(id); if (P) MB.mostrarPeca(P, true); },

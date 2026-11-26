@@ -57,7 +57,7 @@ Monte, rode o `servir.ps1` que foi copiado pra pasta de saída e abra `http://lo
 
 ## Quadro vazio, API aberta e opcionais
 
-O Board não traz app nenhum: é um quadro vazio e completamente interativo. Qualquer um (uma peça, um assistente, o console) vê e mexe em tudo pela **API aberta**: `Board.mapa()`, `peca`, `mostrar`, `mover`, `degrau`, `comando`, `definir`, `remover`, `ouvir`, `anunciar`, `espacoLivre`. Peças declaram o que mostram e o que aceitam em `automacao`, e podem ter `furos`. O que cada pessoa põe no seu Board são **opcionais** (`pecas/<nome>/`), escolhidos na montagem com `-Pecas`; sem lista, sai o Board de sempre. Tudo em [pecas/README](pecas/README.md).
+O Board não traz app nenhum: é um quadro vazio e completamente interativo. Qualquer um (uma peça, um assistente, o console) vê e mexe em tudo pela **API aberta**: `Board.mapa()`, `peca`, `mostrar`, `mover`, `degrau`, `comando`, `definir`, `remover`, `ouvir`, `anunciar`, `espacoLivre`. Peças declaram o que mostram e o que aceitam em `automacao`, e podem ter `furos`. O que cada pessoa põe no seu Board são **opcionais** (`pecas/<nome>/`), escolhidos na montagem com `-Pecas`; sem lista, sai o Board de sempre. Credenciais de integração ficam em `~/.orbita/chaves.json`, pelo serviço `Board.chaves` (declarar, valor, situação, abrir). Tudo em [pecas/README](pecas/README.md).
 
 ## Docs do Board
 

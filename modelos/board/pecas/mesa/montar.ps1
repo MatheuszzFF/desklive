@@ -10,7 +10,9 @@ $Js = [regex]::Replace($Js, "/\*JS:([\w./\-]+)\*/", { param($m) "/* ==== $($m.Gr
 foreach ($m in [regex]::Matches($Js, "/\*PS:([^*]+)\*/''")) { $Js = $Js.Replace($m.Value, (Get-JsString (Join-Path $modelos $m.Groups[1].Value))) }
 foreach ($m in [regex]::Matches($Js, "/\*APP:([a-z]+)\*/''")) {
   $n = $m.Groups[1].Value; $tmp = Join-Path $env:TEMP 'board-apps'
-  & (Join-Path (Join-Path $modelos $n) 'build.ps1') -Saida $tmp | Out-Null
+  # o app sai sem chave nenhuma embutida (a Onda pega o Client ID das chaves do Board, no PC de quem usa)
+  if ($n -eq 'onda') { & (Join-Path (Join-Path $modelos $n) 'build.ps1') -Saida $tmp -ClientId 'SEU_CLIENT_ID' 3>$null | Out-Null }
+  else { & (Join-Path (Join-Path $modelos $n) 'build.ps1') -Saida $tmp | Out-Null }
   $app = (Read-Texto (Join-Path $tmp "$n.html")).Replace('keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);', '')   # nunca tecla
   $Js = $Js.Replace($m.Value, (($app | ConvertTo-Json -Compress).Replace('</', '<\/')))
 }

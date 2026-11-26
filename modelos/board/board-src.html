@@ -2102,6 +2102,58 @@ function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'functi
 function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
 Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
   get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; }, alvo:fn => { ALVOS.add(fn); return () => ALVOS.delete(fn); }, menu:fn => { MENU_EXTRA.push(fn); } });
+/* ============================================================================
+   14c. CHAVES: as credenciais de todas as integrações num arquivo só, no PC de quem usa: ~/.orbita/chaves.json
+   Uma peça ou opcional declara o que precisa:
+     Board.chaves.declarar({ id:'spotify', nome:'Spotify', para:'tocar suas músicas', como:'passo a passo pra conseguir',
+       campos:[{ chave:'clientId', rotulo:'Client ID', formato:'^[A-Za-z0-9]{32}$', opcional:false }] })
+   e lê na hora de usar: Board.chaves.valor('spotify', 'clientId') → o valor ou null.
+   Board.chaves.situacao() → [{ id, nome, para, pronto, faltam }] (sem valores: é isso que o assistente pode ver).
+   Board.chaves.abrir() escreve o modelo (sem apagar nada do que já está lá) e abre o arquivo no Bloco de Notas.
+   Eventos: 'chaves:faltando' (na abertura, se falta algo), 'chaves:editando' (true/false), 'chaves:mudou'.
+   ============================================================================ */
+const ARQ_CHAVES = BUS + '/chaves.json', CHAVES_DEF = new Map();
+let chavesTxt = '', chavesVal = {};
+const chaveOk = (c, v) => typeof v === 'string' && !!v.trim() && !/^SEU_/.test(v.trim()) && (!c.formato || new RegExp(c.formato).test(v.trim()));
+async function lerChaves(){
+  let t = ''; try { t = await FS.readFile(ARQ_CHAVES, 'utf8'); } catch { return chavesVal; }
+  if (t === chavesTxt) return chavesVal;
+  try { const j = JSON.parse(t.replace(/^\uFEFF/, '')); chavesTxt = t; chavesVal = j && typeof j === 'object' ? j : {}; anunciar('chaves:mudou', situacaoChaves()); }
+  catch { log('chaves.json com erro de formato: ' + ARQ_CHAVES, 'bad'); }
+  return chavesVal;
+}
+function situacaoChaves(){
+  return [...CHAVES_DEF.values()].map(d => { const v = chavesVal[d.id] || {}, faltam = d.campos.filter(c => !c.opcional && !chaveOk(c, v[c.chave])).map(c => c.rotulo || c.chave);
+    return { id:d.id, nome:d.nome, para:d.para || '', pronto:!faltam.length, faltam }; });
+}
+function valorChave(id, campo){ const d = CHAVES_DEF.get(id), c = d?.campos.find(x => x.chave === campo), v = chavesVal[id]?.[campo]; return c && chaveOk(c, v) ? v.trim() : null; }
+async function modeloChaves(){
+  await lerChaves();
+  const out = { _leia:'Chaves do Board: as credenciais das integrações, só neste PC. Preencha os campos vazios ("") e salve (Ctrl+S); o Board lê sozinho. Nunca compartilhe este arquivo.' };
+  for (const d of CHAVES_DEF.values()){
+    const atual = chavesVal[d.id] || {}, sec = { _para:d.para || '', _como:d.como || '' };
+    for (const c of d.campos) sec[c.chave] = typeof atual[c.chave] === 'string' ? atual[c.chave] : '';
+    for (const [k, v] of Object.entries(atual)) if (!(k in sec)) sec[k] = v;     // nada que a pessoa pôs some
+    out[d.id] = sec;
+  }
+  for (const [k, v] of Object.entries(chavesVal)) if (!(k in out)) out[k] = v;   // integrações que ninguém declarou agora também ficam
+  const txt = JSON.stringify(out, null, 2);
+  if (txt !== chavesTxt){ await FS.mkdir(BUS, { recursive:true }); await FS.writeFile(ARQ_CHAVES, txt, 'utf8'); chavesTxt = txt; chavesVal = out; }
+}
+let editandoChaves = null;
+async function abrirChaves(){
+  if (!desktop.childProcess?.spawn || !FS) throw new Error('sem acesso total ao PC: libere em Permissões');
+  await modeloChaves();
+  if (editandoChaves) return 'o arquivo de chaves já está aberto no Bloco de Notas';
+  const casa = await desktop.os?.homedir?.().catch(() => null); if (!casa) throw new Error('não achei a pasta do usuário');
+  const p = desktop.childProcess.spawn('notepad.exe', [casa.replace(/[\\/]+$/, '') + '\\.orbita\\chaves.json']); editandoChaves = p;
+  anunciar('chaves:editando', true);
+  const fim = async () => { if (editandoChaves !== p) return; editandoChaves = null; await lerChaves(); anunciar('chaves:editando', false); };
+  p.on('exit', fim); p.on('error', fim);
+  return 'abri o arquivo de chaves no Bloco de Notas: é só preencher e salvar';
+}
+setInterval(() => { if (FS) lerChaves().catch(() => {}); }, 3000);   // a pessoa salvou: vale na hora
+B.chaves = { declarar:def => { if (!def?.id || !Array.isArray(def.campos)) throw new Error('chave sem id ou sem campos'); CHAVES_DEF.set(def.id, def); }, situacao:situacaoChaves, valor:valorChave, ler:lerChaves, abrir:abrirChaves };
 /* opcionais: módulos e peças que a montagem acrescenta (build.ps1 -Pecas a,b,c). Sem lista, fica vazio. */
 /*PECAS*/
 let sonda = null;
@@ -2682,6 +2734,7 @@ document.body.classList.add('pronta');
 // sem acesso total o Board fica sem disco e sem PowerShell (e as peças que dependem disso também): diz na tela o porquê
 if (!perms || perms['full-access'] !== 'granted' || !desktop.childProcess?.exec || !FS) aviso('Sem acesso total ao PC: estado "' + (perms ? perms['full-access'] : 'desconhecido') + '"' + (desktop.childProcess?.exec ? '' : ', sem PowerShell') + (FS ? '' : ', sem disco') + '. Clique com o botão direito numa peça (ou no ícone da bandeja) → Permissões…, ligue o acesso total e Salve.', 20000);
 batimento(); lerCaixaArquivo(); iniciarRelay(); medirHz(); Telas.lerWindows("abrir");
+if (FS) lerChaves().then(() => setTimeout(() => { const f = situacaoChaves().filter(x => !x.pronto); if (f.length) anunciar('chaves:faltando', f); }, 4000)).catch(() => {});
 log(`Pronto (Board ${INST}). ${telas.length} monitor(es), dpr ${devicePixelRatio}, entrada ${'onpointerrawupdate' in window ? 'rawupdate' : 'pointermove'}.`, 'mut');
 if (SIM) window.__board = { B, pecas, ENT, CP, area:() => area, statsLaco, quadro:() => quadros, rodando:() => rodando, peers, fantasmas, geo:() => geo, minha:() => minha, erros, POSES, Telas, PASSE, CANAL, aceitas, telasM:() => telasM, limites, alvoPara, EF, MOLAS };
 })();
