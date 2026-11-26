@@ -1947,6 +1947,7 @@ function itensMenu(P){
   }
   it.push({ label:pecasEscondidas ? 'Mostrar as peças' : 'Esconder as peças', click:() => executarComando('alternarTudo', null, true) });
   it.push({ label:'Esconder o Board', click:() => W.hide?.().catch(() => {}) });
+  it.push({ label:'Permissões…', click:abrirPermissoes });
   it.push({ label:'Sair', click:sair });
   return it;
 }
@@ -1960,6 +1961,7 @@ function montarBandeja(){
       { label:'Mostrar ou esconder as peças', click:() => executarComando('alternarTudo', null, true) },
       { label:'Mostrar o Board', click:() => W.show?.().catch(() => {}) },
       { label:'Esconder o Board', click:() => W.hide?.().catch(() => {}) },
+      { label:'Permissões…', click:abrirPermissoes },
       { label:'Sair', click:sair },
     ] }).then(() => { temBandeja = true; }).catch(() => {});
   } catch {}
@@ -1986,6 +1988,8 @@ function criarFresca(def){
   const P = nascer(def, e && e.disp === minha.id ? e : null, true);
   return P;
 }
+// o painel de permissões do app do Claude; ao fechar, recarrega pra valer o que mudou
+function abrirPermissoes(){ forcarAcordado = true; querAcordar(); desktop.permissions?.manage?.().then(() => location.reload()).catch(() => { forcarAcordado = false; socorro('leve'); aviso('Não deu pra abrir o painel de permissões daqui.'); }); }
 async function sair(){
   await salvarEstado().catch(() => {});
   await FS.writeFile(`${BUS}/board-vivo-${INST}.json`, JSON.stringify({ inst:INST, t:0 }), 'utf8').catch(() => {});
@@ -2672,7 +2676,7 @@ CP.quer = true; bomba();
 montarBandeja(); montarAtalhos();
 document.body.classList.add('pronta');
 // sem acesso total o Board fica sem disco e sem PowerShell (e as peças que dependem disso também): diz na tela o porquê
-if (!perms || perms['full-access'] !== 'granted' || !desktop.childProcess?.exec || !FS) aviso('Sem acesso total ao PC: estado "' + (perms ? perms['full-access'] : 'desconhecido') + '"' + (desktop.childProcess?.exec ? '' : ', sem PowerShell') + (FS ? '' : ', sem disco') + '. Libere em Permissões e reabra o Board.', 15000);
+if (!perms || perms['full-access'] !== 'granted' || !desktop.childProcess?.exec || !FS) aviso('Sem acesso total ao PC: estado "' + (perms ? perms['full-access'] : 'desconhecido') + '"' + (desktop.childProcess?.exec ? '' : ', sem PowerShell') + (FS ? '' : ', sem disco') + '. Clique com o botão direito numa peça (ou no ícone da bandeja) → Permissões…, ligue o acesso total e Salve.', 20000);
 batimento(); lerCaixaArquivo(); iniciarRelay(); medirHz(); Telas.lerWindows("abrir");
 log(`Pronto (Board ${INST}). ${telas.length} monitor(es), dpr ${devicePixelRatio}, entrada ${'onpointerrawupdate' in window ? 'rawupdate' : 'pointermove'}.`, 'mut');
 if (SIM) window.__board = { B, pecas, ENT, CP, area:() => area, statsLaco, quadro:() => quadros, rodando:() => rodando, peers, fantasmas, geo:() => geo, minha:() => minha, erros, POSES, Telas, PASSE, CANAL, aceitas, telasM:() => telasM, limites, alvoPara, EF, MOLAS };
