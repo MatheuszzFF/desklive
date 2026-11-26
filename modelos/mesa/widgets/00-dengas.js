@@ -66,7 +66,7 @@ const msgsEl = painel.querySelector('#dgMsgs'), chipsEl = painel.querySelector('
 
 /* ---------- onde ele está: (x, y) é o ponto dos pés ---------- */
 const salvo = Mesa.le('mesa-dengas', {});
-const D = { x:salvo.x ?? null, y:null, vy:0, modo:'caindo', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(9000, 16000) };
+const D = { x:salvo.x ?? null, y:salvo.y ?? null, vy:0, dir:'e', alvo:null, modo:'parado', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(9000, 16000) };
 const chao = () => area().h - 24;   // ele pisa em cima do banquinho fundido na beira de baixo
 // superfícies onde ele pode ficar: a beira de baixo e o topo de cada widget (com espaço pra ele em cima)
 function superficies(){
@@ -75,7 +75,7 @@ function superficies(){
   return l;
 }
 function superficieAbaixo(x, y){ let m = null; for (const s of superficies()) if (x >= s.x0 - 20 && x <= s.x1 + 20 && s.y >= y - 6 && (!m || s.y < m.y)) m = s; return m || superficies()[0]; }
-function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x) }); }
+function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y) }); }
 
 /* ---------- animação ---------- */
 let clipes = [], atual = null, chave = '', extraEm = performance.now() + 6000;
@@ -83,7 +83,7 @@ const clip = (a, o = {}) => ({ a, t0:0, ...o });
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
-  if (D.modo === 'andando') return [clip('correndo_lado')];
+  if (D.modo === 'andando') return [clip(nomeCorre())];
   if (D.pego || D.modo === 'caindo') return [clip('parado')];
   if (D.pose === 'sentado'){
     if (fala) return [clip('sentado_falando')];
@@ -106,7 +106,7 @@ function senta(sim){
 }
 function desenha(now){
   const k = D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
-  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_patas)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
+  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
   let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps / 1000) : 0;
   if (!m || c >= m.n){
     if (m && atual.laco && atual.laco()) atual.t0 = now;
@@ -116,48 +116,45 @@ function desenha(now){
   if (atual.rev) c = m.n - 1 - c;
   g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 384, 384);
   if (!atlas.naturalWidth) return;
-  if (/_lado$|^t_quatro_patas$/.test(atual.a) && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
+  if (/^correndo_|_lado$|^t_quatro_/.test(atual.a) && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
   g.drawImage(atlas, c * CEL, m.l * CEL, CEL, CEL, 0, 0, 384, 384);
 }
 
 /* ---------- vida: cair, andar, sentar, passear ---------- */
 let ultimo = 0;
-function vai(x, depois){ D.alvoX = clamp(x, 44, area().w - 44); D.depois = depois || null; }
+// anda livre pela mesa, em 8 direções: desce pra quatro patas, corre até o ponto e levanta
+const CLIPE_DIR = { e:['lado', 1], w:['lado', -1], se:['se', 1], sw:['se', -1], s:['s', 1], n:['n', 1], ne:['ne', 1], nw:['ne', -1] };
+const dirDe = (dx, dy) => ['w', 'nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'][Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 4];
+const nomeCorre = () => 'correndo_' + CLIPE_DIR[D.dir][0];
+const nomeDesce = () => CLIPE_DIR[D.dir][0] === 'lado' ? 't_quatro_patas' : 't_quatro_' + CLIPE_DIR[D.dir][0];
+function vai(x, y, depois){ const A = area(); if (typeof y === 'function'){ depois = y; y = null; } D.alvo = { x:clamp(x, 44, A.w - 44), y:clamp(y ?? D.y ?? chao(), 130, chao()) }; D.depois = depois || null; }
 function passo(now){
   const dt = ultimo ? Math.min(.05, (now - ultimo) / 1000) : .016; ultimo = now;
   const A = area();
-  if (D.x == null){ D.x = A.w - 150; D.y = -20; }
+  if (D.x == null){ D.x = A.w - 150; D.y = chao(); }
+  if (D.y == null) D.y = chao();
   if (!D.pego){
-    // em cima de um widget: anda junto com ele; se o widget some ou sai de baixo, ele cai
-    if (D.em){ const w = Mesa.caixa(D.em); if (!w || w.y < 100 || D.x < w.x + 10 || D.x > w.x + w.w - 10){ D.em = null; D.modo = 'caindo'; D.vy = 0; } else { if (D.emX != null) D.x += w.x - D.emX; D.emX = w.x; D.y = w.y; } }
-    else if (D.modo !== 'caindo' && Math.abs(D.y - chao()) > 1){ D.modo = 'caindo'; D.vy = 0; }
-    if (D.modo === 'caindo'){
-      if (D.pose === 'sentado'){ D.pose = 'pe'; raiz.classList.remove('sentado'); }
-      const s = superficieAbaixo(D.x, D.y);
-      D.vy = Math.min(1500, D.vy + 2600 * dt); D.y += D.vy * dt;
-      if (D.y >= s.y){ D.y = s.y; D.vy = 0; D.em = s.id; D.emX = s.id ? Mesa.caixa(s.id)?.x : null; D.modo = 'parado'; D.sentaEm = now + (s.id ? rnd(5000, 12000) : 900); guardaLugar(); if (!reduzido) toca([clip('comemorando')]); }
-    } else if (D.alvoX != null && !D.aberto){
+    if (D.alvo && !D.aberto){
       if (D.pose === 'sentado'){ senta(false); D.levantaAte = now + 520; }
       if (now > (D.levantaAte || 0)){
-        const s = D.em ? superficies().find(q => q.id === D.em) : superficies()[0], lim = s || { x0:44, x1:A.w - 44 };
-        const alvo = clamp(D.alvoX, lim.x0, lim.x1), d = alvo - D.x;
-        if (Math.abs(d) < 3){ D.alvoX = null; D.modo = 'parado'; toca([clip('t_quatro_patas', { rev:true })]); D.sentaEm = now + rnd(1200, 5000); guardaLugar(); const f = D.depois; D.depois = null; f?.(); }
-        else if (D.modo !== 'andando' && !D.desceu){ D.desceu = true; D.lado = Math.sign(d); toca([clip('t_quatro_patas')]); D.levantaAte = now + 460; }
-        else { D.desceu = false; D.modo = 'andando'; D.lado = Math.sign(d); D.x += D.lado * Math.min(Math.abs(d), 150 * dt); }
+        const dx = D.alvo.x - D.x, dy = D.alvo.y - D.y, d = Math.hypot(dx, dy);
+        if (d < 4){ D.alvo = null; D.modo = 'parado'; D.desceu = false; toca([clip(nomeDesce(), { rev:true })]); D.sentaEm = now + rnd(2500, 7000); guardaLugar(); const f = D.depois; D.depois = null; f?.(); }
+        else if (D.modo !== 'andando' && !D.desceu){ D.desceu = true; D.dir = dirDe(dx, dy); D.lado = CLIPE_DIR[D.dir][1]; toca([clip(nomeDesce())]); D.levantaAte = now + 460; }
+        else {
+          D.modo = 'andando';
+          const nd = dirDe(dx, dy); if (nd !== D.dir && d > 24){ D.dir = nd; D.lado = CLIPE_DIR[nd][1]; clipes = []; atual = null; }   // perto do fim não troca mais de direção
+          const p = Math.min(d, 150 * dt); D.x += dx / d * p; D.y += dy / d * p;
+        }
       }
     } else {
       if (D.modo === 'andando') D.modo = 'parado';
       if (D.pose === 'pe' && !D.aberto && !D.pensando && now > (D.sentaEm || Infinity) && now > D.falandoAte){ senta(true); D.sentaEm = null; }
-      if (!D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){
-        D.passeioEm = now + rnd(16000, 38000);
-        const s = D.em ? superficies().find(q => q.id === D.em) : superficies()[0];
-        if (s) vai(rnd(s.x0, s.x1));
-      }
+      if (!D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(16000, 38000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
     }
   }
-  D.x = clamp(D.x, 30, A.w - 30);
+  D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao());
   raiz.style.transform = `translate3d(${D.x.toFixed(1)}px,${D.y.toFixed(1)}px,0)`;
-  raiz.classList.toggle('no-chao', !D.em && Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
+  raiz.classList.toggle('no-chao', Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
   desenha(now); if (D.aberto) poePainel(); if (falaEl.classList.contains('viva')) poeFala();
   Mesa.quadro(passo);
 }
@@ -173,12 +170,12 @@ hit.addEventListener('pointermove', e => {
   if (!gesto || e.pointerId !== gesto.id) return;
   if (e.buttons === 0) return larga();
   if (!gesto.on){ if (Math.hypot(e.clientX - gesto.x0, e.clientY - gesto.y0) < 4) return; gesto.on = true; try { hit.setPointerCapture(gesto.id); } catch {} D.pego = { dx:D.x - gesto.x0, dy:D.y - gesto.y0 }; D.em = null; D.alvoX = null; raiz.classList.add('pego'); fecha(); if (D.pose === 'sentado'){ D.pose = 'pe'; raiz.classList.remove('sentado'); } }
-  D.x = e.clientX + D.pego.dx; D.y = Math.min(chao(), e.clientY + D.pego.dy);
+  D.x = e.clientX + D.pego.dx; D.y = clamp(e.clientY + D.pego.dy, 110, chao());
 });
 function larga(){
   if (!gesto) return; const era = gesto.on; gesto = null;
   if (!era){ D.aberto ? fecha() : abre(); return; }
-  D.pego = null; raiz.classList.remove('pego'); D.modo = 'caindo'; D.vy = 0; D.passeioEm = performance.now() + rnd(20000, 40000);
+  D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null; guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
 }
 hit.addEventListener('pointerup', larga); hit.addEventListener('pointercancel', larga);
 hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); D.aberto ? fecha() : abre(); } });
@@ -197,7 +194,7 @@ bus.on('mesa:aviso', a => fala(a.texto));
 let ultimaReacao = 0;
 const reage = t => { const n = performance.now(); if (D.aberto || n - ultimaReacao < 25000) return; ultimaReacao = n; fala(t); };
 bus.on('musica:mudou', m => reage('♪ ' + (m.musica || 'música nova') + (m.artista ? ', ' + m.artista : '') + '. Boa!'));
-bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs().find(q => q.id === e.id); if (d && !D.em) vai((Mesa.caixa(e.id)?.x || 0) + 60); } });
+bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs().find(q => q.id === e.id); const c = Mesa.caixa(e.id); if (d && c) vai(c.x + 60, c.y); } });
 
 /* ---------- conversa ---------- */
 function poePainel(){
@@ -289,7 +286,7 @@ function ferramentas(atos){
   return l;
 }
 // vai até o widget em que está mexendo (se estiver no chão, para embaixo dele)
-function visita(id){ const w = Mesa.caixa(id); if (w && !D.em && !D.pego) { D.aberto ? null : vai(w.x + w.w / 2); } }
+function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto) vai(w.x + w.w / 2, w.y); }
 const ERRO = { not_granted:'Você não liberou o Claude pra mim. Dá pra liberar em Permissões.', sampling_disabled:'O Claude não está disponível nessa conta.', rate_limited:'Cansei um pouquinho… tenta de novo daqui a pouco.', session_expired:'Sua sessão do Claude caiu. Entra de novo e me chama.', refused:'Disso eu prefiro não falar.', empty_completion:'Me deu um branco. Pergunta de outro jeito?' };
 let ctl = null, turnos = [], comFerramentas = true;
 async function pergunta(texto){
