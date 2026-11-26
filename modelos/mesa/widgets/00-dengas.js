@@ -233,6 +233,7 @@ function regras(){
     'Fale sempre em português do Brasil, informal, curto e com graça de bichinho inteligente e guloso (no máximo umas 4 linhas), em texto simples: sem títulos, sem tabelas, sem negrito. Nunca diga que é uma IA; você é o Dengas.',
     'Você enxerga e mexe em tudo que está na Mesa. Pra agir, use as ferramentas: mesa_widget abre, fecha, move e redimensiona; cada widget aberto oferece os próprios comandos (o nome começa com o id do widget). Depois confirme em uma frase curta. Não invente que fez algo que nenhuma ferramenta fez.',
     'A Mesa é uma casca e cada widget é uma peça solta: você pode tirar, pôr, mover, criar um widget novo na hora (widget_criar), misturar widgets (um widget seu que chama os comandos dos outros com mesa.pedir), guardar e abrir visões (mesa_visao) e abrir ou fechar os apps hospedados (mesa_app). Quando o dono pedir algo que nenhum widget faz, crie um. Ids de widget disponíveis: ' + Mesa.defs().map(d => d.id).join(', ') + '.',
+    'Como escrever o html de um widget (widget_criar): fundo transparente, texto claro, sem rede e sem bibliotecas externas. Dentro dele existe o objeto mesa: mesa.registrar({ estado:()=>({...}), comandos:[{ nome, descricao, esquema, roda(args){...} }] }) expõe o widget pra você; mesa.estado() devolve a Mesa inteira (Promise); mesa.pedir("<id>_<comando>", args) chama o comando de outro widget ou app (ex.: "notas_escrever", "onda_controlar"), e é assim que se fazem misturas; mesa.ouvir(tipo, fn) ouve eventos (ex.: "relogio:fim"); mesa.avisar(texto) faz você falar; mesa.salvar(v) e mesa.ler() guardam dados. Cores prontas em CSS: --coral, --pessego, --muted, --line.',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
     'A Mesa agora (posições em px, origem no canto de cima à esquerda): ' + JSON.stringify(e).slice(0, 3500),
@@ -257,7 +258,7 @@ function ferramentas(atos){
     { name:'mesa_aparencia', description:'Muda a cara da Mesa. destaque: cor de destaque em #rrggbb; vidro: opacidade dos widgets de 0.35 a 1; raio: arredondamento dos widgets em px (0 a 34); papel: 2 ou 3 cores #rrggbb do papel de parede (de dentro pra fora); fundo: "mesa" cobre a área de trabalho com o papel de parede, "transparente" deixa ver o Windows.',
       inputSchema:{ type:'object', properties:{ destaque:{ type:'string' }, vidro:{ type:'number' }, raio:{ type:'number' }, papel:{ type:'array', items:{ type:'string' } }, fundo:{ type:'string', enum:['mesa','transparente'] } } },
       execute({ fundo:f, ...resto }){ const a = Mesa.aparencia(resto); if (f) Mesa.fundo(f); nota('✦ aparência'); return { ...a, fundo:Mesa.estado().fundo }; } },
-    { name:'widget_criar', description:'Cria na hora um widget novo na Mesa (ou troca um que você criou, usando o mesmo id). html: um documento pequeno e completo do miolo do widget (pode ter <style> e <script>), fundo transparente, texto claro, sem rede e sem bibliotecas externas. Dentro dele existe o objeto mesa: mesa.registrar({ estado:()=>({...}), comandos:[{ nome, descricao, esquema, roda(args){...} }] }) expõe o widget pra você; mesa.estado() devolve a Mesa inteira (Promise); mesa.pedir("<id>_<comando>", args) chama o comando de outro widget ou app (ex.: "notas_escrever", "onda_controlar") e é assim que se fazem misturas; mesa.ouvir(tipo, fn) ouve eventos (ex.: "relogio:fim", "mesa:abriu"); mesa.avisar(texto) faz você falar; mesa.salvar(v) e mesa.ler() guardam dados. Variáveis de cor prontas: --coral, --pessego, --muted, --line.',
+    { name:'widget_criar', description:'Cria na hora um widget novo na Mesa, ou troca um que você criou (mesmo id). html: o miolo do widget, um documento pequeno com <style> e <script> se precisar. Devolve o id e o nome. As regras de como escrever o html estão nas instruções.',
       inputSchema:{ type:'object', properties:{ id:{ type:'string' }, nome:{ type:'string' }, descricao:{ type:'string' }, html:{ type:'string' }, w:{ type:'number' }, h:{ type:'number' } }, required:['id','nome','html'] },
       execute(e){ const r = Mesa.criaSolto(e); nota('✦ criei ' + r.nome); return r; } },
     { name:'widget_fonte', description:'Devolve o html de um widget que você criou, pra você mexer nele e recriar com widget_criar.',
@@ -288,7 +289,10 @@ function ferramentas(atos){
 // vai até o widget em que está mexendo (se estiver no chão, para embaixo dele)
 function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto) vai(w.x + w.w / 2, w.y); }
 const ERRO = { not_granted:'Você não liberou o Claude pra mim. Dá pra liberar em Permissões.', sampling_disabled:'O Claude não está disponível nessa conta.', rate_limited:'Cansei um pouquinho… tenta de novo daqui a pouco.', session_expired:'Sua sessão do Claude caiu. Entra de novo e me chama.', refused:'Disso eu prefiro não falar.', empty_completion:'Me deu um branco. Pergunta de outro jeito?' };
-let ctl = null, turnos = [], comFerramentas = true;
+let ctl = null, turnos = [], comFerramentas = true, tetoFerramentas = 16;
+const corta = (t, bytes) => { let r = String(t || ''); while (new TextEncoder().encode(r).length > bytes) r = r.slice(0, Math.floor(r.length * .92)); return r; };
+// as ferramentas da casca vêm primeiro; se passar do teto da view, os comandos de widget do fim ficam de fora
+function dentroDosLimites(l){ const nomes = new Set(); return l.filter(t => /^[A-Za-z0-9_-]{1,128}$/.test(t.name) && !nomes.has(t.name) && nomes.add(t.name)).slice(0, tetoFerramentas).map(t => ({ ...t, description:corta(t.description, 1000) })); }
 async function pergunta(texto){
   texto = String(texto || '').trim(); if (!texto || ctl) return;
   abre(); qEl.value = ''; qEl.style.height = '22px';
@@ -301,7 +305,10 @@ async function pergunta(texto){
   const mostra = t => { D.pensando = false; D.falandoAte = performance.now() + 500; ele.classList.remove('pensa'); ele.textContent = t.replace(/\*\*(.+?)\*\*/g, '$1');
     if (atos.length){ const box = document.createElement('div'); box.className = 'dg-atos'; for (const a of atos){ const s = document.createElement('span'); s.className = 'dg-ato'; s.textContent = a; box.appendChild(s); } ele.appendChild(box); } msgsEl.scrollTop = msgsEl.scrollHeight; };
   const opts = { model:MODELO, modelTier:'quick', cache:false, signal:c.signal, onText:({ text }) => mostra(text) };
-  if (comFerramentas) opts.tools = ferramentas(atos);
+  if (comFerramentas){
+    const lim = await sample.limits?.().catch(() => null);
+    if (lim && !lim.tools) comFerramentas = false; else { if (lim?.tools?.maxCount) tetoFerramentas = lim.tools.maxCount; opts.tools = dentroDosLimites(ferramentas(atos)); }
+  }
   try {
     // a primeira pergunta abre a janelinha de liberar o Claude: a Mesa segura os cliques até você responder
     const perms = await window.claude?.use?.('permissions')?.catch?.(() => null);
@@ -317,7 +324,8 @@ async function pergunta(texto){
   } catch (e) {
     if (e?.code === 'tools_unavailable' && comFerramentas){ comFerramentas = false; ctl = null; turnos.pop(); ele.remove(); msgsEl.lastChild?.remove(); D.pensando = false; painel.classList.remove('pensando'); return pergunta(texto); }
     if (e?.text) { mostra(e.text); turnos.push({ role:'assistant', content:e.text }); } else { ele.remove(); turnos.pop(); }
-    if (e?.code !== 'cancelled') msg('erro', ERRO[e?.code] || 'Deu um problema na conexão com o Claude. Tenta de novo.');
+    if (e?.code !== 'cancelled') msg('erro', (ERRO[e?.code] || 'Deu um problema falando com o Claude.') + ' [' + (e?.code || 'sem código') + (e?.message ? ': ' + String(e.message).slice(0, 220) : '') + ']');
+    console.warn('mesa: erro do Claude', e);
   } finally { if (ctl === c){ ctl = null; D.pensando = false; painel.classList.remove('pensando'); } }
 }
 
