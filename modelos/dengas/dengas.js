@@ -16,6 +16,12 @@ Mesa.estilo(`
 #dg{position:absolute;left:0;top:0;width:0;height:0;z-index:5000;pointer-events:none}
 #dg canvas{position:absolute;left:-96px;top:-176px;width:192px;height:192px;pointer-events:none;transition:filter .2s}
 #dg.pego canvas{filter:drop-shadow(0 10px 8px rgba(0,0,0,.35))}
+/* bolinha: encostado num canto ou numa lateral, só o rostinho num disco */
+#dg.bolinha canvas{left:-32px;top:-32px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 38%,rgba(58,44,40,.95),rgba(14,15,21,.96) 72%);box-shadow:inset 0 0 0 1.5px rgba(240,169,138,.5),0 8px 22px -8px rgba(0,0,0,.7)}
+#dg.bolinha #dgHit{left:-32px;top:-32px;width:64px;height:64px;border-radius:50%}
+#dg.bolinha #dgBanco{opacity:0!important}
+#dg.troca canvas{animation:dgtroca .38s cubic-bezier(.2,.9,.25,1.12)}
+@keyframes dgtroca{0%{scale:.6;opacity:.4}100%{scale:1;opacity:1}}
 #dgHit{position:absolute;left:-40px;top:-122px;width:80px;height:122px;border:0;padding:0;background:transparent;border-radius:26px;cursor:grab;pointer-events:auto;touch-action:none}
 #dg.pego #dgHit{cursor:grabbing}
 #dgHit:focus-visible{outline:2px solid var(--pessego);outline-offset:2px}
@@ -66,7 +72,7 @@ const msgsEl = painel.querySelector('#dgMsgs'), chipsEl = painel.querySelector('
 
 /* ---------- onde ele está: (x, y) é o ponto dos pés ---------- */
 const salvo = Mesa.le('mesa-dengas', {});
-const D = { x:salvo.x ?? null, y:salvo.y ?? null, vy:0, dir:'e', alvo:null, modo:'parado', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(9000, 16000) };
+const D = { bolinha:salvo.bolinha || null, x:salvo.x ?? null, y:salvo.y ?? null, vy:0, dir:'e', alvo:null, modo:'parado', em:null, lado:1, alvoX:null, pose:'pe', pego:null, aberto:false, pensando:false, falandoAte:0, mouse:{ x:0, y:0, at:0 }, passeioEm:performance.now() + rnd(9000, 16000) };
 const chao = () => area().h - 24;   // ele pisa em cima do banquinho fundido na beira de baixo
 // superfícies onde ele pode ficar: a beira de baixo e o topo de cada widget (com espaço pra ele em cima)
 function superficies(){
@@ -75,7 +81,13 @@ function superficies(){
   return l;
 }
 function superficieAbaixo(x, y){ let m = null; for (const s of superficies()) if (x >= s.x0 - 20 && x <= s.x1 + 20 && s.y >= y - 6 && (!m || s.y < m.y)) m = s; return m || superficies()[0]; }
-function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y) }); }
+function guardaLugar(){ Mesa.grava('mesa-dengas', { x:Math.round(D.x), y:Math.round(D.y), bolinha:D.bolinha }); }
+const R_BOLA = 32, MARGEM = R_BOLA + 6;
+// onde a bolinha fica: grudada no lado (e no canto, se for canto), sempre inteira na tela
+function lugarBola(b){ const A = area(); return { x:b.lado === 'l' ? MARGEM : A.w - MARGEM, y:b.vert === 't' ? MARGEM : b.vert === 'b' ? A.h - MARGEM : clamp(b.y, MARGEM, A.h - MARGEM) }; }
+function virarBola(b){ D.bolinha = b; raiz.classList.add('bolinha'); raiz.classList.remove('sentado', 'no-chao'); D.pose = 'pe'; D.alvo = null; D.modo = 'parado'; trocou(); guardaLugar(); }
+function desvirarBola(){ if (!D.bolinha) return; D.bolinha = null; raiz.classList.remove('bolinha'); trocou(); }
+function trocou(){ raiz.classList.remove('troca'); void raiz.offsetWidth; raiz.classList.add('troca'); clipes = []; atual = null; chave = ''; }
 const RASTRO = { arrasto:null, andou:null };
 Mesa.diagFonte('dengas', () => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, alvo:D.alvo, area:area(), chao:chao(), limites:{ x:[30, area().w - 30], y:[110, chao()] }, mouse:D.mouse, ...RASTRO }));
 
@@ -85,6 +97,7 @@ const clip = (a, o = {}) => ({ a, t0:0, ...o });
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
+  if (D.bolinha){ if (fala) return [clip('r_falando')]; if (D.pensando) return [clip('pensando')]; const r = Math.random(); return [clip(r < .6 ? 'r_piscando' : r < .86 ? 'r_olhando' : 'r_feliz')]; }
   if (D.modo === 'andando') return [clip(nomeCorre())];
   if (D.pego || D.modo === 'caindo') return [clip('parado')];
   if (D.pose === 'sentado'){
@@ -107,7 +120,7 @@ function senta(sim){
   toca([clip(sim ? 't_parado_sentado' : 't_sentado_parado')]); chave = '';
 }
 function desenha(now){
-  const k = D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
+  const k = (D.bolinha ? 'b' : '') + D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
   if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
   let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps / 1000) : 0;
   if (!m || c >= m.n){
@@ -119,7 +132,8 @@ function desenha(now){
   g.imageSmoothingEnabled = false; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 384, 384);
   if (!atlas.naturalWidth) return;
   if (/^correndo_|_lado$|^t_quatro_/.test(atual.a) && D.lado < 0){ g.translate(384, 0); g.scale(-1, 1); }
-  g.drawImage(atlas, c * CEL, m.l * CEL, CEL, CEL, 0, 0, 384, 384);
+  if (D.bolinha) g.drawImage(atlas, c * CEL + 22, m.l * CEL + 24, 52, 52, 0, 0, 384, 384);   // enquadra a cabeça e o cachecol no disco
+  else g.drawImage(atlas, c * CEL, m.l * CEL, CEL, CEL, 0, 0, 384, 384);
 }
 
 /* ---------- vida: cair, andar, sentar, passear ---------- */
@@ -135,7 +149,8 @@ function passo(now){
   const A = area();
   if (D.x == null){ D.x = A.w - 150; D.y = chao(); }
   if (D.y == null) D.y = chao();
-  if (!D.pego){
+  if (D.bolinha && !D.pego){ const L = lugarBola(D.bolinha), a = Math.min(1, dt * 12); D.x += (L.x - D.x) * a; D.y += (L.y - D.y) * a; }
+  else if (!D.pego){
     if (D.alvo && !D.aberto){
       if (D.pose === 'sentado'){ senta(false); D.levantaAte = now + 520; }
       if (now > (D.levantaAte || 0)){
@@ -151,12 +166,12 @@ function passo(now){
     } else {
       if (D.modo === 'andando') D.modo = 'parado';
       if (D.pose === 'pe' && !D.aberto && !D.pensando && now > (D.sentaEm || Infinity) && now > D.falandoAte){ senta(true); D.sentaEm = null; }
-      if (!D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(16000, 38000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
+      if (!D.bolinha && !D.aberto && !D.pensando && now > D.passeioEm && now - D.mouse.at > 4000){ D.passeioEm = now + rnd(16000, 38000); vai(rnd(60, A.w - 60), rnd(170, chao())); }
     }
   }
-  D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao());
+  if (D.bolinha){ D.x = clamp(D.x, MARGEM, A.w - MARGEM); D.y = clamp(D.y, MARGEM, A.h - MARGEM); } else { D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao()); }
   raiz.style.transform = `translate3d(${D.x.toFixed(1)}px,${D.y.toFixed(1)}px,0)`;
-  raiz.classList.toggle('no-chao', Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
+  raiz.classList.toggle('no-chao', !D.bolinha && Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
   desenha(now); if (D.aberto) poePainel(); if (falaEl.classList.contains('viva')) poeFala();
   Mesa.quadro(passo);
 }
@@ -171,21 +186,27 @@ hit.addEventListener('pointerdown', e => { if (e.button !== 0) return; gesto = {
 hit.addEventListener('pointermove', e => {
   if (!gesto || e.pointerId !== gesto.id) return;
   if (e.buttons === 0) return larga();
-  if (!gesto.on){ if (Math.hypot(e.clientX - gesto.x0, e.clientY - gesto.y0) < 4) return; gesto.on = true; try { hit.setPointerCapture(gesto.id); } catch {} D.pego = { dx:D.x - gesto.x0, dy:D.y - gesto.y0 }; D.em = null; D.alvoX = null; raiz.classList.add('pego'); fecha(); if (D.pose === 'sentado'){ D.pose = 'pe'; raiz.classList.remove('sentado'); } }
-  D.x = e.clientX + D.pego.dx; D.y = clamp(e.clientY + D.pego.dy, 110, chao());
+  if (!gesto.on){ if (Math.hypot(e.clientX - gesto.x0, e.clientY - gesto.y0) < 4) return; gesto.on = true; try { hit.setPointerCapture(gesto.id); } catch {} if (D.bolinha){ desvirarBola(); D.y = Math.max(D.y, 140); } D.pego = { dx:D.x - gesto.x0, dy:D.y - gesto.y0 }; D.em = null; D.alvoX = null; raiz.classList.add('pego'); fecha(); if (D.pose === 'sentado'){ D.pose = 'pe'; raiz.classList.remove('sentado'); } }
+  const t = performance.now(), dtp = Math.max(8, t - (gesto.t || t)); gesto.vx = (e.clientX - (gesto.px ?? e.clientX)) / dtp * 1000 * .5 + (gesto.vx || 0) * .5; gesto.vy = (e.clientY - (gesto.py ?? e.clientY)) / dtp * 1000 * .5 + (gesto.vy || 0) * .5; gesto.px = e.clientX; gesto.py = e.clientY; gesto.t = t;
+  D.x = e.clientX + D.pego.dx; D.y = clamp(e.clientY + D.pego.dy, MARGEM, area().h - MARGEM);
 });
 function larga(){
-  if (!gesto) return; const era = gesto.on; gesto = null;
+  if (!gesto) return; const era = gesto.on, g0 = gesto; gesto = null;
   if (!era){ D.aberto ? fecha() : abre(); return; }
   RASTRO.arrasto = { soltou:[Math.round(D.x), Math.round(D.y)], area:area(), quando:new Date().toISOString() }; Mesa.diagnostico('dengas solto');
-  D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null; guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
+  { const A = area(), vx = clamp(g0.vx || 0, -3000, 3000), vy = clamp(g0.vy || 0, -3000, 3000), px = D.x + vx * .15, py = D.y + vy * .15, Z = 110;
+    const lado = px < Z ? 'l' : px > A.w - Z ? 'r' : null, vert = py < Z + 60 ? 't' : py > A.h - Z ? 'b' : null;
+    D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null;
+    if (lado){ virarBola({ lado, vert, y:py }); D.sentaEm = null; return; }
+  }
+  guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
 }
 hit.addEventListener('pointerup', larga); hit.addEventListener('pointercancel', larga);
 hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); D.aberto ? fecha() : abre(); } });
 
 /* ---------- balão ---------- */
 let tFala = 0, tLetra = 0;
-function poeFala(){ const A = area(), w = falaEl.offsetWidth, h = falaEl.offsetHeight, topo = D.y - (D.pose === 'sentado' ? 104 : 124); falaEl.style.transform = `translate3d(${clamp(D.x - w / 2, 8, A.w - w - 8)}px,${Math.max(8, topo - h - 12)}px,0)`; }
+function poeFala(){ const A = area(), w = falaEl.offsetWidth, h = falaEl.offsetHeight, topo = D.y - (D.bolinha ? 38 : D.pose === 'sentado' ? 104 : 124); falaEl.style.transform = `translate3d(${clamp(D.x - w / 2, 8, A.w - w - 8)}px,${Math.max(8, topo - h - 12)}px,0)`; }
 function fala(texto){
   texto = String(texto || '').trim().slice(0, 220); if (!texto) return;
   clearTimeout(tFala); clearInterval(tLetra); let n = 0; falaEl.textContent = ''; falaEl.classList.add('viva'); poeFala();
@@ -201,7 +222,7 @@ bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs(
 
 /* ---------- conversa ---------- */
 function poePainel(){
-  const A = area(), w = painel.offsetWidth, h = painel.offsetHeight, alto = D.pose === 'sentado' ? 100 : 122;
+  const A = area(), w = painel.offsetWidth, h = painel.offsetHeight, alto = D.bolinha ? 36 : D.pose === 'sentado' ? 100 : 122;
   const dir = D.x < A.w / 2, cima = D.y - alto - h - 10 >= 8 || D.y > A.h / 2;
   painel.classList.toggle('desce', !cima);
   const x = clamp(dir ? D.x + 52 : D.x - 52 - w, 12, A.w - w - 12);
@@ -411,7 +432,7 @@ function ferramentas(atos){
   return l;
 }
 // vai até o widget em que está mexendo (se estiver no chão, para embaixo dele)
-function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto) vai(w.x + w.w / 2, w.y); }
+function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto && !D.bolinha) vai(w.x + w.w / 2, w.y); }
 const ERRO = { not_granted:'Você não liberou o Claude pra mim. Dá pra liberar em Permissões.', sampling_disabled:'O Claude não está disponível nessa conta.', rate_limited:'Cansei um pouquinho… tenta de novo daqui a pouco.', session_expired:'Sua sessão do Claude caiu. Entra de novo e me chama.', refused:'Disso eu prefiro não falar.', empty_completion:'Me deu um branco. Pergunta de outro jeito?' };
 let ctl = null, turnos = [], comFerramentas = true, tetoFerramentas = 16;
 const corta = (t, bytes) => { let r = String(t || ''); while (new TextEncoder().encode(r).length > bytes) r = r.slice(0, Math.floor(r.length * .92)); return r; };
@@ -462,6 +483,7 @@ Mesa.icone = tam => {
   if (atlas.naturalWidth) q.drawImage(atlas, 24, 18, 48, 48, 20 * k, 22 * k, 216 * k, 216 * k);
   return c.toDataURL('image/png');
 };
-Mesa.dengas = { fala, pergunta, abre, fecha, vai, estado:() => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, em:D.em, aberto:D.aberto }) };
+Mesa.dengas = { fala, pergunta, abre, fecha, vai, virarBola, desvirarBola, estado:() => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, em:D.em, aberto:D.aberto, bolinha:D.bolinha }) };
+if (D.bolinha) virarBola(D.bolinha);
 bus.on('mesa:pronta', () => setTimeout(() => fala(sorteia(['Cheguei! Clica em mim pra gente conversar.', 'Oi! Tô por aqui, é só chamar.', 'Mesa pronta. O que vamos fazer?'])), 1400));
 }

@@ -1,3 +1,7 @@
+# Mesa — aposentada (virou a ponte no Board)
+
+> **Situação (27/11/2026):** a Mesa como app próprio (uma janela do tamanho da área de trabalho com widgets e o Dengas) foi aposentada. O [Board](../board/README.md) é a base agora, e o que era da Mesa vive nele: o [Dengas](../dengas/README.md), o [Navegador](../navegador/README.md), a Onda e a Órbita hospedadas, o papel de parede, pela ponte [modelos/mesa/board.js](../../modelos/mesa/board.js). Relógio, Notas e a ponte da Estante ficaram de fora. O histórico inteiro está em [refinos](refinos.md); o texto abaixo descreve a Mesa como ela era.
+
 # Mesa — o quadro dos widgets
 
 > **O que é:** o doc L2 da Mesa. **Quando ler:** antes de criar, refinar ou depurar a Mesa ou um widget dela. Comum a todos: [padroes/](../../padroes/README.md). Histórico: [refinos](refinos.md). Código: [modelos/mesa/](../../modelos/mesa/README.md).

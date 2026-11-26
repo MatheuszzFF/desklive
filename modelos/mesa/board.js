@@ -66,6 +66,13 @@ html.fundo-mesa.fundo-suspenso #fundo-mesa{opacity:0;pointer-events:none}
 .m-bot{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:7px 13px;cursor:pointer;font:500 13px/1.2 var(--corpo);color:var(--fg);transition:background .2s,scale .2s var(--mola)}
 .m-bot:hover{background:rgba(255,255,255,.11)} .m-bot:active{scale:.96}
 .mw{position:relative;overflow:hidden}
+.mw .w-borda{position:absolute;z-index:6;touch-action:none}
+.mw .w-borda[data-d=n]{left:16px;right:16px;top:0;height:8px;cursor:ns-resize}.mw .w-borda[data-d=s]{left:16px;right:16px;bottom:0;height:8px;cursor:ns-resize}
+.mw .w-borda[data-d=w]{top:16px;bottom:16px;left:0;width:8px;cursor:ew-resize}.mw .w-borda[data-d=e]{top:16px;bottom:16px;right:0;width:8px;cursor:ew-resize}
+.mw .w-borda[data-d=nw]{left:0;top:0;width:16px;height:16px;cursor:nwse-resize}.mw .w-borda[data-d=se]{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize}
+.mw .w-borda[data-d=ne]{right:0;top:0;width:16px;height:16px;cursor:nesw-resize}.mw .w-borda[data-d=sw]{left:0;bottom:0;width:16px;height:16px;cursor:nesw-resize}
+.mw .w-mao{position:absolute;left:50%;top:6px;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:rgba(244,245,248,.5);opacity:0;transition:opacity .2s,width .3s var(--mola),margin .3s var(--mola);z-index:5;pointer-events:none}
+.mw:hover .w-mao{opacity:.55}
 .mw>.w-corpo{position:absolute;left:0;top:0;container-type:size;container-name:w;overflow:hidden;box-sizing:border-box;padding-top:12px}
 .hosp{position:absolute;border:0;background:transparent;color-scheme:light;z-index:4000;pointer-events:none}
 `);
@@ -93,6 +100,7 @@ function criarWidget(def, ctx){
   const W = Object.assign({ w:def.w || 320, h:def.h || 220 }, le('mesa-w-tam-' + def.id, {}));
   const el = document.createElement('div'); el.className = 'mw mesa-v'; el.dataset.id = def.id;
   const corpo = document.createElement('div'); corpo.className = 'w-corpo'; el.appendChild(corpo);
+  el.insertAdjacentHTML('beforeend', '<i class="w-mao"></i>' + ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'].map(d => '<i class="w-borda" data-d="' + d + '" data-sem-arrasto></i>').join(''));
   const mede = () => { el.style.width = W.w + 'px'; el.style.height = W.h + 'px'; corpo.style.width = W.w + 'px'; corpo.style.height = W.h + 'px'; };
   mede();
   const api = {
@@ -105,11 +113,34 @@ function criarWidget(def, ctx){
   const V = { def, W, ctx, el, corpo, inst:{} };
   try { V.inst = def.monta(corpo, api) || {}; } catch (e) { console.warn('mesa: o widget', def.id, 'falhou ao montar', e); corpo.textContent = 'Este widget não abriu: ' + (e.message || e); }
   V.mede = () => { mede(); try { V.inst.aoTamanho?.(lugarDe(def.id)); } catch {} };
+  // redimensionar pelas 4 bordas e 4 quinas (como na Mesa): o lado oposto fica parado, tamanho direto (sem mola), guarda ao soltar
+  for (const h of el.querySelectorAll('.w-borda')){
+    let r = null; const d = h.dataset.d;
+    h.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return; e.preventDefault(); e.stopPropagation(); try { h.setPointerCapture(e.pointerId); } catch {}
+      const P = ctx.P; if (P.forma !== 'livre') MB.mover(def.id, { x:P.alvo[0], y:P.alvo[1] });
+      r = { id:e.pointerId, x0:e.clientX, y0:e.clientY, w0:W.w, h0:W.h, px:P.alvo[0], py:P.alvo[1] };
+    });
+    h.addEventListener('pointermove', e => {
+      if (!r || e.pointerId !== r.id) return;
+      const A = area(), mw = def.minW || 160, mh = def.minH || 110, dx = e.clientX - r.x0, dy = e.clientY - r.y0;
+      let w = r.w0, hh = r.h0, x = r.px, y = r.py;
+      if (d.includes('e')) w = clamp(r.w0 + dx, mw, A.w - r.px);
+      if (d.includes('s')) hh = clamp(r.h0 + dy, mh, A.h - r.py);
+      if (d.includes('w')){ w = clamp(r.w0 - dx, mw, r.px + r.w0); x = r.px + r.w0 - w; }
+      if (d.includes('n')){ hh = clamp(r.h0 - dy, mh, r.py + r.h0); y = r.py + r.h0 - hh; }
+      W.w = Math.round(w); W.h = Math.round(hh); V.mede(); ctx.retamanho();
+      const P = ctx.P; for (const i of [2, 3]){ P.v[i] = P.ant[i] = P.alvo[i]; P.vel[i] = 0; }
+      MB.teleportar(P, Math.round(x), Math.round(y));
+    });
+    const fim = () => { if (!r) return; r = null; grava('mesa-w-tam-' + def.id, { w:W.w, h:W.h }); ctx.salvar(); bus.emit('mesa:redimensionou', { id:def.id, ...lugarDe(def.id) }); };
+    h.addEventListener('pointerup', fim); h.addEventListener('pointercancel', fim); h.addEventListener('lostpointercapture', fim);
+  }
   return {
     el, fundo:def.id === 'video' ? 'transparent' : 'rgba(10,11,16,.92)',
     caixa:() => ({ w:W.w, h:W.h }), tamanho:() => ({ w:W.w, h:W.h }),
     pega:t => !t.closest(CONTROLE),
-    furos:P => { const fs = el.querySelectorAll('.furo'); if (!fs.length) return null; const b = P.fo.getBoundingClientRect(), k = P.rv[2] / Math.max(1, b.width) || 1; return [...fs].map(f => { const r = f.getBoundingClientRect(); return { x:(r.left - b.left) * k, y:(r.top - b.top) * k, w:r.width * k, h:r.height * k }; }); },
+    furos:P => { const fs = el.querySelectorAll('.furo'); if (!fs.length) return null; const b = P.fo.getBoundingClientRect(), k = P.rv[2] / Math.max(1, b.width) || 1; const ML = 8, MT = 18; return [...fs].map(f => { const r = f.getBoundingClientRect(); return { x:(r.left - b.left) * k + ML, y:(r.top - b.top) * k + MT, w:r.width * k - 2 * ML, h:r.height * k - MT - ML }; }); },
     automacao:{ ver:() => { try { return V.inst.estado?.(); } catch { return undefined; } }, get comandos(){ return V.inst.comandos || []; }, get regras(){ return AGENTES.get(def.id) || ''; } },
     ativar:() => { VIVOS.set(def.id, V); bus.emit('mesa:abriu', { id:def.id }); },
     destruir:() => { if (VIVOS.get(def.id) === V) VIVOS.delete(def.id); try { V.inst.aoFechar?.(); } catch {} bus.emit('mesa:fechou', { id:def.id }); },

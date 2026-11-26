@@ -8,4 +8,4 @@
 | [board.js](board.js) | a entrada no Board (depois da ponte `mesa`, só no Board principal) |
 | [arte/](arte/) | o atlas do sprite (`dengas-atlas.png` + `.json`, quadros de 96 × 96, pé em 48, 88) |
 
-Marcadores: `/*JSON:arte/dengas-atlas.json*/{}` e `/*DATAURL:arte/dengas-atlas.png*/''`. Entra na Mesa (`modelos/mesa/build.ps1`) e no Board (`modelos/board/build.ps1 -Pecas mesa,dengas,...`).
+Marcadores: `/*JSON:arte/dengas-atlas.json*/{}` e `/*DATAURL:arte/dengas-atlas.png*/''`. Entra no Board depois da ponte: `modelos/board/build.ps1 -Pecas mesa,dengas,...`.
