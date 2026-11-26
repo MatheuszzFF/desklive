@@ -2,6 +2,10 @@
 
 > Registro de cada refino da Mesa, do mais novo pro mais antigo ([modelo](../../templates/registro-de-refino.md)). Índice: [Mesa](README.md).
 
+## 2026-11-26 · Mesa 0.13: Gmail, Agenda e Drive
+- **O que:** a publicação passa a declarar Gmail (buscar, ler, rascunhos), Google Agenda (listar, buscar, sugerir horário, criar, alterar, responder convite) e Google Drive (buscar, recentes, ler, criar arquivo). De propósito ficaram de fora: enviar, responder e encaminhar e-mail, e tudo que apaga ou compartilha. O Dengas usa pela mesma ferramenta `conector`.
+- **Não testado:** nenhuma chamada real (só no app).
+
 ## 2026-11-26 · Mesa 0.12: o Dengas cria documentos (Claude Docs)
 - **O que:** ferramenta `documento` (título + Markdown). O Dengas só prepara o rascunho; aparece um botão na conversa e o documento nasce no clique do dono (regra do conector: criar só em gesto de quem vê, uma vez por clique). Confere antes os limites (título de 200, texto abaixo de 32 KB, sem imagem, nota de rodapé ou fórmula). O Claude Docs fica fora da ferramenta `conector` genérica: de uma página ele só aceita a criação.
 - **Não testado:** a criação de verdade (só no app).

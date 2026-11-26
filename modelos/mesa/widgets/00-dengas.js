@@ -240,7 +240,7 @@ function regras(){
     'O widget video é também o navegador da Mesa, com as contas do dono conectadas (Google, YouTube). Quando ele pedir pra pesquisar, ver ou abrir algo, além de responder curto, MOSTRE: abra o widget video e use abrir_site com a melhor página que você achou, ou com https://www.google.com/search?q=<busca codificada> pra ele ver os resultados.',
     'O que um widget solto NÃO consegue: acessar a internet, tocar vídeo de site, ler arquivos ou mexer no PC. Pra isso existem as suas ferramentas, widgets de fábrica e apps: vídeo do YouTube e qualquer site dentro da Mesa é o widget video (comandos tocar, abrir_site e fechar_janela); música é a Onda; abrir programas é a Órbita; imagem de fundo é mesa_aparencia com imagem. Nunca diga que não dá sem antes conferir esses.',
     'Se o widget que você precisa está fechado, abra com mesa_widget (a resposta traz os comandos dele) e, no MESMO pedido, use widget_comando pra fazer o que foi pedido. Nunca peça pro dono clicar ou digitar algo que um comando faz.',
-    conectores.length ? 'Conectores da conta do dono que você pode usar com a ferramenta conector: ' + JSON.stringify(conectores).slice(0, 2500) : '',
+    conectores.length ? 'Conectores da conta do dono que você pode usar com a ferramenta conector: ' + JSON.stringify(conectores).slice(0, 5000) : '',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
     'A Mesa agora (posições em px, origem no canto de cima à esquerda): ' + JSON.stringify(e).slice(0, 3500),
@@ -274,7 +274,7 @@ async function carregaConectores(){
     if (!mcp) return;
     const r = await mcp.listTools();
     temDocs = (r.servers || []).some(v => v.server === 'Claude Docs');
-    conectores = (r.servers || []).filter(v => v.kind !== 'artifact' && v.server !== 'Claude Docs' && v.tools?.length).map(v => ({ servidor:v.server, estado:v.authStatus, ferramentas:v.tools.map(t => ({ nome:t.name, o_que_faz:String(t.description || '').slice(0, 140) })) }));
+    conectores = (r.servers || []).filter(v => v.kind !== 'artifact' && v.server !== 'Claude Docs' && v.tools?.length).map(v => ({ servidor:v.server, estado:v.authStatus, ferramentas:v.tools.map(t => ({ nome:t.name, o_que_faz:String(t.description || '').slice(0, 80) })) }));
     conectoresEm = performance.now();
   } catch (e) { console.warn('mesa: conectores', e); }
 }
