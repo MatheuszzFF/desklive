@@ -360,7 +360,27 @@ if (!desktop?.window?.setIgnoreMouseEvents || !desktop?.screen){
   else telaFora('O Board só roda instalado: no app do Claude, abra o menu com o nome do artefato e escolha Instalar como app.');
   return;
 }
-const W = desktop.window, S = desktop.screen, FS = desktop.fs;
+/* zoom da página: com o app do Claude em zoom, 1 unidade do host (DIP) vale ZOOM px desta página. O Board trabalha
+   inteiro em px da página: as telas, o cursor e os bounds do host são divididos por ZOOM na entrada e multiplicados na
+   saída. A escala de cada monitor vira escala × ZOOM (px físicos por px da página), e o físico continua batendo. */
+let ZOOM = 1;
+const Wh = desktop.window, Sh = desktop.screen;
+async function medirZoom(ds){
+  try { const b = await Wh.getBounds(), cx = b.x + b.width / 2, cy = b.y + b.height / 2, d = ds.find(q => cx >= q.bounds.x && cx < q.bounds.x + q.bounds.width && cy >= q.bounds.y && cy < q.bounds.y + q.bounds.height) || ds[0];
+    const z = devicePixelRatio / (d?.scaleFactor || 1); ZOOM = Math.abs(z - 1) < .01 ? 1 : z; } catch {}
+  return ZOOM;
+}
+const zr = r => r && { ...r, x:r.x / ZOOM, y:r.y / ZOOM, width:r.width / ZOOM, height:r.height / ZOOM };
+const S = SIM ? Sh : new Proxy(Sh, { get(o, k){
+  if (k === 'getAllDisplays') return async () => { const ds = await Sh.getAllDisplays(); await medirZoom(ds); if (ZOOM === 1) return ds;
+    return ds.map(d => ({ ...d, bounds:zr(d.bounds), workArea:zr(d.workArea), size:d.size && { width:d.size.width / ZOOM, height:d.size.height / ZOOM }, workAreaSize:d.workAreaSize && { width:d.workAreaSize.width / ZOOM, height:d.workAreaSize.height / ZOOM }, scaleFactor:(d.scaleFactor || 1) * ZOOM, zoom:ZOOM })); };
+  if (k === 'getCursorScreenPoint') return async () => { const p = await Sh.getCursorScreenPoint(); return ZOOM === 1 ? p : { x:p.x / ZOOM, y:p.y / ZOOM }; };
+  const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } });
+const W = SIM ? Wh : new Proxy(Wh, { get(o, k){
+  if (k === 'setBounds') return b => { if (ZOOM === 1) return Wh.setBounds(b); const r = {}; for (const q of ['x', 'y', 'width', 'height']) if (b[q] != null) r[q] = Math.round(b[q] * ZOOM); return Wh.setBounds(r); };
+  if (k === 'getBounds') return async () => { const b = await Wh.getBounds(); return ZOOM === 1 ? b : zr(b); };
+  const v = o[k]; return typeof v === 'function' ? v.bind(o) : v; } });
+const FS = desktop.fs;
 let perms = await desktop.permissions?.state?.().catch(() => null);
 if (perms && perms.overlay !== 'granted'){
   await new Promise(res => {
@@ -1369,7 +1389,7 @@ const telaAtual = b => displayDoPonto(b.x + b.width / 2, b.y + b.height / 2) || 
 let assinatura = '', escondidoPorMonitor = false;
 async function relerMonitores(motivo){
   let ds; try { ds = await S.getAllDisplays(); } catch (e) { log('getAllDisplays: ' + msg(e), 'bad'); return; }
-  const sig = JSON.stringify(ds.map(d => [d.id, d.bounds, d.workArea, d.scaleFactor]));
+  const sig = JSON.stringify(ds.map(d => [d.id, d.bounds, d.workArea, d.scaleFactor]));   // com zoom, mudar o zoom muda a assinatura e o Board se reposiciona
   if (sig === assinatura) return;
   const antes = telas.map(d => d.id); telas = ds; assinatura = sig; geo = geometria(ds);
   Telas.casar(); recalcularEspaco(); Telas.lerWindows(motivo);   // o host mudou: o Windows é relido uma vez (debounce), nunca em laço
@@ -1448,7 +1468,7 @@ const Telas = {
     const div = [], host = [...telas].sort((a, b) => a.bounds.x - b.bounds.x || a.bounds.y - b.bounds.y), usados = new Set();
     for (const d of host){
       const s = d.scaleFactor || 1, fw = Math.round(d.bounds.width * s), fh = Math.round(d.bounds.height * s);
-      const cands = (this.win || []).filter(w => !usados.has(w) && Math.abs(w.w - fw) <= 2 && Math.abs(w.h - fh) <= 2 && (!w.dpi || Math.abs(w.dpi / 96 - s) < .02));
+      const cands = (this.win || []).filter(w => !usados.has(w) && Math.abs(w.w - fw) <= 2 && Math.abs(w.h - fh) <= 2 && (!w.dpi || Math.abs(w.dpi / 96 - s / (d.zoom || 1)) < .02));
       let w = null;
       if (cands.length === 1) w = cands[0];
       else if (cands.length > 1){ const rank = host.filter(o => Math.round(o.bounds.width * (o.scaleFactor || 1)) === fw && Math.round(o.bounds.height * (o.scaleFactor || 1)) === fh).indexOf(d); w = [...cands].sort((a, b) => a.x - b.x || a.y - b.y)[Math.max(0, rank)] || cands[0]; }
@@ -1456,7 +1476,7 @@ const Telas = {
         d.fis = { x:w.x, y:w.y, w:w.w, h:w.h }; d.fisUtil = { x:w.wx, y:w.wy, w:w.ww, h:w.wh }; d.hz = w.hz || null; d.dpi = w.dpi || null; d.dev = w.dev; d.fontes = { geometria:'host', fisico:'Windows', hz:'Windows', escala:'host' };
         const fu = { x:Math.round(d.fis.x + (d.workArea.x - d.bounds.x) * s), y:Math.round(d.fis.y + (d.workArea.y - d.bounds.y) * s), w:Math.round(d.workArea.width * s), h:Math.round(d.workArea.height * s) };
         if (Math.abs(fu.w - w.ww) > 2 || Math.abs(fu.h - w.wh) > 2) div.push(`${w.dev}: área útil do host ${fu.w}×${fu.h} físicos, Windows ${w.ww}×${w.wh}`);
-        if (w.dpi && Math.abs(w.dpi / 96 - s) > .005) div.push(`${w.dev}: escala do host ${s}, Windows ${w.dpi / 96}`);
+        if (w.dpi && Math.abs(w.dpi / 96 - s / (d.zoom || 1)) > .005) div.push(`${w.dev}: escala do host ${s}, Windows ${w.dpi / 96}`);
       } else {
         d.fis = { x:d.bounds.x, y:d.bounds.y, w:fw, h:fh };   // estimativa sem Windows: a origem do host é a física (vale pro principal e pra escala 1) d.hz = null; d.dpi = null; d.dev = null; d.fontes = { geometria:'host', fisico:'estimado (sem Windows)', hz:'—', escala:'host' };
         if (this.win) div.push(`monitor ${d.id}: nenhum monitor do Windows com ${fw}×${fh} físicos a ${s}`);
@@ -2057,7 +2077,7 @@ async function comandoApi(id, nome, args){
 function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'function') throw new Error('uma peça precisa de id e de criar(ctx)'); B.registrar(def); anunciar('peca:definida', { id:def.id }); if (opcoes.mostrar !== false && minha && !pecas.has(def.id)) return mostrarApi(def.id, true); return null; }
 function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
 Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
-  get perms(){ return perms; }, get simulado(){ return !!SIM; } });
+  get perms(){ return perms; }, get simulado(){ return !!SIM; }, get zoom(){ return ZOOM; } });
 /* opcionais: módulos e peças que a montagem acrescenta (build.ps1 -Pecas a,b,c). Sem lista, fica vazio. */
 /*PECAS*/
 let sonda = null;
