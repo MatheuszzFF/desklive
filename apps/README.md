@@ -10,6 +10,7 @@ Uma pasta por app. Cada pasta tem o mesmo formato (o do [modelo](../templates/no
 | **Board** | o quadro vazio e interativo (um por monitor) onde os apps viram peças; API aberta e chaves | [board/](board/README.md) | [API aberta](board/api-aberta.md) · [chaves](board/chaves.md) · [refinos](board/refinos.md) |
 | **Dengas** | o ratinho assistente: conversa com o Claude e comanda os apps | [dengas/](dengas/README.md) | [refinos](dengas/refinos.md) |
 | **Navegador** | sites e vídeo dentro do quadro, numa janela do Edge sob um furo | [navegador/](navegador/README.md) | [refinos](navegador/refinos.md) |
+| **Janelas** | qualquer programa do Windows dentro do quadro, sem a moldura do Windows | [janelas/](janelas/README.md) | — |
 | **Assistente** | cérebro genérico pro Board, sem corpo | [assistente/](assistente/README.md) | [refinos](assistente/refinos.md) |
 | **Mesa** | aposentada em 27/11: virou a ponte que leva o Dengas e os apps dela pro Board | [mesa/](mesa/README.md) | [refinos](mesa/refinos.md) |
 

@@ -193,11 +193,15 @@ hit.addEventListener('pointermove', e => {
 function larga(){
   if (!gesto) return; const era = gesto.on, g0 = gesto; gesto = null;
   if (!era){ D.aberto ? fecha() : abre(); return; }
-  RASTRO.arrasto = { soltou:[Math.round(D.x), Math.round(D.y)], area:area(), quando:new Date().toISOString() }; Mesa.diagnostico('dengas solto');
-  { const A = area(), vx = clamp(g0.vx || 0, -3000, 3000), vy = clamp(g0.vy || 0, -3000, 3000), px = D.x + vx * .15, py = D.y + vy * .15, Z = 110;
-    const lado = px < Z ? 'l' : px > A.w - Z ? 'r' : null, vert = py < Z + 60 ? 't' : py > A.h - Z ? 'b' : null;
+  { const A = area(), vx = clamp(g0.vx || 0, -3000, 3000), vy = clamp(g0.vy || 0, -3000, 3000), px = D.x + vx * .15, py = D.y + vy * .15, Z = 110, ZL = Math.max(140, A.w * .08);
+    // lateral: vale o pé dele, o ponto projetado pelo embalo OU o cursor na hora de soltar (o que estiver mais perto da beira)
+    const cx = g0.px ?? D.x, perto = Math.min(px, D.x, cx), longe = Math.max(px, D.x, cx);
+    const lado = perto < ZL ? 'l' : longe > A.w - ZL ? 'r' : null, vert = py < Z + 60 ? 't' : py > A.h - Z ? 'b' : null;
+    RASTRO.arrasto = { soltou:[Math.round(D.x), Math.round(D.y)], cursor:[Math.round(cx), Math.round(g0.py ?? D.y)], projetado:[Math.round(px), Math.round(py)], embalo:[Math.round(vx), Math.round(vy)], zona:Math.round(ZL), lado, vert, area:A, quando:new Date().toISOString() };
+    Mesa.diagnostico('dengas solto');
     D.pego = null; raiz.classList.remove('pego'); D.modo = 'parado'; D.alvo = null;
-    if (lado){ virarBola({ lado, vert, y:py }); D.sentaEm = null; return; }
+    // a bolinha é só dos cantos (lado + cima/baixo); na lateral ele tem outra forma (ainda a definir) e por enquanto fica inteiro
+    if (lado && vert){ virarBola({ lado, vert, y:py }); D.sentaEm = null; return; }
   }
   guardaLugar(); D.sentaEm = performance.now() + 2500; D.passeioEm = performance.now() + rnd(20000, 40000);
 }
@@ -484,6 +488,6 @@ Mesa.icone = tam => {
   return c.toDataURL('image/png');
 };
 Mesa.dengas = { fala, pergunta, abre, fecha, vai, virarBola, desvirarBola, estado:() => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, em:D.em, aberto:D.aberto, bolinha:D.bolinha }) };
-if (D.bolinha) virarBola(D.bolinha);
+if (D.bolinha?.vert) virarBola(D.bolinha); else D.bolinha = null;   // bolinha salva na lateral (versão anterior) volta a ser o ratinho
 bus.on('mesa:pronta', () => setTimeout(() => fala(sorteia(['Cheguei! Clica em mim pra gente conversar.', 'Oi! Tô por aqui, é só chamar.', 'Mesa pronta. O que vamos fazer?'])), 1400));
 }

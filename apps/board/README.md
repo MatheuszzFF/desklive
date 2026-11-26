@@ -12,7 +12,7 @@
 
 ### Estrutura
 - Núcleo em [modelos/board/board-src.html](../../modelos/board/board-src.html); um marcador só, `/*PECAS*/`, onde entram os opcionais. Cada opcional é um app do desklive com um `board.js` na pasta dele (`modelos/<app>/board.js`), escolhido na montagem com `-Pecas`.
-- **API aberta:** [api-aberta.md](api-aberta.md). **Chaves:** [chaves.md](chaves.md).
+- **API aberta:** [api-aberta.md](api-aberta.md). **Chaves:** [chaves.md](chaves.md). **Moldura** (o molde de todo widget: âncora, tamanhos xs–xl, bordas por lugar): [moldura.md](moldura.md).
 - Serviços do núcleo pra quem pluga, todos genéricos: `automacao` e `furos` por peça, peça que anda sozinha (`ctx.P.controlado`), alvos fora das peças (`Board.alvo`), itens no menu e na bandeja (`Board.menu`), chaves (`Board.chaves`).
 - O app do Claude pode rodar com zoom: o Board converte as coordenadas do host pro pixel da página na entrada e na saída.
 
@@ -42,4 +42,5 @@ Transparente; o fundo é opcional (o da ponte da Mesa cobre a área de trabalho 
 |---|---|
 | [api-aberta.md](api-aberta.md) | as chamadas que qualquer cliente usa e o que uma peça declara |
 | [chaves.md](chaves.md) | as credenciais das integrações: declarar, usar, pedir, onboarding |
+| [moldura.md](moldura.md) | o molde de widget: âncoras, tamanhos xs–xl por orientação, bordas que redimensionam, vistas |
 | [refinos.md](refinos.md) | o histórico do Board unificado |
