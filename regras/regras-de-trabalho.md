@@ -3,6 +3,7 @@
 
 ## Resumo em 5 linhas
 0. **REGRA Nº 1 (ele já repetiu 4×, não deixe ele repetir de novo):** todo app se TRANSFORMA conforme o lado, o canto e o tamanho. Cada um tem a sua forma E a sua interação únicas, feitas com cuidado e motion caprichado, no nível mínimo da ilha do topo do Eco. Nunca só se esconder, nunca a mesma peça repetida (R20). Toda sessão delegada recebe isso no resumo.
+0b. **NADA PISCA (R25):** nenhuma largura, altura, posição ou visibilidade muda sem transição suave. Se QUALQUER coisa piscar, sumir por um quadro, pular ou tremer, a experiência está arruinada. Esconder quadro, trocar layout de uma vez ou deixar a janela e o CSS se ajustarem em quadros diferentes é proibido; congele, faça crossfade ou anime.
 1. Design "state of the art": transparente, minimalista, motion vivo e calibrado; nada genérico, nada cortado, nada exagerado.
 2. Todo movimento (arrastar, posicionar, encaixar) é fluido, com física, e feito com esmero.
 3. Teste no ambiente real e em resolução real antes de dizer "pronto"; confira por print.
@@ -165,6 +166,23 @@
 - **Por quê:** rodadas em paralelo nos três espalharam bugs parecidos e ele precisou testar tudo três vezes.
 - **Exemplo:** "o ideal é construir num app só extramamente bem feito antes e dps mandar pros outros quando 1 tiver redondo".
 - **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** alta
+
+### R25 — Nada pisca: toda mudança de tamanho, posição ou visibilidade é suave
+- **Regra:** nenhuma largura, altura, posição, recorte ou visibilidade muda de um quadro pro outro sem transição suave. Valem pra isso:
+  - **Mudança de tamanho:** a janela cresce antes e o CSS anima dentro dela; o encolher é aplicado depois que a animação termina, no mesmo quadro que a compensação.
+  - **Troca de layout:** usa FLIP, crossfade ou morph.
+  - **Pulos inevitáveis de janela** (emenda dos monitores, trava do host): ficam escondidos por congelamento ou crossfade, nunca por "sumir".
+
+  É proibido:
+  - esconder o conteúdo por 1–2 quadros;
+  - aplicar a posição da janela e a compensação do CSS em quadros diferentes;
+  - duas fontes brigando pela posição (mola contra trava, motor contra commit);
+  - pedir uma posição fora da tela que o host vai corrigir.
+
+  Antes de publicar, rodar a análise quadro a quadro (vídeo ou registro) e provar zero piscada, zero tremida e zero pulo.
+- **Por quê:** a análise do vídeo da Onda v20 mostrou piscadas de 1–2 quadros (o "esconder quadro velho"), a janela voltando 1 quadro pro monitor antigo na emenda e tremedeira de ±170 px no canto. Ele disse que basta um piscar pra arruinar tudo.
+- **Exemplo:** "não podem ter widths ou heights que mudam sem alguma transição suave. se QUALQUER coisa piscar, a experiencia é arruinada".
+- **Desde:** 2026-11-25 · **Reforçada:** 1× · **Força:** máxima
 
 ## Segurança e permissões
 
