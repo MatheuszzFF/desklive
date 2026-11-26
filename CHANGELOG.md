@@ -4,6 +4,10 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 
 ## 2026-11-25
 
+### Onda v20: app piloto (R24) com o motor-piloto
+- **Novo:** [referencias/motor/motor-piloto.md](referencias/motor/motor-piloto.md) (trava igual à do host, emenda como portal, teto de um monitor, quadro velho escondido, telas e movimento reduzido ao vivo; simulador que imita o host).
+- **Atualizado:** [refinos da Onda](apps/onda/refinos.md), [interação da Onda](apps/onda/interacao.md) (H1–H4), o Testado da [Onda](apps/onda/README.md) e os índices de [motor](referencias/motor/README.md) e [motion](padroes/motion/README.md).
+
 ### Ambiente: o host por baixo dos apps (pesquisa)
 - **Novo:** [referencias/ambiente/](referencias/ambiente/README.md), lido do app Claude instalado (Electron 45.3.3, Chromium 156) e das fontes do Electron, do Chromium e da Microsoft:
   - [host](referencias/ambiente/host.md): como a janela é montada; uma ida e volta por chamada, sem fila; o que cada API faz por baixo; o nível `floating` atrás da barra; throttling desligado; o observador de DOM do preload.

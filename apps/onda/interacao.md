@@ -18,6 +18,11 @@
 ## Hover e "clique passa"
 - Hover entra depois de **80 ms** e sai **420 ms** depois de sair. O "clique passa" desliga na hora e só liga depois de **160 ms** fora do que se vê. Enquanto gira o vinil, puxa a alça ou arrasta, nada disso muda.
 - **Medido (v17/v18):** mouse parado na tira mínima enquanto ela cresce embaixo dele: exatamente 2 trocas (entrar e sair), sem piscar.
+- **Desde a v20 (piloto, receitas do [ambiente](../../referencias/ambiente/hover-e-clique-passa.md)):**
+  - **H1, aproximação:** o "clique passa" desliga numa faixa de `clamp(12, v × 0,05 s, 32)` px em volta das peças (v = velocidade do mouse), antes de o mouse tocar nelas; o corpo do canto conta como círculo, não pelo retângulo.
+  - **H2, cursor real:** quando o arranjo ou o degrau muda e quando o motor para, o estado é refeito 60 ms depois por `getCursorScreenPoint` menos a posição real da janela (o mouse pode estar parado e o `forward` não manda nada); enquanto "dentro", um vigia faz isso a cada **220 ms** (~4,5 Hz).
+  - **H3, um controlador só:** o "clique passa" guarda o estado desejado e manda no máximo **1 pedido em voo**; nunca liga com o botão pressionado e reavalia quando o gesto termina.
+  - **H4:** os estilos das peças só são escritos quando o valor muda (cada escrita é uma mutação que o host observa); posições com 1 casa decimal, opacidade com 2.
 - Nada é selecionável (`user-select: none` no app inteiro) e o texto fica por cima da capa (camada 4 sobre a capa, que é 3).
 
 ## Efeitos de hover e toque (v18)

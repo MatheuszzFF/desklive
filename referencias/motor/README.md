@@ -25,3 +25,4 @@ O commit atômico de tamanho e posição da janela está em [janela-sem-tremer.m
 | [motor-de-movimento.md](motor-de-movimento.md) | seção "Motor de movimento": máquina de estados, molas e números, limiares, 1 `setBounds` por quadro, commit de tamanho sem tremer, testado e não testado |
 | [bugs-evitados.md](bugs-evitados.md) | os bugs de movimento achados (auditoria e testes de estresse) e como cada um é evitado |
 | [tamanho-e-borda.md](tamanho-e-borda.md) | v2.2: por que o app grande não arrastava pros lados, escorregar na parede, nunca maior que a tela, recusa do Windows, freio de aproximação, teto de tamanho dos apps, auditoria de colar e descolar |
+| [motor-piloto.md](motor-piloto.md) | o motor-piloto (só na Onda, R24): trava igual à do host, emenda como portal, teto de um monitor, quadro velho escondido, telas e movimento reduzido ao vivo; o que foi testado |

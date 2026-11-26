@@ -42,6 +42,7 @@ No L3:
 | [referencias/motor/motor-de-movimento.md](../../referencias/motor/motor-de-movimento.md) | seção "Motor de movimento": estados, molas, limiares, `setBounds` por quadro, commit de tamanho | — |
 | [referencias/motor/bugs-evitados.md](../../referencias/motor/bugs-evitados.md) | bugs de movimento e como o motor evita cada um | — |
 | [referencias/motor/tamanho-e-borda.md](../../referencias/motor/tamanho-e-borda.md) | motor v2.2: app grande arrastando pros lados, parede, freio, teto de tamanho, auditoria de colar e descolar | — |
+| [referencias/motor/motor-piloto.md](../../referencias/motor/motor-piloto.md) | motor-piloto da Onda: trava do host, portal na emenda, quadro velho escondido | — |
 | [templates/checklist-novo-app.md](../../templates/checklist-novo-app.md) | o checklist pra um app novo | 14 |
 
 Assunto novo de motion que vale pra todos os apps entra aqui como um arquivo novo (e uma linha nesta tabela). Número novo de mola ou curva entra no L3.

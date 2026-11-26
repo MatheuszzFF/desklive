@@ -6,6 +6,18 @@ Cada refino ganha uma entrada aqui **e** atualiza o doc do app ([README.md](READ
 
 <!-- Entradas novas logo abaixo desta linha. -->
 
+## 2026-11-25 — App piloto: motor-piloto, emenda como portal, hover pelo cursor real (v20)
+- **Pedido:** a Onda vira o app piloto (R24): aplicar as receitas do [ambiente](../../referencias/ambiente/receitas-recomendadas.md) (M1, M2, T1–T4, H1–H5, M5) a partir das [medições no app instalado](../../referencias/ambiente/medicoes.md).
+- **Onde:** motor da janela (só na Onda), tamanho da janela, hover e "clique passa".
+- **Antes → depois:**
+  - motor: `motor.js` v2.2 → [`motor-piloto.js`](../../referencias/motor/motor-piloto.md) (trava igual à do host por monitor, emenda como portal, teto de um monitor, conteúdo escondido 2 quadros quando o canto de cima à esquerda anda junto com o tamanho, telas pelo `change`, movimento reduzido ao vivo);
+  - tamanho: crescia e encolhia a qualquer momento → no máximo 1 mudança a cada 100 ms; esquerda/cima crescem com 40 px de folga e só encolhem com sobra > 120 px; a caixa inclui o arranjo final desde o primeiro quadro;
+  - hover: elemento embaixo do mouse → mais faixa de aproximação de 12–32 px; ressincroniza pelo cursor real depois de trocas e a 4,5 Hz enquanto dentro; "clique passa" com 1 pedido em voo; estilos só quando mudam.
+- **Por quê:** o atraso de 50–70 ms não existe (mover é barato); redimensionar mostra o quadro velho pela esquerda e por cima; na emenda o motor e o host discordavam; mouse parado não gera evento.
+- **Docs atualizados:** [motor-piloto](../../referencias/motor/motor-piloto.md) (novo), [interação](interacao.md), [README](README.md) (Testado), índices de [motor](../../referencias/motor/README.md) e [motion](../../padroes/motion/README.md).
+- **Testado** (Chrome, aba visível, simulador imitando o host): emenda nos 4 degraus pros dois lados com a âncora certa em todos os quadros visíveis e 2 quadros escondidos no pulo; trocas de degrau que crescem pra esquerda/cima com a âncora certa e 2 quadros escondidos; 16/16 arrastos; zigue-zague com 2 trocas; hover refeito pelo cursor quando a forma muda embaixo do mouse parado. **Não testado:** no app instalado — vai pro roteiro de validação do usuário.
+- **Regras:** R7, R9, R19, R22, R23, R24.
+
 ## 2026-11-25 — Remontada com o motor v2.2 (v19)
 - **Pedido:** remontar com o motor v2.2 ([tamanho e borda](../../referencias/motor/tamanho-e-borda.md)) e conferir o teto na troca de forma, o amassado ao bater na parede, os 16 arrastos e o zigue-zague.
 - **Onde:** só a montagem; nenhum número da Onda mudou.
