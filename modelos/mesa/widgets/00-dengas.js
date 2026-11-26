@@ -236,7 +236,8 @@ function regras(){
     'Como escrever o html de um widget (widget_criar): fundo transparente, texto claro, sem rede e sem bibliotecas externas. Dentro dele existe o objeto mesa: mesa.registrar({ estado:()=>({...}), comandos:[{ nome, descricao, esquema, roda(args){...} }] }) expõe o widget pra você; mesa.estado() devolve a Mesa inteira (Promise); mesa.pedir("<id>_<comando>", args) chama o comando de outro widget ou app (ex.: "notas_escrever", "onda_controlar"), e é assim que se fazem misturas; mesa.ouvir(tipo, fn) ouve eventos (ex.: "relogio:fim"); mesa.avisar(texto) faz você falar; mesa.salvar(v) e mesa.ler() guardam dados. Cores prontas em CSS: --coral, --pessego, --muted, --line.',
     'A Mesa não tem cara de Windows: nenhum widget tem barra de título, barra de rolagem, nem botões de janela. Nunca desenhe cabeçalho com o nome do widget, botão de fechar ou barra dentro do seu html: o X flutuante e o redimensionar pelas bordas são da casca.',
     'Design de widget (siga sempre): comece pelo que o widget mostra de mais importante e dê a ele o maior peso (uma coisa grande, o resto pequeno); uma cor de destaque só (--coral / --pessego), o resto em branco e cinzas (--muted, --faint); nada de caixas dentro de caixas, bordas grossas, sombras fortes, emojis como ícone, nem texto centralizado em tudo; espaçamentos de 8, 12 e 16 px; números com font-variant-numeric: tabular-nums; ícones em SVG de traço (classe ic, viewBox 0 0 24 24); estados de hover e de pressionar em todo botão, com a curva var(--mola); o widget tem de funcionar pequeno e grande (use flex e a classe cresce, e @container quando precisar). Use o kit que já vem pronto, em vez de inventar estilo: .pad (miolo com respiro), .titulo, .num (número grande), .sub, .rotulo, .linha, .cresce, .rola, .bot, .bot.pri, .bot.redondo, .campo, .chip, .chapa, .barra > i, .entra. Estrutura típica: <div class="pad"><div class="rotulo">…</div><div class="num">…</div><div class="sub">…</div><div class="linha">botões</div></div>. Todo widget registra estado e pelo menos um comando com mesa.registrar.',
-    'O que um widget solto NÃO consegue: acessar a internet, tocar vídeo de site, ler arquivos ou mexer no PC. Pra isso existem widgets de fábrica e apps: vídeo do YouTube dentro da Mesa é o widget video (comandos video_tocar e video_controlar); música é a Onda; abrir programas é a Órbita; imagem de fundo é mesa_aparencia com imagem. Nunca diga que não dá sem antes conferir esses.',
+    'Você TEM internet: a ferramenta internet pesquisa na web, acha imagens e lê páginas. Use sempre que o dono perguntar algo que você não sabe ou que muda com o tempo, e pra achar imagem sozinho (nunca peça link pro dono: busque com internet imagens e aplique com mesa_aparencia; se a primeira falhar, tente a seguinte). Só diga que fez depois que a ferramenta devolver que deu certo.',
+    'O que um widget solto NÃO consegue: acessar a internet, tocar vídeo de site, ler arquivos ou mexer no PC. Pra isso existem as suas ferramentas, widgets de fábrica e apps: vídeo do YouTube e qualquer site dentro da Mesa é o widget video (comandos tocar, abrir_site e fechar_janela); música é a Onda; abrir programas é a Órbita; imagem de fundo é mesa_aparencia com imagem. Nunca diga que não dá sem antes conferir esses.',
     'Se o widget que você precisa está fechado, abra com mesa_widget (a resposta traz os comandos dele) e, no MESMO pedido, use widget_comando pra fazer o que foi pedido. Nunca peça pro dono clicar ou digitar algo que um comando faz.',
     'Quando o dono contar um gosto ou hábito que vale lembrar, guarde com a ferramenta lembrar.',
     `Agora: ${agora.toLocaleString('pt-BR', { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' })}.`,
@@ -244,6 +245,22 @@ function regras(){
     mem.notas ? 'O que você já sabe do seu dono: ' + mem.notas : '',
     mem.usos.length ? 'Pedidos recentes dele: ' + mem.usos.slice(-8).join(' | ') : '',
   ].filter(Boolean).join('\n');
+}
+// internet do Dengas: a página não tem rede, então a busca sai pelo PowerShell do PC. O texto vai em base64 (nada
+// do que o Claude escreve vira código) e só entra endereço https.
+function psInternet(acao, texto){
+  const b = btoa(unescape(encodeURIComponent(String(texto))));
+  const base = String.raw`$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; [Console]::OutputEncoding=[Text.Encoding]::UTF8
+$q=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('B64')); $ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+function Pega($u){ $r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -UserAgent $ua -Uri $u -Headers @{'Accept-Language'='pt-BR,pt;q=0.9'}; [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) }
+function Limpa($t){ ([Net.WebUtility]::HtmlDecode(($t -replace '<[^>]+>',' ')) -replace '\s+',' ').Trim() }
+`.replace('B64', b);
+  if (acao === 'imagens') return base + String.raw`$r=Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 -UserAgent 'MesaWidget/0.8' -Uri ('https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=20&prop=imageinfo&iiprop=url%7Csize&iiurlwidth=2560&gsrsearch=' + [uri]::EscapeDataString($q + ' filetype:bitmap'))
+$j=[Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json; if($j.query){ $j.query.pages.PSObject.Properties | % { $_.Value } | Sort-Object index | ? { $_.imageinfo[0].width -ge 1600 -and $_.imageinfo[0].width -ge $_.imageinfo[0].height } | Select-Object -First 6 | % { ([string]$_.imageinfo[0].width) + 'x' + $_.imageinfo[0].height + ' | ' + (($_.imageinfo[0].thumburl) -replace '\?.*$','') + ' | ' + ($_.title -replace '^File:','') } }`;
+  if (acao === 'ler') return base + String.raw`$h=Pega $q; $t=[regex]::Match($h,'(?is)<title[^>]*>(.*?)</title>').Groups[1].Value
+$h=$h -replace '(?is)<(script|style|noscript|svg|head)\b.*?</\1>',' '; $x=Limpa $h; (Limpa $t); $x.Substring(0,[Math]::Min(5000,$x.Length))`;
+  return base + String.raw`$h=Pega ('https://html.duckduckgo.com/html/?kl=br-pt&q=' + [uri]::EscapeDataString($q)); $n=0
+foreach($m in [regex]::Matches($h,'(?s)class="result__a" href="([^"]+)"[^>]*>(.*?)</a>.*?class="result__snippet"[^>]*>(.*?)</a>')){ $u=[Net.WebUtility]::HtmlDecode($m.Groups[1].Value); $d=[regex]::Match($u,'uddg=([^&]+)'); if($d.Success){ $u=[uri]::UnescapeDataString($d.Groups[1].Value) }; if($u -notmatch '^https://'){ continue }; (Limpa $m.Groups[2].Value) + ' | ' + $u + ' | ' + (Limpa $m.Groups[3].Value); $n++; if($n -ge 6){ break } }`;
 }
 function ferramentas(atos){
   const nota = t => atos.push(t);
@@ -270,6 +287,15 @@ function ferramentas(atos){
     { name:'mesa_aparencia', description:'Muda a cara da Mesa. destaque: cor de destaque em #rrggbb; vidro: opacidade dos widgets de 0.35 a 1; raio: arredondamento dos widgets em px (0 a 34); papel: 2 ou 3 cores #rrggbb do papel de parede (de dentro pra fora); imagem: caminho de um arquivo de imagem do PC ou endereço https de uma imagem, que vira o plano de fundo (vazio tira a imagem); fundo: "mesa" cobre a área de trabalho com o papel de parede, "transparente" deixa ver o Windows.',
       inputSchema:{ type:'object', properties:{ destaque:{ type:'string' }, vidro:{ type:'number' }, raio:{ type:'number' }, papel:{ type:'array', items:{ type:'string' } }, imagem:{ type:'string' }, fundo:{ type:'string', enum:['mesa','transparente'] } } },
       async execute({ fundo:f, imagem, ...resto }){ const a = Mesa.aparencia(resto); if (imagem !== undefined) await Mesa.papel(imagem); if (f) Mesa.fundo(f); nota('✦ aparência'); return { ...a, fundo:Mesa.estado().fundo }; } },
+    ...(Mesa.podePC() ? [{ name:'internet', description:'Sua internet. acao "pesquisar": busca na web e devolve até 6 resultados (título | endereço | resumo). acao "imagens": acha fotos grandes e livres no Wikimedia Commons e devolve até 6 linhas (tamanho | endereço https | nome); busca curta e em inglês acha mais (ex.: "spiral galaxy", "tokyo night skyline"); pra plano de fundo, passe um dos endereços pra mesa_aparencia em imagem. acao "ler": abre uma página https e devolve o título e o texto dela (até 5 mil letras), pra você responder com informação de verdade. texto: a busca, ou o endereço https no caso de ler.',
+      inputSchema:{ type:'object', properties:{ acao:{ type:'string', enum:['pesquisar','imagens','ler'] }, texto:{ type:'string' } }, required:['acao','texto'] },
+      async execute({ acao, texto }){
+        const t = String(texto || '').trim().slice(0, 400); if (!t) throw new Error('diga o que buscar');
+        if (acao === 'ler' && !/^https:\/\/[^\s'"<>]+$/i.test(t)) throw new Error('pra ler preciso de um endereço https completo');
+        const r = String(await Mesa.ps(psInternet(acao, t), 40000) || '').trim(); nota('⌕ ' + t.slice(0, 30));
+        if (!r) throw new Error(acao === 'ler' ? 'a página veio vazia' : 'não achei nada pra "' + t + '"');
+        return acao === 'ler' ? r.slice(0, 5200) : r.split(/\r?\n/).filter(Boolean).slice(0, 6);
+      } }] : []),
     { name:'widget_criar', description:'Cria na hora um widget novo na Mesa, ou troca um que você criou (mesmo id). html: o miolo do widget, um documento pequeno com <style> e <script> se precisar. Devolve o id e o nome. As regras de como escrever o html estão nas instruções.',
       inputSchema:{ type:'object', properties:{ id:{ type:'string' }, nome:{ type:'string' }, descricao:{ type:'string' }, html:{ type:'string' }, w:{ type:'number' }, h:{ type:'number' } }, required:['id','nome','html'] },
       execute(e){ const r = Mesa.criaSolto(e); nota('✦ criei ' + r.nome); return r; } },

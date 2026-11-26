@@ -73,7 +73,7 @@ html.previa #fundo{opacity:1}
 <div id="aviso" class="alvo" hidden><span id="avisoTxt"></span><button class="m-bot" id="avisoBot" hidden></button></div>
 
 <script type="module">
-const VERSAO = '0.8';
+const VERSAO = '0.9';
 const OPTS = { frame:false, transparent:true, alwaysOnTop:true, resizable:false, hasShadow:false, roundedCorners:false, dragHeight:0, width:900, height:640 };
 const SHORTCUT = 'Alt+Shift+M';
 const BUS_DIR = '~/.mesa';
@@ -461,7 +461,7 @@ async function papel(origem){
   if (/^https:\/\//i.test(origem)){
     const ext = (origem.split('?')[0].match(/\.(png|jpe?g|webp|gif)$/i) || [0, 'jpg'])[1].toLowerCase();
     caminho = BUS_DIR + '/papel.' + ext;
-    await ps("$d = Join-Path $env:USERPROFILE '.mesa'; New-Item -ItemType Directory -Force $d | Out-Null; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '" + origem.replace(/'/g, "''") + "' -OutFile (Join-Path $d 'papel." + ext + "') -TimeoutSec 30; 'ok'", 45000);
+    await ps("$d = Join-Path $env:USERPROFILE '.mesa'; New-Item -ItemType Directory -Force $d | Out-Null; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -UserAgent 'MesaWidget/0.8' -Uri '" + origem.replace(/'/g, "''") + "' -OutFile (Join-Path $d 'papel." + ext + "') -TimeoutSec 30; 'ok'", 45000);
   }
   const b64 = await desktop.fs.readFile(caminho, 'base64');
   if (!b64 || b64.length < 200) throw new Error('não consegui ler a imagem');
