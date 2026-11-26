@@ -617,6 +617,8 @@ function naForma(P, x, y, m){
     const dentroX = i === 0 || i === 3 ? lx < cx : lx > cx, dentroY = i < 2 ? ly < cy : ly > cy;
     if (dentroX && dentroY && Math.hypot(lx - cx, ly - cy) > r + m) return false;
   }
+  const furos = P.inst.furos && P.inst.furos(P);   // [{x, y, w, h}] dentro da forma: ali o clique passa pro que está embaixo
+  if (furos) for (const f of furos) if (lx >= f.x && lx <= f.x + f.w && ly >= f.y && ly <= f.y + f.h) return false;
   return true;
 }
 function pecaNaForma(x, y, m){ let melhor = null; for (const P of pecas.values()) if (naForma(P, x, y, m) && (!melhor || P.z > melhor.z)) melhor = P; return melhor; }
@@ -1982,6 +1984,82 @@ const B = {
   canais:{ CX, CY, CW, CH, CS, CROT, CO, CR0, CR1, CR2, CR3, CSX, CSY, CKX, CF }, salvarEstado,
 };
 window.Board = B;
+
+/* ============================================================================
+   14b. API ABERTA: o quadro é vazio, mas qualquer cliente vê e mexe em tudo
+   Serve a uma peça, a um módulo opcional (um assistente, por exemplo) ou ao console.
+   Nada aqui conhece peça nenhuma: só o que as peças declaram.
+     VER     Board.mapa() · Board.peca(id)
+     MEXER   Board.mostrar(id, sim) · Board.mover(id, {x, y, forma}) · Board.degrau(id, nome)
+     DADOS   Board.comando(id, nome, args)   (o que a peça declarou em automacao)
+     CRIAR   Board.definir(def) · Board.remover(id)
+     OUVIR   Board.ouvir(tipo, fn) · Board.anunciar(tipo, dado)
+   Uma peça entra nisso devolvendo, em criar(ctx), o campo opcional
+     automacao:{ ver() -> dados simples, comandos:[{ nome, descricao, esquema, roda(args) }], regras:'texto' }
+   ============================================================================ */
+const FORMAS = ['livre', 'top', 'bottom', 'left', 'right', 'c-tl', 'c-tr', 'c-bl', 'c-br'];
+const assinantes = new Map();
+function ouvir(tipo, fn){ if (!assinantes.has(tipo)) assinantes.set(tipo, new Set()); assinantes.get(tipo).add(fn); return () => assinantes.get(tipo)?.delete(fn); }
+function anunciar(tipo, dado){ for (const k of [tipo, '*']){ const c = assinantes.get(k); if (c) for (const f of c) try { f(dado, tipo); } catch (e) { log('ouvinte de ' + tipo + ': ' + msg(e), 'bad'); } } }
+for (const fase of ['pegou', 'soltou', 'encaixou', 'assentou', 'trocouForma']) B.on(fase, (Q, d) => { if (Q && !Q.efemera && assinantes.size) anunciar('peca:' + fase, { id:Q.id, ...(d && typeof d === 'object' ? d : {}) }); });
+const auto = Q => Q.inst.automacao || null;
+function retrato(Q){
+  let ver; try { ver = auto(Q)?.ver?.(); } catch (e) { ver = { erro:msg(e) }; }
+  return { id:Q.id, nome:Q.def.nome, visivel:Q.visivel && !Q.removendo, forma:Q.forma, degrau:Q.degrau, fixo:Q.fixo, arrastando:!!Q.drag,
+    x:Math.round(Q.alvo[CX]), y:Math.round(Q.alvo[CY]), w:Math.round(Q.alvo[CW]), h:Math.round(Q.alvo[CH]), ver,
+    comandos:(auto(Q)?.comandos || []).map(c => ({ nome:c.nome, descricao:c.descricao, esquema:c.esquema })), regras:auto(Q)?.regras || '' };
+}
+const visiveis = () => [...pecas.values()].filter(Q => !Q.efemera && !Q.def.interna);
+// os maiores retângulos vazios do quadro (grade de 40 px), pra quem for arrumar as peças
+function espacoLivre(max = 3){
+  const G = 40, nx = Math.max(1, Math.floor(area.w / G)), ny = Math.max(1, Math.floor(area.h / G)), oc = new Uint8Array(nx * ny);
+  for (const Q of visiveis()){ if (!Q.visivel || Q.removendo) continue; const x0 = clamp(Math.floor(Q.alvo[CX] / G), 0, nx - 1), x1 = clamp(Math.ceil((Q.alvo[CX] + Q.alvo[CW]) / G), 0, nx), y0 = clamp(Math.floor(Q.alvo[CY] / G), 0, ny - 1), y1 = clamp(Math.ceil((Q.alvo[CY] + Q.alvo[CH]) / G), 0, ny); for (let y = y0; y < y1; y++) oc.fill(1, y * nx + x0, y * nx + x1); }
+  const achados = [], alt = new Int32Array(nx);
+  for (let y = 0; y < ny; y++){
+    for (let x = 0; x < nx; x++) alt[x] = oc[y * nx + x] ? 0 : alt[x] + 1;
+    const pilha = [];
+    for (let x = 0; x <= nx; x++){ const h = x < nx ? alt[x] : 0; let ini = x; while (pilha.length && pilha[pilha.length - 1][1] > h){ const [i, hh] = pilha.pop(); achados.push({ x:i * G, y:(y - hh + 1) * G, w:(x - i) * G, h:hh * G }); ini = i; } if (!pilha.length || pilha[pilha.length - 1][1] < h) pilha.push([ini, h]); }
+  }
+  achados.sort((a, b) => b.w * b.h - a.w * a.h);
+  const fica = []; for (const r of achados){ if (fica.length >= max) break; if (r.w < 160 || r.h < 120) continue; if (!fica.some(q => r.x >= q.x && r.y >= q.y && r.x + r.w <= q.x + q.w && r.y + r.h <= q.y + q.h)) fica.push(r); }
+  return fica;
+}
+function mapa(){
+  return { board:INST, monitor:minha ? { id:minha.id, escala:minha.scaleFactor } : null, area:{ w:area.w, h:area.h }, monitores:telas.length, vizinhos:[...peers.values()].filter(p => Date.now() - p.t < 3500).length,
+    formas:FORMAS, pecas:visiveis().map(retrato), disponiveis:[...REGISTRO.values()].filter(d => !d.interna && !d.efemera && !pecas.has(d.id)).map(d => ({ id:d.id, nome:d.nome })), livre:espacoLivre() };
+}
+function pecaViva(id){ const Q = pecas.get(String(id)); if (!Q) throw new Error('peça "' + id + '" não está neste Board. Vivas: ' + (visiveis().map(q => q.id).join(', ') || 'nenhuma')); return Q; }
+function mostrarApi(id, sim = true){
+  id = String(id); let Q = pecas.get(id);
+  if (!Q){ if (!sim) return null; const def = REGISTRO.get(id); if (!def) throw new Error('não existe peça "' + id + '"'); Q = criarFresca(def); }
+  mostrarPeca(Q, !!sim); anunciar(sim ? 'peca:mostrou' : 'peca:escondeu', { id }); return retrato(Q);
+}
+// leva a peça pra um lugar: solta em (x, y), ou fundida num lado/canto (x ou y dizem onde ao longo do lado)
+function moverApi(id, o = {}){
+  const Q = pecaViva(id); if (Q.drag || Q.passando) throw new Error('a peça está sendo arrastada agora');
+  const forma = o.forma ? String(o.forma) : (o.x != null || o.y != null ? 'livre' : Q.forma);
+  if (!FORMAS.includes(forma)) throw new Error('formas: ' + FORMAS.join(', '));
+  const sz = tam(Q, forma, Q.degrau), x = clamp(Number(o.x ?? Q.alvo[CX]) || 0, 0, Math.max(0, area.w - sz.w)), y = clamp(Number(o.y ?? Q.alvo[CY]) || 0, 0, Math.max(0, area.h - sz.h));
+  mudarForma(Q, forma);
+  if (forma === 'livre') ancoraLivre(Q, x, y, sz.w, sz.h); else ancoraBorda(Q, forma, x, y, sz.w, sz.h);
+  aplicarPerfil(Q, 'trocando'); reencaixar(Q, null); trazerPraFrente(Q); salvarEstadoLogo();
+  anunciar('peca:moveu', { id:Q.id, forma }); return retrato(Q);
+}
+function degrauApi(id, nome){
+  const Q = pecaViva(id); if (!['compacto', 'espiar', 'aberto'].includes(nome)) throw new Error('degraus: compacto, espiar, aberto');
+  Q.fixo = nome === 'aberto'; mudarDegrau(Q, nome); salvarEstadoLogo(); anunciar('peca:degrau', { id:Q.id, degrau:nome }); return retrato(Q);
+}
+async function comandoApi(id, nome, args){
+  const Q = pecaViva(id), c = (auto(Q)?.comandos || []).find(q => q.nome === nome);
+  if (!c) throw new Error('"' + id + '" não tem o comando "' + nome + '". Tem: ' + ((auto(Q)?.comandos || []).map(q => q.nome).join(', ') || 'nenhum'));
+  const r = await c.roda(args && typeof args === 'object' ? args : {}); anunciar('peca:comando', { id:Q.id, comando:nome }); return r === undefined ? 'feito' : r;
+}
+function definir(def, opcoes = {}){ if (!def?.id || typeof def.criar !== 'function') throw new Error('uma peça precisa de id e de criar(ctx)'); B.registrar(def); anunciar('peca:definida', { id:def.id }); if (opcoes.mostrar !== false && minha && !pecas.has(def.id)) return mostrarApi(def.id, true); return null; }
+function removerApi(id){ id = String(id); const Q = pecas.get(id); if (Q) removerPeca(Q); REGISTRO.delete(id); reivindicadas.delete(id); anunciar('peca:removida', { id }); }
+Object.assign(B, { mapa, peca:id => retrato(pecaViva(id)), mostrar:mostrarApi, mover:moverApi, degrau:degrauApi, comando:comandoApi, definir, remover:removerApi, ouvir, anunciar, espacoLivre, FORMAS,
+  get perms(){ return perms; }, get simulado(){ return !!SIM; } });
+/* opcionais: módulos e peças que a montagem acrescenta (build.ps1 -Pecas a,b,c). Sem lista, fica vazio. */
+/*PECAS*/
 let sonda = null;
 
 /* ============================================================================
