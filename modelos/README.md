@@ -15,6 +15,7 @@ Esta é a **única** pasta do repo com código. O resto continua sendo receita (
 | [board/](board/README.md) | palco transparente em tela cheia, um por monitor ("Board" e "Board · monitor 2"), com a Sonda como peça; os apps entram pelo `board.js` da pasta deles | Board v2 | [apps/board/](../apps/board/README.md) · [board](../referencias/ambiente/board.md) |
 | [dengas/](dengas/README.md) | o ratinho assistente (corpo, conversa e cérebro) | — | [apps/dengas/](../apps/dengas/README.md) |
 | [navegador/](navegador/README.md) | sites e vídeo dentro do quadro | — | [apps/navegador/](../apps/navegador/README.md) |
+| [barra/](barra/README.md) | com o Board aberto, a barra de tarefas do Windows fica escondida | — | — |
 | [janelas/](janelas/README.md) | programas do Windows dentro do quadro, sem moldura | — | [apps/janelas/](../apps/janelas/README.md) |
 | [assistente/](assistente/README.md) | cérebro genérico pro Board, sem corpo | — | [apps/assistente/](../apps/assistente/README.md) |
 | [compartilhado/](compartilhado/README.md) | o motor de movimento (v2.2), os helpers usados por mais de um app e as funções da montagem | — | [motor](../referencias/motor/README.md) · [arquitetura](../padroes/arquitetura.md) |

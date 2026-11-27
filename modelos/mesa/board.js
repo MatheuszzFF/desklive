@@ -64,7 +64,7 @@ function ajudante(codigo, nome){
     if (!podePCm() || !desktop?.childProcess) return Promise.resolve(null);
     try { if (!proc) liga(); } catch { return Promise.resolve(null); }
     const id = 'r' + (++n);
-    const t0 = performance.now(), verbo = String(cmd).split(' ')[0], rotina = verbo === 'move' || verbo === 'viva' || verbo === 'titulo';
+    const t0 = performance.now(), verbo = String(cmd).split(' ')[0], rotina = verbo === 'move' || verbo === 'viva' || verbo === 'titulo' || verbo === 'esconde';
     const fim = r => { const ms = Math.round(performance.now() - t0); if (r == null) dl('aviso', verbo + ' sem resposta', { ms }); else if (!rotina || ms > 300) dl(ms > 300 ? 'aviso' : 'info', verbo + (ms > 300 ? ' lento' : ''), { ms, r:String(r).startsWith('b64:') ? '(dados)' : String(r).slice(0, 120) }); return r; };
     return new Promise(res => { pend.set(id, res); Promise.resolve(proc.stdin.write(id + ' ' + cmd + '\n')).catch(() => { pend.delete(id); res(null); }); setTimeout(() => { if (pend.has(id)){ pend.delete(id); res(null); } }, tempo); }).then(fim);
   };
