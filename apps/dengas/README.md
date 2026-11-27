@@ -3,7 +3,14 @@
 > **O que é:** o doc L2 do Dengas. **Quando ler:** antes de mexer no Dengas (corpo, conversa, ferramentas). Comum a todos: [padroes/](../../padroes/README.md). Histórico: [refinos](refinos.md). Código: [modelos/dengas/](../../modelos/dengas/README.md).
 
 - **Conteúdo:** um ratinho de pixel que mora por cima do quadro, anda em 8 direções, senta, olha o ponteiro, fala em balão e abre a conversa num clique.
-- **Uma função:** ser o assistente da casa: conversa com o Claude de quem abriu (sem chave de API) e usa como ferramentas tudo o que os apps mostram e aceitam. Ele não tem dados próprios nem guarda credencial.
+- **Uma função:** ser o assistente da casa: conversa com o **Claude Code do dono** (quando o PC tem; ver [cérebro](cerebro.md)) ou, sem ele, com o Claude de quem abriu (sem chave de API), e usa como ferramentas tudo o que os apps mostram e aceitam. Não guarda credencial.
+
+## Regras do dono (valem pra qualquer mudança no Dengas)
+- **Nada fora do Board sem o sim dele.** O Dengas lê e mexe no que está no Board; o que é do Windows (abrir ou fechar programa, trazer janela, abrir site, rodar comando, ler, procurar, escrever ou apagar arquivo do PC) pergunta no chat ("Pode" / "Agora não") e, com não, fica quieto. Não impossibilitar: com o sim, ele executa. Listar as janelas do Windows é barrado.
+- **Sem Jarvis.** O cérebro é o Claude Code do dono com a arquitetura neural do Jarvis aplicada ([cérebro](cerebro.md)), mas sem acesso ao Jarvis (só a ponte do Board, `--strict-mcp-config`).
+- **Nunca tecla nem mouse.** Tudo por mensagem direta à janela (regra R19 e a memória do dono).
+- **Encaixe:** canto vira a bolinha; lateral, espiando da borda; embaixo, sentado na barra.
+- **Arte e comportamento** (clipes, ritmo, idle, atlas) e **encaixe e frame** (bolinha, laterais, sentar no input) moram em arquivos separados: `dengas.js` e [encaixe.js](../../modelos/dengas/encaixe.js).
 - **Atalho / teclado:** a conversa abre no clique; Esc fecha.
 - **Barramento:** usa o objeto `Mesa` (no Board, a ponte [mesa](../mesa/README.md)); fala o que chega em `mesa:aviso`.
 - **Helpers:** PowerShell por chamada (internet: pesquisar, imagens, ler página).
