@@ -121,7 +121,8 @@ Mesa.define({
         const e = api.moldura?.estado?.(); if (!e || !api.moldura.redimensionar) return;
         const vis = [...R.querySelectorAll('section')].filter(x => !x.hidden), F = FOCOS[S.foco] || FOCOS.tocar;
         const conteudo = vis.reduce((a, x) => a + x.scrollHeight, 0) + 10 * Math.max(0, vis.length - 1), pad = Math.max(0, (e.h || 0) - corpo.clientHeight);
-        const alvo = Math.round(Math.min(Math.max(F.h, 160), conteudo + pad + 4));
+        const teto = +api.moldura.corpo?.dataset.tetoH || Infinity;   // o arrumar apertou o widget pra caber na tela
+        const alvo = Math.round(Math.min(teto, Math.max(F.h, 160), conteudo + pad + 4));
         if (Math.abs(alvo - (e.h || 0)) > 12) api.moldura.redimensionar(e.w, alvo);
       }, 160);
     }

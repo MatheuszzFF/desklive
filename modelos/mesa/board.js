@@ -341,6 +341,58 @@ const Mesa = { versao:VERSAO_MESA, define, abre, fecha, move, toca:() => {}, fre
 Mesa.principal = PRINCIPAL;   // com dois Boards, o Dengas e os apps hospedados moram só no principal
 window.Mesa = Mesa;
 
+/* ---------- arrumar sozinho: nenhuma peça em cima da outra, em qualquer tela (a conta mora em arrumar.js) ----------
+   Os apps hospedados (Onda, Órbita) e as peças do núcleo cuidam do próprio tamanho: aqui eles são obstáculos.
+   Olha o quadro a cada 700 ms e só age quando algo mudou e já parou de mudar, sem ninguém com o mouse apertado. */
+/*JS:mesa/arrumar.js*/
+{
+  const cfg = Object.assign({ ligado:true }, le('mesa-arrumar', {})), MEM = new Map(), TOCOU = new Map();
+  let apertado = false, vista = '', feita = '';
+  const agora = () => Date.now(), toca = id => TOCOU.set(id, agora());
+  addEventListener('pointerdown', e => { apertado = true; const id = e.target.closest?.('[data-molde]')?.dataset.molde; if (id) toca(id); }, true);
+  for (const t of ['pointerup', 'pointercancel', 'blur']) addEventListener(t, () => { apertado = false; }, true);
+  bus.on('mesa:abriu', e => toca(e.id));
+  MB.ouvir('moldura:redimensionou', e => { const V = VIVOS.get(e.id); if (V) V.m.corpo.dataset.tetoH = ''; toca(e.id); });   // a pessoa redimensionou: o teto sai
+  const vivas = () => [...MB.pecas.values()].filter(P => P.visivel && !P.removendo && !P.efemera);
+  const rect = P => ({ x:P.alvo[0], y:P.alvo[1], w:P.alvo[2], h:P.alvo[3] });
+  const obstaculos = () => [...vivas().filter(P => !DEFS.has(P.id)).map(rect), ...[...HOSP.values()].filter(H => !H.f.hidden).map(H => ({ x:H.r.x - H.o.x, y:H.r.y - H.o.y, w:H.r.width, h:H.r.height }))];
+  const assina = () => JSON.stringify([area(), vivas().map(P => [P.id, P.forma, ...Object.values(rect(P)).map(Math.round)]), obstaculos().map(r => Object.values(r).map(Math.round))]);
+  // em uso: tocando, com um site ou vídeo aberto, ou mexido nos últimos 3 minutos
+  function emUso(P){ let e; try { e = P.inst.automacao?.ver?.(); } catch {} return !!(e?.tocando || e?.aberto) || agora() - (TOCOU.get(P.id) || 0) < 180000; }
+  function arruma(){
+    const itens = vivas().filter(P => DEFS.has(P.id)).map(P => {
+      const r = rect(P), d = DEFS.get(P.id); let m = MEM.get(P.id);
+      // tamanho que não fui eu que pus (a pessoa ou o próprio widget mudou) passa a ser o desejado
+      if (!m || Math.abs(m.pus.w - r.w) > 2 || Math.abs(m.pus.h - r.h) > 2) MEM.set(P.id, m = { quer:{ w:r.w, h:r.h }, pus:{ w:r.w, h:r.h } });
+      return { id:P.id, ...r, forma:P.forma, min:{ w:d.minW || 160, h:d.minH || 110 }, quer:m.quer, emUso:emUso(P), prioridade:TOCOU.get(P.id) || 0 };
+    });
+    return Arrumar.planejar({ area:area(), fixos:obstaculos(), itens,
+      aplica:(it, a) => {
+        const P = MB.pecas.get(it.id), V = VIVOS.get(it.id);
+        if (a.forma !== P.forma) MB.mover(it.id, { forma:a.forma, x:a.x, y:a.y });
+        if (V){ V.m.corpo.dataset.tetoH = a.h < MEM.get(it.id).quer.h ? a.h : ''; V.m.redimensionar(a.w, a.h); }
+        MB.mover(it.id, { forma:a.forma, x:a.x, y:a.y });
+        const r = rect(P); MEM.get(it.id).pus = { w:r.w, h:r.h }; return r;
+      },
+      fecha:it => { const nome = DEFS.get(it.id).nome; MEM.delete(it.id); fecha(it.id); bus.emit('mesa:aviso', { texto:'Fechei ' + nome + ': não cabia na tela e não estava em uso.' }); },
+    });
+  }
+  setInterval(() => {
+    if (!cfg.ligado || apertado || [...MB.pecas.values()].some(P => P.drag || P.passando)) { vista = ''; return; }
+    const s = assina(); if (s !== vista){ vista = s; return; }
+    if (s === feita) return;
+    try { arruma(); } catch (e) { console.warn('mesa: arrumar', e); }
+    feita = assina();
+  }, 700);
+  const liga = sim => { cfg.ligado = !!sim; grava('mesa-arrumar', cfg); feita = ''; return cfg.ligado ? 'arrumar sozinho ligado' : 'arrumar sozinho desligado'; };
+  app({ id:'arrumador', nome:'Arrumador', estado:() => ({ automatico:cfg.ligado }), comandos:[
+    { nome:'arrumar', descricao:'Arruma agora os widgets sem sobreposição: reposiciona, encolhe e, se não couber, fecha os que não estão em uso. Devolve o que mexeu e o que fechou.', roda:() => arruma() },
+    { nome:'automatico', descricao:'Liga ou desliga o arrumar sozinho (vale pra qualquer resolução de tela).', esquema:{ type:'object', properties:{ ligado:{ type:'boolean' } }, required:['ligado'] }, roda:({ ligado }) => liga(ligado) },
+  ] });
+  AGENTES.set('arrumador', 'Você organiza a Mesa. Pra arrumar use arrumar; pra ligar ou desligar o automático use automatico.');
+  MB.menu(() => [{ label:'Arrumar sozinho: ' + (cfg.ligado ? 'ligado ✓' : 'desligado'), click:() => liga(!cfg.ligado) }]);
+}
+
 // os apps entram depois, cada um pelo board.js da pasta dele (dengas, onda, navegador, orbita)
 
 setTimeout(() => bus.emit('mesa:pronta', { app:!MB.simulado }), 800);
