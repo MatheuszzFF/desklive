@@ -32,6 +32,11 @@ Mesa.estilo(`
 /* balão: o que ele fala sozinho, com o texto saindo no ritmo da boca */
 #dgFala{position:absolute;z-index:5001;left:0;top:0;max-width:260px;padding:9px 14px;border-radius:16px;background:linear-gradient(135deg,#f08a5d,#e0694a);color:#fff;font:500 13.5px/1.4 var(--corpo);box-shadow:0 10px 26px -10px rgba(0,0,0,.6);opacity:0;scale:.8;transform-origin:50% 100%;transition:opacity .25s,scale .35s var(--mola);pointer-events:none}
 #dgFala.viva{opacity:1;scale:1;pointer-events:auto}
+.dg-ideia{position:absolute;z-index:5002;left:0;top:0;max-width:210px;padding:7px 12px;border-radius:15px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(rgba(255,255,255,.09),rgba(255,255,255,.03)),var(--vidro);backdrop-filter:blur(14px);color:#f4f1ee;font:500 12.5px/1.3 var(--corpo);box-shadow:0 12px 30px -14px rgba(0,0,0,.75);opacity:0;scale:.55;transition:opacity .32s,scale .5s var(--mola),background .2s,border-color .2s;pointer-events:none;cursor:pointer;white-space:normal}
+.dg-ideia.viva{opacity:1;scale:1;pointer-events:auto}
+.dg-ideia:hover{border-color:rgba(240,138,93,.7);background:linear-gradient(rgba(240,138,93,.28),rgba(240,138,93,.12)),var(--vidro)}
+.dg-ideia.claude::before{content:"";display:inline-block;width:6px;height:6px;margin:0 7px 1px 0;border-radius:50%;background:var(--coral);box-shadow:0 0 8px var(--coral)}
+#dgFala.pergunta{background:linear-gradient(135deg,#f6a06f,#e0694a)}
 #dgFala::after{content:"";position:absolute;left:calc(50% - 6px);bottom:-5px;width:12px;height:12px;background:#e0694a;rotate:45deg;border-radius:2px}
 /* conversa: a pílula de vidro que nasce dele, com as sugestões e as mensagens */
 #dgPainel{position:absolute;z-index:5002;left:0;top:0;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;opacity:0;scale:.92;pointer-events:none;transition:opacity .22s,scale .4s var(--mola)}
@@ -206,7 +211,7 @@ function passo(now){
   if (D.bolinha){ const mg = D.bolinha.espia ? 0 : MARGEM; D.x = clamp(D.x, mg, A.w - mg); D.y = clamp(D.y, MARGEM, A.h - MARGEM); }   // espiando: os pés na própria beira else { D.x = clamp(D.x, 30, A.w - 30); D.y = clamp(D.y, 110, chao()); }
   raiz.style.transform = `translate3d(${D.x.toFixed(1)}px,${D.y.toFixed(1)}px,0)`;
   raiz.classList.toggle('no-chao', !D.bolinha && Math.abs(D.y - chao()) < 1 && D.modo !== 'andando');
-  desenha(now); if (D.aberto) poePainel(); if (falaEl.classList.contains('viva')) poeFala();
+  desenha(now); if (D.aberto) poePainel(); if (falaEl.classList.contains('viva')) poeFala(); poeIdeias(now);
   Mesa.quadro(passo);
 }
 const reduzido = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -250,13 +255,96 @@ function fala(texto){
   clearTimeout(tFala); clearInterval(tLetra); let n = 0; falaEl.textContent = ''; falaEl.classList.add('viva'); poeFala();
   tLetra = setInterval(() => { n = Math.min(texto.length, n + 1); falaEl.textContent = texto.slice(0, n); D.falandoAte = performance.now() + 250; if (n >= texto.length){ clearInterval(tLetra); tFala = setTimeout(() => falaEl.classList.remove('viva'), clamp(texto.length * 70, 3200, 12000)); } }, 30);
 }
-falaEl.addEventListener('click', () => { falaEl.classList.remove('viva'); abre(); });
+falaEl.addEventListener('click', () => { falaEl.classList.remove('viva'); abre(); if (perguntaAberta){ msg('ele', perguntaAberta); turnos.push({ role:'assistant', content:perguntaAberta }); perguntaAberta = ''; falaEl.classList.remove('pergunta'); qEl.focus(); } });
 bus.on('mesa:aviso', a => fala(a.texto));
 // reações dele ao que acontece na mesa (sem gastar o Claude)
 let ultimaReacao = 0;
 const reage = t => { const n = performance.now(); if (D.aberto || n - ultimaReacao < 25000) return; ultimaReacao = n; fala(t); };
 bus.on('musica:mudou', m => reage('♪ ' + (m.musica || 'música nova') + (m.artista ? ', ' + m.artista : '') + '. Boa!'));
 bus.on('mesa:abriu', e => { if (performance.now() > 6000) { const d = Mesa.defs().find(q => q.id === e.id); const c = Mesa.caixa(e.id); if (d && c) vai(c.x + 60, c.y); } });
+
+/* ---------- ideias e iniciativa ----------
+   Passando o mouse nele, umas ideias boiam em volta (as do momento na hora; as do Claude chegam por cima, com
+   a bolinha coral). Clicou, vira pedido. De vez em quando, quando algo muda na mesa e o dono está por perto,
+   ele comenta ou pergunta uma coisa curta, pelo Claude; pergunta clicada abre a conversa com ela. Tudo com teto:
+   ideias do Claude no máximo a cada 3 min, iniciativa no máximo a cada 12 min, e só com o Claude já liberado. */
+const IDEIAS = [0, 1, 2].map(i => { const el = document.createElement('button'); el.type = 'button'; el.className = 'dg-ideia alvo'; el.dataset.i = i; Mesa.camada.parentNode.append(el); return el; });
+let ideias = { lista:[], em:-1e9, claudeEm:-1e9, pedindo:false }, ideiasVivas = false, ideiasAte = 0, tIdeias = 0, angBase = 0;
+async function claudeLiberado(){ try { const p = await window.claude?.use?.('permissions'); return (await p?.state?.('sample')) === 'granted'; } catch { return false; } }
+function contextoCurto(){
+  const e = verMesa();
+  return JSON.stringify({ hora:new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }), dia:new Date().toLocaleDateString('pt-BR', { weekday:'long' }),
+    abertos:(e.abertos || []).map(q => ({ id:q.id, nome:q.nome, estado:q.estado })), apps:(e.apps || []).map(q => ({ id:q.id, estado:q.estado })), com_baixo:D.baixo,
+    sabe_do_dono:mem.notas || '', pedidos_recentes:mem.usos.slice(-6) }).slice(0, 3000);
+}
+function ideiasLocais(){
+  const l = [];
+  if (!D.baixo) l.push('Bora tocar um baixo'); else l.push('Guardar o baixo');
+  for (const q of verMesa().abertos || []) if (l.length < 3 && !['sonda', 'afinacao'].includes(q.id)) l.push('O que dá pra fazer no ' + (q.nome || q.id) + '?');
+  if (l.length < 3) l.push('Organiza a mesa pra mim');
+  if (l.length < 3) l.push('Me sugere algo pra agora');
+  return l.slice(0, 3);
+}
+async function ideiasDoClaude(){
+  if (ideias.pedindo || performance.now() - ideias.claudeEm < 180000 || !await claudeLiberado()) return;
+  const sample = Mesa.sample(); if (!sample) return;
+  ideias.pedindo = true; ideias.claudeEm = performance.now();
+  try {
+    const r = await sample('Você é o Dengas, o ratinho assistente que mora na área de trabalho do seu dono (o Board). Sugira 3 pedidos curtos que o dono provavelmente quer te fazer AGORA, pelo que está aberto, pela hora e pelo que você sabe dele. Cada um com no máximo 38 caracteres, em português do Brasil informal, escrito como o dono falaria com você (ex.: "Toca algo pra focar", "Me ensina um groove de slap"). Nada genérico. Responda só um JSON: ["…","…","…"].\nContexto: ' + contextoCurto(), { model:MODELO, modelTier:'quick', cache:false });
+    const m = /\[[\s\S]*\]/.exec(r.text || ''), l = m ? JSON.parse(m[0]).map(x => String(x).trim().slice(0, 44)).filter(Boolean).slice(0, 3) : [];
+    if (l.length){ ideias.lista = l.map(t => ({ t, claude:true })); ideias.em = performance.now(); if (ideiasVivas) pintaIdeias(); }
+    dlog('info', 'ideias do Claude', { l });
+  } catch (e) { dlog('aviso', 'ideias do Claude falharam', { code:e?.code, m:String(e?.message || '').slice(0, 120) }); }
+  finally { ideias.pedindo = false; }
+}
+function pintaIdeias(){
+  const l = (ideias.lista.length && performance.now() - ideias.em < 600000) ? ideias.lista : ideiasLocais().map(t => ({ t, claude:false }));
+  IDEIAS.forEach((el, i) => { const it = l[i]; el.textContent = it ? it.t : ''; el.classList.toggle('claude', !!it?.claude); el.hidden = !it; });
+}
+function mostraIdeias(){
+  if (ideiasVivas || D.aberto || D.pego || D.modo === 'andando') return;
+  ideiasVivas = true; angBase = Math.random() * .3; pintaIdeias();
+  IDEIAS.forEach((el, i) => setTimeout(() => ideiasVivas && el.classList.add('viva'), 70 * i));
+  ideiasDoClaude();
+}
+function escondeIdeias(){ if (!ideiasVivas) return; ideiasVivas = false; IDEIAS.forEach(el => el.classList.remove('viva')); }
+// em volta da cabeça, do lado com mais tela, num leque que boia devagar
+function poeIdeias(now){
+  if (!ideiasVivas && !IDEIAS.some(el => el.classList.contains('viva'))) return;
+  const A = area(), dir = D.x < A.w / 2 ? 1 : -1, cx = D.x, cy = D.y - (D.bolinha ? 20 : D.pose === 'sentado' ? 70 : 84);
+  IDEIAS.forEach((el, i) => {
+    const w = el.offsetWidth, h = el.offsetHeight, a = (-62 + i * 46) * Math.PI / 180 + angBase, R = 92 + i * 14;
+    const bob = Math.sin(now / 900 + i * 2.1) * 4, x = cx + dir * Math.cos(a) * R - (dir < 0 ? w : 0), y = cy + Math.sin(a) * R * .9 - h / 2 + bob;
+    el.style.transform = `translate3d(${clamp(x, 8, A.w - w - 8).toFixed(1)}px,${clamp(y, 8, A.h - h - 8).toFixed(1)}px,0)`;
+  });
+}
+IDEIAS.forEach(el => {
+  el.addEventListener('click', () => { const t = el.textContent; escondeIdeias(); if (t === 'Bora tocar um baixo'){ pegaBaixo(true); fala('Vamos lá!'); return; } if (t === 'Guardar o baixo'){ pegaBaixo(false); return; } dlog('info', 'ideia clicada', { t }); pergunta(t); });
+  el.addEventListener('pointerenter', () => { ideiasAte = 0; clearTimeout(tIdeias); });
+  el.addEventListener('pointerleave', () => { clearTimeout(tIdeias); tIdeias = setTimeout(escondeIdeias, 900); });
+});
+hit.addEventListener('pointerenter', () => { clearTimeout(tIdeias); tIdeias = setTimeout(mostraIdeias, 380); });
+hit.addEventListener('pointerleave', () => { clearTimeout(tIdeias); tIdeias = setTimeout(escondeIdeias, 900); });
+hit.addEventListener('pointerdown', () => { clearTimeout(tIdeias); escondeIdeias(); });
+
+// iniciativa: comentário ou pergunta curta quando algo muda e o dono está por perto
+let iniciativaEm = performance.now() - 8 * 60000, perguntaAberta = '';
+async function tomaIniciativa(motivo){
+  const n = performance.now();
+  if (n - iniciativaEm < 12 * 60000 || D.aberto || ctl || D.dorme || n - D.mouse.at > 120000 || !await claudeLiberado()) return;
+  const sample = Mesa.sample(); if (!sample) return;
+  iniciativaEm = n;
+  try {
+    const r = await sample('Você é o Dengas, o ratinho assistente que mora na área de trabalho do seu dono (o Board), esperto e carinhoso. Aconteceu: ' + motivo + '. Escreva UMA fala curta pra ele agora (no máximo 110 caracteres, português do Brasil informal, sem emoji): um comentário útil sobre o que ele está fazendo, uma sugestão esperta, ou uma pergunta que te ajude a ajudar. Nada de elogio vazio nem de repetir o óbvio. Se não tiver nada que valha, responda só: nada.\nContexto: ' + contextoCurto(), { model:MODELO, modelTier:'quick', cache:false });
+    const t = String(r.text || '').trim().replace(/^["“]|["”]$/g, '').slice(0, 140);
+    dlog('info', 'iniciativa', { motivo, t });
+    if (!t || /^nada\.?$/i.test(t) || D.aberto) return;
+    perguntaAberta = /\?\s*$/.test(t) ? t : ''; falaEl.classList.toggle('pergunta', !!perguntaAberta); fala(t);
+  } catch (e) { dlog('aviso', 'iniciativa falhou', { code:e?.code }); }
+}
+bus.on('mesa:abriu', e => setTimeout(() => tomaIniciativa('o dono abriu o widget ' + e.id), 4000));
+bus.on('musica:mudou', m => setTimeout(() => tomaIniciativa('a música mudou pra ' + (m.musica || '?') + (m.artista ? ' de ' + m.artista : '')), 3000));
+setInterval(() => tomaIniciativa('nada em especial; ele está mexendo no PC há um tempo'), 5 * 60000);
 
 /* ---------- conversa ---------- */
 function poePainel(){
@@ -277,7 +365,7 @@ function pintaChips(){
   if (Mesa.aberto('musica')) l.push(['O que tá tocando?', () => pergunta('O que tá tocando?')]);
   for (const [t, fn] of l.slice(0, 5)){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = t; b.addEventListener('click', fn); chipsEl.appendChild(b); }
 }
-function abre(){ if (D.aberto) return; D.aberto = true; D.alvoX = null; falaEl.classList.remove('viva'); pintaChips(); painel.classList.add('aberto'); poePainel(); setTimeout(() => qEl.focus(), 60); }
+function abre(){ if (D.aberto) return; escondeIdeias(); D.aberto = true; D.alvoX = null; falaEl.classList.remove('viva'); pintaChips(); painel.classList.add('aberto'); poePainel(); setTimeout(() => qEl.focus(), 60); }
 function fecha(){ if (!D.aberto) return; D.aberto = false; painel.classList.remove('aberto'); qEl.blur(); D.sentaEm = performance.now() + 2500; }
 document.addEventListener('pointerdown', e => { if (D.aberto && !e.target.closest('#dgPainel,#dgHit') && !ctl) fecha(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && D.aberto){ if (ctl) ctl.abort(); else fecha(); } });
