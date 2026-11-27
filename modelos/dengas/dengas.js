@@ -30,14 +30,16 @@ Mesa.estilo(`
 #dg.no-chao #dgBanco{opacity:1;scale:.72 1}
 #dg.no-chao.sentado #dgBanco{opacity:1;scale:1}
 /* balão: o que ele fala sozinho, com o texto saindo no ritmo da boca */
-#dgFala{position:absolute;z-index:5001;left:0;top:0;max-width:260px;padding:9px 14px;border-radius:16px;background:linear-gradient(135deg,#f08a5d,#e0694a);color:#fff;font:500 13.5px/1.4 var(--corpo);box-shadow:0 10px 26px -10px rgba(0,0,0,.6);opacity:0;scale:.8;transform-origin:50% 100%;transition:opacity .25s,scale .35s var(--mola);pointer-events:none}
+#dgFala{position:absolute;z-index:5001;left:0;top:0;max-width:270px;padding:10px 15px 10px 17px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02)),rgba(16,17,24,.84);backdrop-filter:blur(16px) saturate(1.3);color:#f4f2ef;font:500 13.5px/1.45 var(--corpo);letter-spacing:.1px;box-shadow:0 18px 40px -18px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.08);opacity:0;scale:.8;transform-origin:50% 100%;transition:opacity .25s,scale .35s var(--mola),border-color .3s;pointer-events:none}
+#dgFala::before{content:"";position:absolute;left:7px;top:11px;bottom:11px;width:2px;border-radius:2px;background:linear-gradient(#f0a98a,#d97757)}
 #dgFala.viva{opacity:1;scale:1;pointer-events:auto}
 .dg-ideia{position:absolute;z-index:5002;left:0;top:0;max-width:210px;padding:7px 12px;border-radius:15px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(rgba(255,255,255,.09),rgba(255,255,255,.03)),var(--vidro);backdrop-filter:blur(14px);color:#f4f1ee;font:500 12.5px/1.3 var(--corpo);box-shadow:0 12px 30px -14px rgba(0,0,0,.75);opacity:0;scale:.55;transition:opacity .32s,scale .5s var(--mola),background .2s,border-color .2s;pointer-events:none;cursor:pointer;white-space:normal}
 .dg-ideia.viva{opacity:1;scale:1;pointer-events:auto}
 .dg-ideia:hover{border-color:rgba(240,138,93,.7);background:linear-gradient(rgba(240,138,93,.28),rgba(240,138,93,.12)),var(--vidro)}
 .dg-ideia.claude::before{content:"";display:inline-block;width:6px;height:6px;margin:0 7px 1px 0;border-radius:50%;background:var(--coral);box-shadow:0 0 8px var(--coral)}
-#dgFala.pergunta{background:linear-gradient(135deg,#f6a06f,#e0694a)}
-#dgFala::after{content:"";position:absolute;left:calc(50% - 6px);bottom:-5px;width:12px;height:12px;background:#e0694a;rotate:45deg;border-radius:2px}
+#dgFala.pergunta{border-color:rgba(240,138,93,.6);box-shadow:0 18px 40px -18px rgba(0,0,0,.8),0 0 0 3px rgba(240,138,93,.1),inset 0 1px 0 rgba(255,255,255,.08)}
+#dgFala::after{content:"";position:absolute;left:calc(50% - 6px);bottom:-6px;width:11px;height:11px;background:rgba(18,19,26,.86);backdrop-filter:blur(16px);border-right:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.12);rotate:45deg;border-radius:0 0 3px 0;clip-path:polygon(100% 0,100% 100%,0 100%)}
+#dgFala.pergunta::after{border-color:rgba(240,138,93,.6)}
 /* conversa: a pílula de vidro que nasce dele, com as sugestões e as mensagens */
 #dgPainel{position:absolute;z-index:5002;left:0;top:0;width:min(520px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;opacity:0;scale:.92;pointer-events:none;transition:opacity .22s,scale .4s var(--mola)}
 #dgPainel.aberto{opacity:1;scale:1;pointer-events:auto}
