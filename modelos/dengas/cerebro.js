@@ -18,6 +18,8 @@ const ccLog = (n, m, d) => window.Board?.diario?.('dengas:cerebro', n, m, d);
 /*JS:dengas/cerebro/hipocampo.js*/
 /*JS:dengas/cerebro/cerebelo.js*/
 // regra do dono: nada fora do Board sem ele dizer que pode; ler arquivo do PC (Read/Glob/Grep) também pergunta
+// o modelo do Dengas (escolha do dono em 27/11: leve e rápido pra conversar o dia todo)
+const CC_MODELO = 'claude-sonnet-5-5';
 const CC_LIVRES = ['mcp__dengas', 'WebSearch', 'WebFetch', 'Artifact', 'ArtifactData', 'ArtifactComments', 'Skill', 'ToolSearch', 'TodoWrite'];
 
 async function ccPreparar(){
@@ -42,7 +44,7 @@ async function ccPreparar(){
 const ccPersona = () => dna();   // cerebro/dna.js
 
 function ccLigar(){
-  const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+  const args = ['-p', '--model', CC_MODELO, '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
     '--append-system-prompt', ccPersona(), '--mcp-config', CC.casa + '\\.orbita\\dengas\\mcp.json', '--strict-mcp-config',
     '--permission-prompt-tool', 'mcp__dengas__permissao', '--allowedTools', CC_LIVRES.join(',')];
   if (CC.sessao) args.push('--resume', CC.sessao); CC.novaSessao = !CC.sessao;

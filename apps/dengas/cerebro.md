@@ -2,7 +2,7 @@
 
 > **O que é:** como o Dengas pensa e lembra. **Quando ler:** antes de mexer na conversa, na memória ou na persona do Dengas. Volta: [Dengas](README.md). Código: [modelos/dengas/cerebro.js](../../modelos/dengas/cerebro.js) e [modelos/dengas/cerebro/](../../modelos/dengas/cerebro/).
 
-A conversa do Dengas é o **Claude Code do dono** rodando no PC dele, com a persona do Dengas. Quando o PC não tem o Claude Code (ou ele está sem login), a conversa volta pro Claude do artefato (`sample`), como antes. Ele **não** usa o Jarvis: só a ponte do Board (`--strict-mcp-config`). A arquitetura é a do cérebro do Jarvis (córtex, DNA, amígdala, hipocampo, cerebelo, setores, neurônios e sinapses), aplicada ao Claude e guardada em arquivos (`~/.orbita/dengas/cerebro`), sem banco e sem servidor.
+A conversa do Dengas é o **Claude Code do dono** (modelo fixo: Sonnet 5.5, `CC_MODELO` no cerebro.js; o padrão da linha de comando, mais pesado, gastava o limite rápido) rodando no PC dele, com a persona do Dengas. Quando o PC não tem o Claude Code (ou ele está sem login), a conversa volta pro Claude do artefato (`sample`), como antes. Ele **não** usa o Jarvis: só a ponte do Board (`--strict-mcp-config`). A arquitetura é a do cérebro do Jarvis (córtex, DNA, amígdala, hipocampo, cerebelo, setores, neurônios e sinapses), aplicada ao Claude e guardada em arquivos (`~/.orbita/dengas/cerebro`), sem banco e sem servidor.
 
 | Campo | Arquivo | O que faz |
 |---|---|---|
