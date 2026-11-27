@@ -107,7 +107,21 @@ const GRACINHAS_PE = ['espreguicando', 'cocando', 'curioso', 'gracinha', 'brinca
 const GRACINHAS_SENTADO = ['balancando', 'bolinha', 'comendo'];
 function gracinha(lista){ const l = lista.filter(a => a !== ultimaGracinha); const a = sorteia(l); ultimaGracinha = a; return a; }
 // o laço calmo: uma volta devagar, depois parado num quadro por uns segundos
-const calmo = a => [clip(a, { ritmo:.6 }), clip(a, { segura:rnd(1800, 5200) })];
+const calmo = a => [clip(a, { ritmo:.6 }), ...vidaCalma(a)];
+// no lugar da pausa congelada, um idle vivo: em pé fareja ou mexe o rabinho; sentado fareja, coça a orelha com a pata
+// de trás ou deita um pouco de olho aberto e levanta (o levantar é o deitar ao contrário)
+function vidaCalma(a){
+  const r = Math.random();
+  if (a === 'parado'){
+    if (r < .5) return [clip('farejando', { ritmo:.8 })];
+    if (r < .8) return [clip('rabinho', { ritmo:.6 }), clip('rabinho', { ritmo:.6, rev:true })];
+    return [clip(a, { segura:rnd(900, 1800) })];
+  }
+  if (r < .45) return [clip('sentado_farejando', { ritmo:.8 })];
+  if (r < .58) return [clip('cocando_orelha', { ritmo:.9 })];
+  if (r < .72){ const ate = performance.now() + rnd(8000, 20000); return [clip('t_deitar', { ritmo:.7 }), clip('deitado', { ritmo:.6, laco:() => performance.now() < ate && !D.pego && D.modo === 'parado' && D.pose === 'sentado' }), clip('t_deitar', { ritmo:.7, rev:true })]; }
+  return [clip(a, { segura:rnd(900, 1800) })];
+}
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
   const fala = now < D.falandoAte;
@@ -118,7 +132,7 @@ function proximos(now){
   if (D.baixo){
     // com o baixo: toca um pouco, para segurando o baixo, toca de novo
     if (fala || D.pensando) return [clip('tocando_baixo', { segura:900 })];
-    return Math.random() < .55 ? [clip('tocando_baixo', { ritmo:.75 }), clip('tocando_baixo', { ritmo:.75 })] : [clip('tocando_baixo', { segura:rnd(1500, 4000) })];
+    return Math.random() < .55 ? [clip('tocando_baixo', { ritmo:.75 }), clip('tocando_baixo', { ritmo:.75 })] : [clip('baixo_parado', { ritmo:.7 }), clip('baixo_parado', { ritmo:.7 })];   // segura o baixo sem tocar: respira, bate o pezinho
   }
   if (D.pose === 'sentado'){
     if (D.dorme) return [clip('dormindo', { ritmo:.7 })];
@@ -158,7 +172,7 @@ function senta(sim){
 }
 function desenha(now){
   const k = (D.bolinha ? 'b' : '') + (D.baixo ? 'B' : '') + (D.dorme ? 'z' : '') + D.modo + D.pose + (D.pensando ? 't' : '') + (now < D.falandoAte ? 'f' : '') + (D.pego ? 'd' : '');
-  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+|baixo|sentado_dormindo|dormindo_sentado)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
+  if (k !== chave){ if (chave && ![atual, clipes[0]].some(q => q && /^t_(parado_sentado|sentado_parado|quatro_\w+|baixo|sentado_dormindo|dormindo_sentado|deitar)$/.test(q.a))) { clipes = []; atual = null; } chave = k; }
   let m = atual && AT.anims[atual.a], c = m ? Math.floor((now - atual.t0) * m.fps * (atual.ritmo || 1) / 1000) : 0;
   if (m && atual.segura) c = now - atual.t0 < atual.segura ? 0 : m.n;
   if (!m || c >= m.n){
