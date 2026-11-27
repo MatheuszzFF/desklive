@@ -489,10 +489,11 @@ function ferramentas(atos){
           'Seu estado agora: ' + JSON.stringify(eu.estado ?? null).slice(0, 1500),
         ].join('\n');
         const fs = cmds.map(c => ({ name:String(c.nome).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 60), description:c.descricao, inputSchema:c.esquema, execute:async (en, ctx) => { await guardaFora(app + '.' + c.nome, en || {}); const r = await c.roda(en || {}, ctx); return r === undefined ? 'feito' : r; } })).filter(f => !FORA_LER.has(app + '.' + f.name));
-        if (Mesa.aberto(app)) fs.push({ name:'caixa', description:'Move ou redimensiona o seu próprio widget na Mesa. x, y, w, h em px; borda encosta: l, r, t, b, tl, tr, bl, br ou centro. Devolve a caixa nova.',
+        if (Mesa.aberto(app)) fs.unshift({ name:'caixa', description:'Move ou redimensiona o seu próprio widget na Mesa. x, y, w, h em px; borda encosta: l, r, t, b, tl, tr, bl, br ou centro. Devolve a caixa nova.',
           inputSchema:{ type:'object', properties:{ x:{ type:'number' }, y:{ type:'number' }, w:{ type:'number' }, h:{ type:'number' }, borda:{ type:'string', enum:['l','r','t','b','tl','tr','bl','br','centro'] } } }, execute:en => Mesa.move(app, en || {}) });
+        const lim = await sample.limits?.().catch(() => null); if (lim?.tools?.maxCount) tetoFerramentas = lim.tools.maxCount;
         try {
-          const r = await sample([{ role:'user', content:regrasDele + '\n\nPedido do Dengas: ' + pedido }], { model:MODELO, modelTier:'quick', cache:false, signal:ctl?.signal, tools:dentroDosLimites(fs) });
+          const r = await sample([{ role:'user', content:regrasDele + '\n\nPedido do Dengas: ' + pedido }], { model:MODELO, modelTier:'quick', cache:false, signal:ctl?.signal, tools:dentroDosLimites(comSobra(fs)) });
           nota('⚙ ' + (cmds[0].nomeWidget || app)); return String(r.text || 'feito').slice(0, 3000);
         } catch (er) { if (er?.text) return String(er.text).slice(0, 3000); throw new Error('o agente de ' + app + ' não conseguiu (' + (er?.code || 'erro') + '). Tente widget_comando direto.'); }
       } },
@@ -622,6 +623,17 @@ const corta = (t, bytes) => { let r = String(t || ''); while (new TextEncoder().
 const DEPOIS = ['widget_fonte', 'widget_remover', 'mesa_visao', 'mesa_app', 'lembrar', 'abrir_site', 'notas_limpar', 'orbita_procurar_app', 'onda_listar'];
 function comDiario(t){ return { ...t, execute:async (en, ctx) => { const t0 = performance.now(); try { const r = await t.execute(en, ctx); dlog('info', 'ferramenta ' + t.name, { args:en, ms:Math.round(performance.now() - t0), r:typeof r === 'string' ? r.slice(0, 200) : r }); return r; } catch (e) { dlog('erro', 'ferramenta ' + t.name, { args:en, ms:Math.round(performance.now() - t0), erro:String(e?.message || e).slice(0, 300) }); throw e; } } }; }
 function dentroDosLimites(l){ l = [...l.filter(t => !DEPOIS.includes(t.name)), ...l.filter(t => DEPOIS.includes(t.name))]; const nomes = new Set(); return l.filter(t => /^[A-Za-z0-9_-]{1,128}$/.test(t.name) && !nomes.has(t.name) && nomes.add(t.name)).slice(0, tetoFerramentas).map(t => comDiario({ ...t, description:corta(t.description, 1000) })); }
+// app com mais comandos que o teto do host: o que não cabe vira uma ferramenta só, pra nenhum comando sumir calado
+function comSobra(l){
+  if (l.length <= tetoFerramentas) return l;
+  const sobra = l.slice(tetoFerramentas - 1);
+  return [...l.slice(0, tetoFerramentas - 1), {
+    name:'mais_comandos',
+    description:'Roda um comando que não coube na lista: nome e args (objeto). Comandos: ' + sobra.map(t => t.name + ' (' + Object.keys(t.inputSchema?.properties || {}).join(', ') + '): ' + corta(t.description, Math.floor(700 / sobra.length))).join(' | '),
+    inputSchema:{ type:'object', properties:{ nome:{ type:'string', enum:sobra.map(t => t.name) }, args:{ type:'object' } }, required:['nome'] },
+    execute:(en, ctx) => { const t = sobra.find(q => q.name === en?.nome); if (!t) throw new Error('comandos: ' + sobra.map(q => q.name).join(', ')); return t.execute(en.args || {}, ctx); },
+  }];
+}
 async function pergunta(texto){
   texto = String(texto || '').trim(); if (!texto || ctl) return;
   abre(); qEl.value = ''; qEl.style.height = '22px';
