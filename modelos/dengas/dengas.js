@@ -381,7 +381,8 @@ function pintaChips(){
   l.push(D.baixo ? ['Guardar o baixo', () => { pegaBaixo(false); fala('Depois a gente toca mais.'); pintaChips(); }] : ['Bora tocar', () => { pegaBaixo(true); fala('Vamos lá!'); pintaChips(); }]);
   l.push(['Organiza a mesa', () => pergunta('Organiza os widgets abertos de um jeito bom pra esta tela, sem sobrepor.')]);
   if (Mesa.aberto('musica')) l.push(['O que tá tocando?', () => pergunta('O que tá tocando?')]);
-  for (const [t, fn] of l.slice(0, 5)){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = t; b.addEventListener('click', fn); chipsEl.appendChild(b); }
+  l.push([AUTO ? 'Modo auto: ligado ✓' : 'Modo auto: desligado', () => modoAuto(!AUTO)]);
+  for (const [t, fn] of l.slice(0, 6)){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = t; b.addEventListener('click', fn); chipsEl.appendChild(b); }
 }
 function abre(){ if (D.aberto) return; escondeIdeias(); D.aberto = true; D.alvoX = null; falaEl.classList.remove('viva'); pintaChips(); painel.classList.add('aberto'); poePainel(); setTimeout(() => qEl.focus(), 60); }
 function fecha(){ if (!D.aberto) return; D.aberto = false; painel.classList.remove('aberto'); qEl.blur(); D.sentaEm = performance.now() + 2500; }
@@ -592,11 +593,18 @@ function visita(id){ const w = Mesa.caixa(id); if (w && !D.pego && !D.aberto && 
 const dlog = (n, m, d) => window.Board?.diario?.('dengas', n, m, d);
 const FORA_LER = new Set(['janelas.listar_janelas']);
 const FORA_AGIR = { 'janelas.trazer_janela':a => 'trazer "' + (a.janela || '?') + '" pro Board', 'janelas.abrir_programa':a => 'abrir ' + (a.programa || a.alvo || a.caminho || JSON.stringify(a).slice(0, 60)) + ' no PC', 'janelas.fechar_programa':a => 'fechar ' + (a.janela || '?'), 'abrir_site':a => 'abrir ' + String(a.alvo || '').slice(0, 60) };
+/* modo automático: o dono liga uma vez ("Pode sempre", o menu do Board ou o chip) e o Dengas deixa de perguntar.
+   Continua perguntando só o que apaga, desliga ou fecha coisa (pode perder trabalho). Tudo vai pro diário. */
+let AUTO = !!Mesa.le('dengas-auto', false);
+const PERIGOSO = /\b(remove-item|rm|rmdir|del|erase|format|shutdown|stop-computer|restart-computer|stop-process|taskkill|reg\s+delete|set-executionpolicy|clear-content|apagar|deletar|excluir)\b|fechar /i;
+function modoAuto(v){ AUTO = !!v; Mesa.grava('dengas-auto', AUTO); dlog('info', 'modo automático ' + (AUTO ? 'ligado' : 'desligado')); pintaChips?.(); return AUTO; }
+window.Board?.menu?.(() => [{ label:AUTO ? 'Dengas: perguntar antes de agir' : 'Dengas: modo automático (não pergunta)', click:() => modoAuto(!AUTO) }]);
 function pedePermissao(oque){
+  if (AUTO && !PERIGOSO.test(oque)){ dlog('info', 'auto: ' + oque); return Promise.resolve(true); }
   return new Promise(ok => {
     abre(); const el = msg('ele', 'Posso ' + oque + '?'), box = document.createElement('div'); box.className = 'dg-atos';
     let feito = false; const fim = v => { if (feito) return; feito = true; clearTimeout(t); box.remove(); el.append(v ? ' Pode.' : ' Deixa.'); ok(v); };
-    for (const [txt, v] of [['Pode', true], ['Agora não', false]]){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = txt; b.addEventListener('click', () => fim(v)); box.appendChild(b); }
+    for (const [txt, v] of [['Pode', true], ...(PERIGOSO.test(oque) ? [] : [['Pode sempre', 'sempre']]), ['Agora não', false]]){ const b = document.createElement('button'); b.type = 'button'; b.className = 'dg-chip'; b.textContent = txt; b.title = v === 'sempre' ? 'Liga o modo automático: ele para de perguntar (menos o que apaga ou fecha coisa)' : ''; b.addEventListener('click', () => { if (v === 'sempre') modoAuto(true); fim(!!v); }); box.appendChild(b); }
     el.appendChild(box); msgsEl.scrollTop = msgsEl.scrollHeight;
     const t = setTimeout(() => fim(false), 60000); ctl?.signal?.addEventListener('abort', () => fim(false));
   });
