@@ -17,7 +17,8 @@ const ccLog = (n, m, d) => window.Board?.diario?.('dengas:cerebro', n, m, d);
 /*JS:dengas/cerebro/rede.js*/
 /*JS:dengas/cerebro/hipocampo.js*/
 /*JS:dengas/cerebro/cerebelo.js*/
-const CC_LIVRES = ['mcp__dengas', 'Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'Artifact', 'ArtifactData', 'ArtifactComments', 'Skill', 'ToolSearch', 'TodoWrite'];
+// regra do dono: nada fora do Board sem ele dizer que pode; ler arquivo do PC (Read/Glob/Grep) também pergunta
+const CC_LIVRES = ['mcp__dengas', 'WebSearch', 'WebFetch', 'Artifact', 'ArtifactData', 'ArtifactComments', 'Skill', 'ToolSearch', 'TodoWrite'];
 
 async function ccPreparar(){
   if (CC.desligado) return false;
@@ -91,6 +92,8 @@ function ccPedidoDe(nome, ent){
   const s = v => String(v ?? '').slice(0, 140);
   if (nome === 'Bash' || nome === 'PowerShell') return 'rodar no PC: ' + s(ent.command);
   if (nome === 'Write') return 'escrever o arquivo ' + s(ent.file_path);
+  if (nome === 'Read') return 'ler o arquivo ' + s(ent.file_path);
+  if (nome === 'Glob' || nome === 'Grep') return 'procurar nos arquivos do PC (' + s(ent.pattern) + (ent.path ? ' em ' + s(ent.path) : '') + ')';
   if (nome === 'Edit' || nome === 'NotebookEdit') return 'mudar o arquivo ' + s(ent.file_path || ent.notebook_path);
   const m = /^mcp__([^_]+)__(.+)$/.exec(nome); if (m) return 'usar ' + m[2] + ' (' + m[1] + ')';
   return 'usar ' + nome;

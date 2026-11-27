@@ -23,7 +23,7 @@ A conversa do Dengas é o **Claude Code do dono** rodando no PC dele, com a pers
 - O Claude Code também guarda e busca direto: `memoria_guardar` e `memoria_buscar` (pela ponte).
 
 ## O que o Claude Code pode sem perguntar
-Ler arquivos, procurar, pesquisar na web, criar artefatos, habilidades e todas as ferramentas da Mesa (as travas de "fora do Board" continuam na página). Rodar comando, escrever ou apagar arquivo e o resto pedem permissão no chat (`--permission-prompt-tool`).
+Pesquisar na web, criar artefatos, habilidades e todas as ferramentas da Mesa (as travas de "fora do Board" continuam na página). Ler ou procurar arquivos do PC, rodar comando, escrever ou apagar arquivo e o resto pedem permissão no chat (`--permission-prompt-tool`).
 
 ## Diagnóstico
 `Mesa.dengasCerebro()` (estado: Claude Code ligado, sessão, rede, hipocampo, cerebelo), `Mesa.dengasCerebro.amigdala(texto)`, `Mesa.dengasCerebro.consolidar()`. O diário do Board (`~/.orbita/logs`) registra `dengas:cerebro`.
