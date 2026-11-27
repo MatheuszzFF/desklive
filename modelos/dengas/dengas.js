@@ -110,17 +110,19 @@ function gracinha(lista){ const l = lista.filter(a => a !== ultimaGracinha); con
 const calmo = a => [clip(a, { ritmo:.6 }), ...vidaCalma(a)];
 // no lugar da pausa congelada, um idle vivo: em pé fareja ou mexe o rabinho; sentado fareja, coça a orelha com a pata
 // de trás ou deita um pouco de olho aberto e levanta (o levantar é o deitar ao contrário)
+// ritmo do idle: muito tempo quieto (respirando, farejando de leve), coçar a orelha e deitar são raros
+let cocouEm = -1e9;
 function vidaCalma(a){
-  const r = Math.random();
+  const r = Math.random(), quieto = () => clip(a, { segura:rnd(2500, 6000) });
   if (a === 'parado'){
-    if (r < .5) return [clip('farejando', { ritmo:.8 })];
-    if (r < .8) return [clip('rabinho', { ritmo:.6 }), clip('rabinho', { ritmo:.6, rev:true })];
-    return [clip(a, { segura:rnd(900, 1800) })];
+    if (r < .35) return [clip('farejando', { ritmo:.7 }), quieto()];
+    if (r < .55) return [clip('rabinho', { ritmo:.5 }), clip('rabinho', { ritmo:.5, rev:true }), quieto()];
+    return [quieto()];
   }
-  if (r < .45) return [clip('sentado_farejando', { ritmo:.8 })];
-  if (r < .58) return [clip('cocando_orelha', { ritmo:.9 })];
-  if (r < .72){ const ate = performance.now() + rnd(8000, 20000); return [clip('t_deitar', { ritmo:.7 }), clip('deitado', { ritmo:.6, laco:() => performance.now() < ate && !D.pego && D.modo === 'parado' && D.pose === 'sentado' }), clip('t_deitar', { ritmo:.7, rev:true })]; }
-  return [clip(a, { segura:rnd(900, 1800) })];
+  if (r < .3) return [clip('sentado_farejando', { ritmo:.7 }), quieto()];
+  if (r < .38 && performance.now() - cocouEm > 60000){ cocouEm = performance.now(); return [clip('cocando_orelha', { ritmo:.8 }), quieto()]; }
+  if (r < .52){ const ate = performance.now() + rnd(15000, 40000); return [clip('t_deitar', { ritmo:.6 }), clip('deitado', { ritmo:.5, laco:() => performance.now() < ate && !D.pego && D.modo === 'parado' && D.pose === 'sentado' }), clip('t_deitar', { ritmo:.6, rev:true }), quieto()]; }
+  return [quieto()];
 }
 function zonaOlhar(now){ if (now - D.mouse.at > 2600) return ''; const dx = D.mouse.x - D.x, dy = D.mouse.y - (D.y - 70); if (Math.hypot(dx, dy) < 130) return ''; if (dy < 0 && -dy > Math.abs(dx) * 1.2) return 'cima'; return dx < 0 ? 'esq' : 'dir'; }
 function proximos(now){
