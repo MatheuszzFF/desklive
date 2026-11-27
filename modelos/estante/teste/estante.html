@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Estante · simulador isolado</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+/* O simulador isolado da Estante: uma moldura de mentira (arrasta, redimensiona com mola, sabe a orientação),
+   o objeto Mesa com a mesma interface da ponte do Board, um console de comandos (o que o agente do Dengas chama)
+   e cenários automáticos (?testes). Nada de Board, nada de Claude de verdade. */
+html,body{margin:0;height:100%;background:radial-gradient(1200px 700px at 30% 20%,#1d2140,#07080e);color:#eef0ff;font:13px Inter,system-ui,sans-serif;overflow:hidden}
+#mold{position:absolute;left:60px;top:60px;width:620px;height:300px;border-radius:22px;background:rgba(10,11,16,.92);border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.55);padding:14px 16px;box-sizing:border-box;overflow:hidden;cursor:grab}
+#mold.mola{transition:width .55s cubic-bezier(.2,1.25,.3,1),height .55s cubic-bezier(.2,1.25,.3,1)}
+#mold .alca{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize}
+#console{position:absolute;right:12px;top:12px;bottom:12px;width:330px;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1)}
+#console select,#console textarea,#console button{font:12px "JetBrains Mono",monospace;background:rgba(255,255,255,.05);color:#eef0ff;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px}
+#console textarea{height:110px;resize:vertical}#out{flex:1;overflow:auto;white-space:pre-wrap;font:11.5px "JetBrains Mono",monospace;color:#a7adc6}
+#aviso{position:absolute;left:50%;bottom:20px;translate:-50% 0;padding:8px 14px;border-radius:999px;background:rgba(62,230,212,.15);border:1px solid rgba(62,230,212,.4);opacity:0;transition:opacity .3s}
+</style></head><body>
+<div id="camada"></div>
+<div id="mold"><div id="corpo" style="height:100%"></div><i class="alca"></i></div>
+<div id="console"><b>Comandos da Estante (o que o agente chama)</b><select id="cmd"></select><textarea id="args">{}</textarea><button id="rodar">Rodar</button><button id="estado">Ver estado</button><div id="out"></div></div>
+<div id="aviso"></div>
+<script>
+if (location.search.includes("testes")) localStorage.clear();
+const LOG = [], log = (...a) => { LOG.push(a.join(' ')); document.getElementById('out').textContent = LOG.slice(-60).join('\n'); };
+const W = {}, AG = {};
+const mold = document.getElementById('mold');
+const Mesa = {
+  camada:document.getElementById('camada'),
+  define(def){
+    const corpo = document.getElementById('corpo'), chave = 'estante-sim-' + def.id;
+    const m = { estado:() => { const r = mold.getBoundingClientRect(); return { orient:r.width >= r.height ? 'h' : 'v', classe:(r.width >= r.height ? 'h-' : 'v-') + (Math.max(r.width, r.height) >= 760 ? 'xl' : Math.max(r.width, r.height) >= 520 ? 'lg' : Math.max(r.width, r.height) >= 340 ? 'md' : 's'), w:r.width, h:r.height }; },
+      redimensionar(w, h){ mold.classList.add('mola'); if (w) mold.style.width = Math.min(innerWidth - 420, w) + 'px'; if (h) mold.style.height = Math.min(innerHeight - 80, h) + 'px'; setTimeout(() => { mold.classList.remove('mola'); W[def.id]?.inst?.aoMudar?.(m.estado()); }, 600); } };
+    const api = { id:def.id, corpo, moldura:m, ler:(d = {}) => { try { return JSON.parse(localStorage.getItem(chave)) ?? d; } catch { return d; } }, salvar:v => localStorage.setItem(chave, JSON.stringify(v)),
+      emitir:(t, d) => log('evento', def.id + ':' + t, JSON.stringify(d)), ouvir:() => {}, podePC:() => false, host:() => null, ps:async () => '', avisar:t => { const a = document.getElementById('aviso'); a.textContent = t; a.style.opacity = 1; clearTimeout(a._t); a._t = setTimeout(() => a.style.opacity = 0, 2500); log('aviso', t); } };
+    const inst = def.monta(corpo, api) || {}; W[def.id] = { def, inst, m };
+    const vista = () => { const e = m.estado(), v = inst.vistas || {}; (Math.max(e.w, e.h) < 220 && v.xs ? v.xs : v.padrao)?.(corpo, e); };
+    new ResizeObserver(vista).observe(mold); vista();
+    const sel = document.getElementById('cmd'); sel.innerHTML = (inst.comandos || []).map(c => `<option>${c.nome}</option>`).join('');
+  },
+  agente(id, regras){ AG[id] = regras; },
+  comandos:() => Object.entries(W).flatMap(([id, w]) => (w.inst.comandos || []).map(c => ({ ...c, widget:id }))),
+  sample:() => window.SAMPLE_FALSO || null,
+};
+// arrastar e redimensionar a moldura de mentira
+{ let g = null; mold.addEventListener('pointerdown', e => { if (e.target.closest('button,input,.hit,.mbg,.es-val,.es-rep li,svg')) return; const r = mold.getBoundingClientRect(); g = { x:e.clientX, y:e.clientY, l:r.left, t:r.top, w:r.width, h:r.height, alca:!!e.target.closest('.alca') }; mold.setPointerCapture(e.pointerId); });
+  mold.addEventListener('pointermove', e => { if (!g) return; const dx = e.clientX - g.x, dy = e.clientY - g.y; if (g.alca){ mold.style.width = Math.max(200, g.w + dx) + 'px'; mold.style.height = Math.max(80, g.h + dy) + 'px'; } else { mold.style.left = g.l + dx + 'px'; mold.style.top = g.t + dy + 'px'; } W.estante?.inst?.aoMudar?.(); });
+  mold.addEventListener('pointerup', () => { if (g?.alca) W.estante?.inst?.aoMudar?.(); g = null; }); }
+document.getElementById('rodar').onclick = async () => { const c = Mesa.comandos().find(q => q.nome === document.getElementById('cmd').value); let a = {}; try { a = JSON.parse(document.getElementById('args').value || '{}'); } catch (e) { return log('args inválidos:', e.message); }
+  try { log('→', c.nome, JSON.stringify(a)); log('←', JSON.stringify(await c.roda(a)).slice(0, 600)); } catch (e) { log('✗', e.message); } };
+document.getElementById('estado').onclick = () => log(JSON.stringify(W.estante.inst.estado(), null, 1));
+</script>
+<script src="../teoria.js"></script><script src="../musica.js"></script><script src="../frases.js"></script><script src="../estudo.js"></script>
+<script src="../partitura.js"></script><script src="../som.js"></script><script src="../baloes.js"></script><script src="../estante.js"></script>
+<script src="cenarios.js"></script>
+</body></html>
