@@ -173,8 +173,8 @@ Mesa.define({
       S.onda.ligada = !!on; clearInterval(ondaTimer); ondaEst = null;
       if (!on){ tocador.externo(null); $('.es-onda').hidden = true; salva(); return; }
       const lido = { s:null, em:0, toca:false };
-      ondaTimer = setInterval(async () => { const j = await leOnda(); ondaEst = j; if (j){ lido.s = Number(j.posicao_s) || 0; lido.em = performance.now(); lido.toca = j.status === 'tocando' || j.status === 'playing' || j.tocando?.status === 'playing' || j.playing === true; }
-        $('.es-onda').hidden = false; $('.es-onda').innerHTML = j ? `Onda: <b>${esc(j.tocando?.nome || j.tocando || 'tocando')}</b> <button type="button" data-a="marca">marcar o 1º tempo</button>` : 'Onda: sem leitura (ela está aberta e tocando?)'; }, 1000);
+      ondaTimer = setInterval(async () => { const j = await leOnda(); ondaEst = j; if (j){ lido.toca = j.status === 'tocando'; lido.s = (Number(j.posicao_s) || 0) + (lido.toca ? Math.max(0, Date.now() - j.updated) / 1000 : 0); lido.em = performance.now(); }
+        $('.es-onda').hidden = false; $('.es-onda').innerHTML = j ? `Onda: <b>${esc([j.tocando?.titulo, j.tocando?.artista].filter(Boolean).join(' · ') || 'música')}</b> ${esc(j.status || '')} <button type="button" data-a="marca">marcar o 1º tempo</button>` : 'Onda: sem leitura (ela está aberta e tocando?)'; }, 1000);
       tocador.externo({ tempo:() => lido.s == null ? null : lido.s + (lido.toca ? (performance.now() - lido.em) / 1000 : 0), tocando:() => lido.toca, offset:() => S.onda.offset || 0 });
       salva();
     }
