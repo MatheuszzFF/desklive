@@ -619,6 +619,7 @@ async function pergunta(texto){
   abre(); qEl.value = ''; qEl.style.height = '22px';
   const sample = Mesa.sample();
   msg('eu', texto); dlog('info', 'pedido', { texto:texto.slice(0, 300) });
+  if (await perguntaCC(texto)) return;   // cerebro.js: o Claude Code do dono, quando o PC tem; senão segue pelo Claude do artefato
   if (!sample){ msg('erro', 'Aqui eu ainda não tenho o Claude: abra a Mesa pelo app do Claude.'); return; }
   turnos.push({ role:'user', content:texto }); while (turnos.length > 14) turnos.splice(0, 2);
   const ele = msg('ele pensa', 'Pensando…'), atos = [];
@@ -658,6 +659,7 @@ Mesa.icone = tam => {
   if (atlas.naturalWidth) q.drawImage(atlas, 24, 18, 48, 48, 20 * k, 22 * k, 216 * k, 216 * k);
   return c.toDataURL('image/png');
 };
+/*JS:dengas/cerebro.js*/   // o cérebro: o Claude Code do dono com a persona do Dengas (arquivo próprio)
 /*JS:dengas/encaixe.js*/   // onde e como ele gruda na beira (bolinha nos cantos, espiando nas laterais): arquivo próprio
 Mesa.dengas = { fala, pergunta, abre, fecha, vai, virarBola, desvirarBola, estado:() => ({ x:Math.round(D.x), y:Math.round(D.y), modo:D.modo, pose:D.pose, em:D.em, aberto:D.aberto, bolinha:D.bolinha }) };
 if (D.bolinha?.vert || D.bolinha?.espia) virarBola(D.bolinha); else D.bolinha = null;   // bolinha salva na lateral (versão anterior) volta a ser o ratinho
