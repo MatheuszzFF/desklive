@@ -11,6 +11,7 @@ Mudanças no repositório de docs, da mais nova pra mais antiga. Refino de app g
 - **Dengas:** a bolinha é só nos cantos; na lateral ele fica **espiando da borda** (pés na beira, metade do corpo pra fora, inclinado 16° pra dentro, olhando pro meio da tela, pega só pela metade visível). O encaixe mora em `modelos/dengas/encaixe.js` (entra no bloco do `dengas.js` por marcador).
 - Ponte: o ajudante PowerShell (Janelas, navegador) escreve no diário `~/.orbita/logs` como `ajudante:<nome>`: ligou, saiu, sem resposta, cada comando e o `move` só quando passa de 300 ms.
 - Dengas: o embalo do arremesso projeta no máximo 120 px na vertical (soltar no meio da lateral espia; não pula pro canto).
+- **Cérebro do Dengas:** a conversa é o Claude Code do dono (sessão que continua, memória, artefatos), com a arquitetura neural do Jarvis aplicada: tronco (ponte MCP), DNA, amígdala, hipocampo, córtex, cerebelo e a rede neural de 6 setores com sinapses. Sem Jarvis. Ver [apps/dengas/cerebro.md](apps/dengas/cerebro.md).
 - **Barra** (`modelos/barra/`, opcional): com o Board aberto, a barra de tarefas do Windows fica escondida nas duas telas (ShowWindow na janela dela, a cada segundo); volta ao fechar o Board; item no menu pra mostrar.
 - **Dengas:** idles vivos (farejar, rabinho, coçar a orelha com a pata de trás, deitar de olho aberto, baixo parado) no lugar das pausas congeladas; dentinhos de volta no atlas.
 - Ponte: `.alvo` sem peso (`:where`): o painel e o balão fechados do Dengas não pegam mais clique no canto de cima.

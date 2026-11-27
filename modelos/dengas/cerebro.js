@@ -12,6 +12,11 @@ const CC = { proc:null, buf:'', err:'', sessao:Mesa.le('dengas-cc-sessao', null)
 const FSd = () => window.Board?.FS || Mesa.host()?.fs;
 const ccLog = (n, m, d) => window.Board?.diario?.('dengas:cerebro', n, m, d);
 // o que o Claude Code pode usar sem perguntar (o resto passa pela permissão no chat)
+/*JS:dengas/cerebro/dna.js*/
+/*JS:dengas/cerebro/amigdala.js*/
+/*JS:dengas/cerebro/rede.js*/
+/*JS:dengas/cerebro/hipocampo.js*/
+/*JS:dengas/cerebro/cerebelo.js*/
 const CC_LIVRES = ['mcp__dengas', 'Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'Artifact', 'ArtifactData', 'ArtifactComments', 'Skill', 'ToolSearch', 'TodoWrite'];
 
 async function ccPreparar(){
@@ -33,22 +38,13 @@ async function ccPreparar(){
   })();
 }
 
-function ccPersona(){
-  const base = regras().split('\n').filter(l => !/^(A Mesa agora|Agora:|Pedidos recentes|Conectores da conta)/.test(l));
-  return [...base,
-    'Você roda como o Claude Code do seu dono, no PC dele, na pasta do usuário: tem a memória dele (MEMORY.md e as notas que ela aponta), o histórico desta conversa (ela continua entre um pedido e outro, mesmo depois de reabrir o Board) e as ferramentas do Claude Code.',
-    'As ferramentas mcp__dengas__* são as suas mãos na Mesa: o nome depois de mcp__dengas__ é o mesmo das ferramentas citadas acima (mesa_estado, mesa_widget, widget_comando, agente, internet, lembrar...). Pra saber o que está na Mesa agora, use mcp__dengas__mesa_estado.',
-    'Você pode criar artefatos (ferramenta Artifact: páginas, painéis, relatórios) quando ajudar; depois diga em uma frase o que fez e passe o link.',
-    'Ler arquivos, pesquisar na web, criar artefatos e mexer na Mesa você faz direto. Rodar comando, escrever ou apagar arquivo e qualquer coisa fora da Mesa pede permissão: o app pergunta pro dono no chat (Pode / Agora não). Se ele disser não, deixe quieto.',
-    'Sua resposta aparece num chat pequeno ao lado do Dengas: fale curto (no máximo umas 6 linhas), sem títulos nem tabelas, a não ser que o dono peça detalhe.',
-  ].join('\n');
-}
+const ccPersona = () => dna();   // cerebro/dna.js
 
 function ccLigar(){
   const args = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
     '--append-system-prompt', ccPersona(), '--mcp-config', CC.casa + '\\.orbita\\dengas\\mcp.json', '--strict-mcp-config',
     '--permission-prompt-tool', 'mcp__dengas__permissao', '--allowedTools', CC_LIVRES.join(',')];
-  if (CC.sessao) args.push('--resume', CC.sessao);
+  if (CC.sessao) args.push('--resume', CC.sessao); CC.novaSessao = !CC.sessao;
   const p = Mesa.host().childProcess.spawn(CC.claude, args, { cwd:CC.casa });
   CC.proc = p; CC.buf = ''; CC.err = '';
   ccLog('info', 'ligou', { continua:!!CC.sessao });
@@ -101,10 +97,10 @@ function ccPedidoDe(nome, ent){
 }
 async function ccAtende(q){
   try {
-    if (q.tipo === 'lista') return { ferramentas:ferramentas(CC.turno?.atosM || []).filter(t => /^[A-Za-z0-9_-]{1,60}$/.test(t.name)).map(t => ({ name:t.name, description:t.description, inputSchema:t.inputSchema })) };
+    if (q.tipo === 'lista') return { ferramentas:[...ferramentas(CC.turno?.atosM || []), ...FERR_MEMORIA].filter(t => /^[A-Za-z0-9_-]{1,60}$/.test(t.name)).map(t => ({ name:t.name, description:t.description, inputSchema:t.inputSchema })) };
     if (q.tipo === 'permissao'){ const ok = await pedePermissao(ccPedidoDe(String(q.ferramenta || ''), q.entrada || {})); ccLog(ok ? 'info' : 'aviso', (ok ? 'liberou ' : 'negou ') + q.ferramenta); return { ok }; }
     if (q.tipo === 'ferramenta'){
-      const t = ferramentas(CC.turno?.atosM || []).find(f => f.name === q.nome); if (!t) return { erro:'não existe a ferramenta ' + q.nome };
+      const t = [...ferramentas(CC.turno?.atosM || []), ...FERR_MEMORIA].find(f => f.name === q.nome); if (!t) return { erro:'não existe a ferramenta ' + q.nome };
       const r = await t.execute(q.args || {}, { signal:ctl?.signal }); CC.turno?.mostra?.();
       return { resultado:typeof r === 'string' ? r.slice(0, 20000) : JSON.stringify(r ?? 'feito').slice(0, 20000) };
     }
@@ -112,18 +108,29 @@ async function ccAtende(q){
   } catch (e) { return { erro:String(e?.message || e).slice(0, 600) }; }
 }
 
+const FERR_MEMORIA = [
+  { name:'memoria_guardar', description:'Guarda uma memória de longo prazo (um neurônio) num setor: decisoes, sessoes, padroes, incidentes, planos ou conhecimento. texto: uma frase curta em terceira pessoa ("O dono prefere..."). entidades: 2 a 6 palavras-chave (pessoas, apps, projetos, assuntos).',
+    inputSchema:{ type:'object', properties:{ setor:{ type:'string', enum:SETORES }, texto:{ type:'string' }, entidades:{ type:'array', items:{ type:'string' } } }, required:['setor', 'texto'] },
+    async execute(a){ await redeCarregar(); const id = redeGuardar(a); if (!id) throw new Error('memória curta demais'); CC.turno?.atos.push('guardou na memória'); return { guardado:id, rede:redeResumo() }; } },
+  { name:'memoria_buscar', description:'Procura nas memórias de longo prazo do Dengas (todos os setores) as que combinam com a busca.',
+    inputSchema:{ type:'object', properties:{ busca:{ type:'string' } }, required:['busca'] },
+    async execute({ busca }){ await redeCarregar(); return redeLembrar(busca, [], { max:10, orcamento:3000, reforcar:false }); } },
+];
 // devolve true se respondeu pelo Claude Code; false pra seguir pelo caminho de antes
 async function perguntaCC(texto){
   if (!(await ccPreparar())) return false;
+  await Promise.all([redeCarregar(), hipoCarregar()]);
+  const amig = amigdala(texto), lemb = redeLembrar(texto, amig.setores);   // amígdala e rede neural antes do Claude
   const ele = msg('ele pensa', 'Pensando…'), c = ctl = new AbortController(); D.pensando = true; painel.classList.add('pensando');
-  const t = { texto:'', atos:[], atosM:[], mostra(){
+  const t = { texto:'', atos:lemb.length ? ['lembrou ' + lemb.length] : [], atosM:[], mostra(){
     const tudo = [...t.atos, ...t.atosM]; if (!t.texto && !tudo.length) return;
     D.pensando = false; D.falandoAte = performance.now() + 500; ele.classList.remove('pensa'); ele.textContent = t.texto.replace(/\*\*(.+?)\*\*/g, '$1') || '…';
     if (tudo.length){ const box = document.createElement('div'); box.className = 'dg-atos'; for (const a of tudo){ const s = document.createElement('span'); s.className = 'dg-ato'; s.textContent = a; box.appendChild(s); } ele.appendChild(box); }
     msgsEl.scrollTop = msgsEl.scrollHeight; } };
   const r = await new Promise(fim => {
     t.fim = fim; CC.turno = t;
-    try { if (!CC.proc) ccLigar(); CC.proc.stdin.write(JSON.stringify({ type:'user', message:{ role:'user', content:'[agora: ' + new Date().toLocaleString('pt-BR', { weekday:'long', hour:'2-digit', minute:'2-digit' }) + ']\n' + texto } }) + '\n'); }
+    try { if (!CC.proc) ccLigar(); const ctx = ['[agora: ' + new Date().toLocaleString('pt-BR', { weekday:'long', hour:'2-digit', minute:'2-digit' }) + ']', linhaAmigdala(amig), linhaLembrancas(lemb), CC.novaSessao ? hipoFio() : ''].filter(Boolean).join('\n'); CC.novaSessao = false;
+    CC.proc.stdin.write(JSON.stringify({ type:'user', message:{ role:'user', content:ctx + '\n' + texto } }) + '\n'); }
     catch (e) { CC.turno = null; fim({ erro:String(e?.message || e) }); }
     c.signal.addEventListener('abort', () => { if (CC.turno === t){ CC.turno = null; try { CC.proc?.kill(); } catch {} CC.proc = null; fim({ cancelado:true }); } });
     setTimeout(() => { if (CC.turno === t){ CC.turno = null; try { CC.proc?.kill(); } catch {} CC.proc = null; fim({ erro:'demorou demais (5 min)' }); } }, 300000);
@@ -143,8 +150,11 @@ async function perguntaCC(texto){
     return true;
   }
   t.texto = r.texto || t.texto; t.mostra();
+  hipoRegistrar(texto, t.texto, amig); cerebeloAgendar();   // hipocampo agora; o cerebelo consolida quando a conversa parar
+  ccLog('info', 'turno', { amigdala:amig, lembrancas:lemb.map(q => q.id) });
   turnos.push({ role:'user', content:texto }, { role:'assistant', content:t.texto }); while (turnos.length > 14) turnos.splice(0, 2);
   mem.usos.push(texto.slice(0, 80)); while (mem.usos.length > 24) mem.usos.shift(); guardaMem();
   return true;
 }
-Mesa.dengasCerebro = () => ({ claudeCode:!CC.desligado && !!CC.claude, motivo:CC.motivo || undefined, sessao:CC.sessao, ligado:!!CC.proc });
+Mesa.dengasCerebro = () => ({ claudeCode:!CC.desligado && !!CC.claude, motivo:CC.motivo || undefined, sessao:CC.sessao, ligado:!!CC.proc, rede:redeResumo(), hipocampo:{ trocas:HIPO.trocas.length, pendentes:hipoPendentes().length }, cerebelo:{ rodando:CEREB.rodando, ultimo:CEREB.ultimo || null } });
+Mesa.dengasCerebro.amigdala = amigdala; Mesa.dengasCerebro.consolidar = () => cerebeloConsolidar();
